@@ -89,8 +89,10 @@ export default function Admin() {
         </div>
 
         {/* Вердикт */}
-        <div style={{ ...S.card, marginTop: 20, borderLeft: `5px solid ${r.fit.startsWith("Высокое") ? "#2E9E87" : r.fit.startsWith("Среднее") ? "#D98E2B" : "#E25C44"}` }}>
-          <div style={{ ...S.display, fontSize: 17, fontWeight: 700 }}>{r.fit} ({r.thisRoleFit.fit}%)</div>
+        <div style={{ ...S.card, marginTop: 20, borderLeft: `5px solid ${r.isRecommended ? "#2E9E87" : r.fit.startsWith("Высокое") ? "#2E9E87" : r.fit.startsWith("Среднее") ? "#D98E2B" : "#E25C44"}` }}>
+          <div style={{ ...S.display, fontSize: 17, fontWeight: 700 }}>
+            {r.isRecommended ? `Рекомендуемая должность: ${r.role.name}` : r.fit} ({r.thisRoleFit.fit}%)
+          </div>
           <p style={{ margin: "8px 0 0", lineHeight: 1.55, color: "#44413B" }}>{r.fitNote}</p>
         </div>
 
@@ -170,18 +172,29 @@ export default function Admin() {
 
         {/* Соответствие должностям */}
         <div style={S.card}>
-          <div style={{ ...S.display, fontSize: 15, fontWeight: 700, marginBottom: 12 }}>Соответствие должностям</div>
-          {r.roleMatches.slice(0, 6).map((m) => (
-            <div key={m.roleId} style={{ marginBottom: 10 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 14, marginBottom: 5 }}>
-                <span style={{ fontWeight: m.roleId === open.position_id ? 700 : 400 }}>
-                  {m.roleName}{m.roleId === open.position_id ? " (выбранная)" : ""}
-                </span>
-                <span style={{ color: "#8A867E" }}>{m.fit}%</span>
-              </div>
-              <Bar pct={m.fit} color={m.roleId === open.position_id ? "#1C1B1A" : "#D8D5CF"} />
+          <div style={{ ...S.display, fontSize: 15, fontWeight: 700, marginBottom: 4 }}>
+            {r.isRecommended ? "Рейтинг соответствия должностям" : "Соответствие должностям"}
+          </div>
+          {r.isRecommended && (
+            <div style={{ fontSize: 13, color: "#8A867E", marginBottom: 14 }}>
+              Должность не выбиралась заранее — кандидат проходил тест без привязки к роли.
             </div>
-          ))}
+          )}
+          {(r.isRecommended ? r.roleMatches : r.roleMatches.slice(0, 6)).map((m, i) => {
+            const isTop = m.roleId === r.thisRoleFit.roleId;
+            return (
+              <div key={m.roleId} style={{ marginBottom: 10 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 14, marginBottom: 5 }}>
+                  <span style={{ fontWeight: isTop ? 700 : 400 }}>
+                    {r.isRecommended ? `${i + 1}. ` : ""}{m.roleName}
+                    {isTop ? (r.isRecommended ? " (рекомендуемая)" : " (выбранная)") : ""}
+                  </span>
+                  <span style={{ color: "#8A867E" }}>{m.fit}%</span>
+                </div>
+                <Bar pct={m.fit} color={isTop ? "#1C1B1A" : "#D8D5CF"} />
+              </div>
+            );
+          })}
         </div>
 
         {/* Слабые зоны + вопросы */}
@@ -236,7 +249,7 @@ export default function Admin() {
             <div>
               <div style={{ fontWeight: 700 }}>{item.candidate_name}</div>
               <div style={{ fontSize: 13, color: "#8A867E", marginTop: 2 }}>
-                {posName}{schoolName ? ` · ${schoolName}` : ""} · {typeName} · {new Date(item.created_at).toLocaleDateString("ru-RU")} · соответствие {item.fit}%
+                {item.position_recommended ? `Рекомендуется: ${posName}` : posName}{schoolName ? ` · ${schoolName}` : ""} · {typeName} · {new Date(item.created_at).toLocaleDateString("ru-RU")} · {item.fit}%
               </div>
               {top3.length > 0 && (
                 <div style={{ fontSize: 13, color: "#44413B", marginTop: 4 }}>Топ-3: {top3.join(", ")}</div>

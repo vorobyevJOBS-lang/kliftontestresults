@@ -67,7 +67,7 @@ function DomainTag({ domain }) {
 // ─────────────────────────────────────────────────────────────
 // РАСЧЁТ РЕЗУЛЬТАТА
 // ─────────────────────────────────────────────────────────────
-function computeResult(answers, positionId) {
+function computeResult(answers, positionId, schoolPositionIds) {
   const scores = {};
   Object.keys(TALENTS).forEach((k) => { scores[k] = 0; });
   answers.forEach((side, i) => {
@@ -104,41 +104,51 @@ function computeResult(answers, positionId) {
 
   // соответствие должностям — на z-оценках: важно не "сколько процентов набрал",
   // а выделяется ли этот талант на фоне остального профиля человека
-  const role = ROLE_PROFILES[positionId];
   const allZ = talentScores.map((t) => t.z);
   const minZ = Math.min(...allZ), maxZ = Math.max(...allZ);
-  const roleMatches = Object.entries(ROLE_PROFILES).map(([roleId, r]) => {
-    let weighted = 0, totalWeight = 0;
-    Object.entries(r.weights).forEach(([talentId, weight]) => {
-      const t = talentScores.find((x) => x.id === talentId);
-      weighted += (t ? t.z : 0) * weight;
-      totalWeight += weight;
-    });
-    const avgZ = weighted / totalWeight; // средняя z-оценка по ключевым талантам роли, взвешенная
-    // переводим в 0-100%, растягивая диапазон возможных z-оценок этого профиля
-    const span = (maxZ - minZ) || 1;
-    const fit = Math.round(((avgZ - minZ) / span) * 100);
-    return { roleId, roleName: r.name, fit: Math.max(0, Math.min(100, fit)) };
-  }).sort((a, b) => b.fit - a.fit);
+  const allowedIds = schoolPositionIds || Object.keys(ROLE_PROFILES);
+  let roleMatches = Object.entries(ROLE_PROFILES)
+    .filter(([roleId]) => allowedIds.includes(roleId))
+    .map(([roleId, r]) => {
+      let weighted = 0, totalWeight = 0;
+      Object.entries(r.weights).forEach(([talentId, weight]) => {
+        const t = talentScores.find((x) => x.id === talentId);
+        weighted += (t ? t.z : 0) * weight;
+        totalWeight += weight;
+      });
+      const avgZ = weighted / totalWeight; // средняя z-оценка по ключевым талантам роли, взвешенная
+      // переводим в 0-100%, растягивая диапазон возможных z-оценок этого профиля
+      const span = (maxZ - minZ) || 1;
+      const fit = Math.round(((avgZ - minZ) / span) * 100);
+      return { roleId, roleName: r.name, fit: Math.max(0, Math.min(100, fit)) };
+    }).sort((a, b) => b.fit - a.fit);
 
-  const thisRoleFit = roleMatches.find((r) => r.roleId === positionId) || roleMatches[0];
+  // Для кандидата без выбранной должности — берём лучшее совпадение как "рекомендуемую" роль.
+  // Для сотрудника — используем выбранную должность.
+  const effectivePositionId = positionId || roleMatches[0].roleId;
+  const role = ROLE_PROFILES[effectivePositionId];
+  const thisRoleFit = roleMatches.find((r) => r.roleId === effectivePositionId) || roleMatches[0];
+  const isRecommended = !positionId; // true для кандидата — должность определена автоматически
 
-  // ключевые таланты для выбранной должности, отсортированные по весу
+  // ключевые таланты для оцениваемой должности, отсортированные по весу
   const keyTalentIds = Object.entries(role.weights).sort((a, b) => b[1] - a[1]).map(([id]) => id);
   const keyTalents = keyTalentIds.map((id) => talentScores.find((t) => t.id === id));
   const avgKeyRank = keyTalents.reduce((a, t) => a + t.rank, 0) / keyTalents.length;
   const weakKeys = keyTalents.filter((t) => t.rank > 12).sort((a, b) => b.rank - a.rank);
 
   let fit, fitNote;
-  if (avgKeyRank <= 7 && weakKeys.length === 0) {
+  if (isRecommended) {
+    fit = "Рекомендуемая должность определена автоматически";
+    fitNote = `По результатам теста наиболее подходящая роль для кандидата — «${role.name}» (${thisRoleFit.fit}%). Ниже приведён полный рейтинг соответствия всем должностям — он показывает, где у кандидата больше шансов быть результативным.`;
+  } else if (avgKeyRank <= 7 && weakKeys.length === 0) {
     fit = "Высокое соответствие должности";
-    fitNote = `Ключевые для роли «${role.name}» качества в среднем занимают ${avgKeyRank.toFixed(1)}-е место в профиле кандидата (из 20) — входят в число наиболее выраженных сторон.`;
+    fitNote = `Ключевые для роли «${role.name}» качества в среднем занимают ${avgKeyRank.toFixed(1)}-е место в профиле (из 20) — входят в число наиболее выраженных сторон.`;
   } else if (avgKeyRank <= 12 && weakKeys.length <= 1) {
     fit = "Среднее соответствие должности";
     fitNote = `Ключевые для роли «${role.name}» качества в среднем занимают ${avgKeyRank.toFixed(1)}-е место в профиле (из 20). Часть выражена сильно, часть — нет. Решение лучше принимать по итогам собеседования.`;
   } else {
     fit = "Низкое соответствие должности";
-    fitNote = `Ключевые для роли «${role.name}» качества в среднем занимают ${avgKeyRank.toFixed(1)}-е место в профиле (из 20) — относятся к менее выраженным сторонам. Возможно, кандидату ближе другая роль — см. его топ-5.`;
+    fitNote = `Ключевые для роли «${role.name}» качества в среднем занимают ${avgKeyRank.toFixed(1)}-е место в профиле (из 20) — относятся к менее выраженным сторонам. Рекомендуем посмотреть рейтинг соответствия другим должностям ниже.`;
   }
 
   // сводка для руководителя
@@ -153,10 +163,10 @@ function computeResult(answers, positionId) {
     .map((id) => ({ id, rank: talentScores.find((t) => t.id === id).rank, text: TALENT_META[id].watch }));
 
   const top3names = top5.slice(0, 3).map((t) => TALENTS[t.id].name.toLowerCase());
-  const portrait = `Доминирующие качества кандидата — ${top3names.join(", ")}. ${TALENTS[top5[0].id].description} В сочетании с остальными это формирует основной стиль работы человека: на это стоит опираться при постановке задач.`;
+  const portrait = `Доминирующие качества — ${top3names.join(", ")}. ${TALENTS[top5[0].id].description} В сочетании с остальными это формирует основной стиль работы человека: на это стоит опираться при постановке задач.`;
 
   // точечные вопросы для интервью
-  const roleQ = ROLE_QUESTIONS[positionId] || {};
+  const roleQ = ROLE_QUESTIONS[effectivePositionId] || {};
   const askedIds = new Set();
   const targetedQuestions = [];
   weakKeys.forEach((t) => {
@@ -177,7 +187,7 @@ function computeResult(answers, positionId) {
 
   return {
     talentScores, domainScores, top5, bottom3, roleMatches, thisRoleFit,
-    role, avgKeyRank, weakKeys, fit, fitNote, portrait, pitfalls, watchpoints, targetedQuestions,
+    role, isRecommended, avgKeyRank, weakKeys, fit, fitNote, portrait, pitfalls, watchpoints, targetedQuestions,
   };
 }
 
@@ -216,12 +226,17 @@ function buildPlainText(rec) {
     if (meta.risk) lines.push(`   Против: ${meta.risk}`);
   });
   lines.push(``);
-  lines.push(`СООТВЕТСТВИЕ ДОЛЖНОСТЯМ (топ-5):`);
-  r.roleMatches.slice(0, 5).forEach((m) => lines.push(`— ${m.roleName}: ${m.fit}%`));
+  if (r.isRecommended) {
+    lines.push(`РЕЙТИНГ СООТВЕТСТВИЯ ДОЛЖНОСТЯМ (все, по убыванию):`);
+    r.roleMatches.forEach((m, i) => lines.push(`${i + 1}. ${m.roleName}: ${m.fit}%`));
+  } else {
+    lines.push(`СООТВЕТСТВИЕ ДОЛЖНОСТЯМ (топ-5):`);
+    r.roleMatches.slice(0, 5).forEach((m) => lines.push(`— ${m.roleName}: ${m.fit}%`));
+  }
   lines.push(``);
   lines.push(`НАИМЕНЕЕ ВЫРАЖЕНЫ (в целом): ` + r.bottom3.map((t) => `${TALENTS[t.id].name} (#${t.rank})`).join(", "));
   lines.push(``);
-  lines.push(`ТОЧЕЧНЫЕ ВОПРОСЫ ДЛЯ СОБЕСЕДОВАНИЯ (под должность «${r.role.name}»):`);
+  lines.push(`ТОЧЕЧНЫЕ ВОПРОСЫ ДЛЯ СОБЕСЕДОВАНИЯ${r.isRecommended ? ` (под рекомендуемую должность «${r.role.name}»)` : ` (под должность «${r.role.name}»)`}:`);
   r.targetedQuestions.forEach((tq) => lines.push(`— [${TALENTS[tq.id].name}, #${tq.rank}] ${tq.q}`));
   return lines.join("\n");
 }
@@ -287,8 +302,10 @@ export default function App() {
     const next = [...answers, side];
     setAnswers(next);
     if (qi + 1 < QUESTIONS.length) { setQi(qi + 1); return; }
-    const result = computeResult(next, positionId);
-    const rec = { id: Date.now().toString(36), name: name.trim(), positionId, schoolId, applicantType, date: Date.now(), result, candidateEmail: "" };
+    const schoolPositionIds = availablePositions.map((p) => p.id);
+    const effectivePositionId = applicantType === "employee" ? positionId : null;
+    const result = computeResult(next, effectivePositionId, schoolPositionIds);
+    const rec = { id: Date.now().toString(36), name: name.trim(), positionId: effectivePositionId, schoolId, applicantType, date: Date.now(), result, candidateEmail: "" };
     setCurrent(rec);
     setScreen("finish");
   }
@@ -309,8 +326,9 @@ export default function App() {
         supabase.from("results").insert({
           candidate_name: rec.name,
           candidate_email: rec.candidateEmail,
-          position_id: rec.positionId,
+          position_id: rec.positionId || rec.result.thisRoleFit.roleId,
           position_name: rec.result.role.name,
+          position_recommended: rec.result.isRecommended,
           school_id: rec.schoolId,
           applicant_type: rec.applicantType,
           fit: rec.result.thisRoleFit.fit,
@@ -381,11 +399,15 @@ export default function App() {
           ))}
         </div>
 
-        <label style={{ fontSize: 14, fontWeight: 600, display: "block", margin: "18px 0 8px" }}>На какую должность оцениваем</label>
-        <select value={positionId} onChange={(e) => setPositionId(e.target.value)}
-          style={{ width: "100%", boxSizing: "border-box", padding: "13px 14px", fontSize: 16, borderRadius: 12, border: "1.5px solid #D8D5CF", fontFamily: "inherit", outline: "none", background: "#fff" }}>
-          {availablePositions.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-        </select>
+        {applicantType === "employee" && (
+          <>
+            <label style={{ fontSize: 14, fontWeight: 600, display: "block", margin: "18px 0 8px" }}>Ваша текущая должность</label>
+            <select value={positionId} onChange={(e) => setPositionId(e.target.value)}
+              style={{ width: "100%", boxSizing: "border-box", padding: "13px 14px", fontSize: 16, borderRadius: 12, border: "1.5px solid #D8D5CF", fontFamily: "inherit", outline: "none", background: "#fff" }}>
+              {availablePositions.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+            </select>
+          </>
+        )}
 
         <button onClick={startTest} disabled={!name.trim()}
           style={{ ...S.btn, ...S.primary, width: "100%", marginTop: 20, opacity: name.trim() ? 1 : 0.4 }}>
