@@ -6,6 +6,7 @@ export default function Admin() {
   const [login, setLogin] = useState("");
   const [password, setPassword] = useState("");
   const [authorized, setAuthorized] = useState(false);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [loginError, setLoginError] = useState(false);
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -23,6 +24,7 @@ export default function Admin() {
     if (data) {
       setLoginError(false);
       setAuthorized(true);
+      setIsSuperAdmin(login.trim() === "vvvorobyev1991");
       loadResults();
     } else {
       setLoginError(true);
@@ -48,6 +50,14 @@ export default function Admin() {
       document.execCommand("copy"); document.body.removeChild(ta);
       setCopied(true); setTimeout(() => setCopied(false), 1800);
     } catch (e) { console.error(e); }
+  }
+
+  async function removeRec(id) {
+    if (!window.confirm("Удалить этот результат без возможности восстановления?")) return;
+    const { error } = await supabase.from("results").delete().eq("id", id);
+    if (error) { console.error(error); return; }
+    setResults((prev) => prev.filter((r) => r.id !== id));
+    if (open && open.id === id) setOpen(null);
   }
 
   // ── ЭКРАН ВХОДА ──
@@ -213,9 +223,16 @@ export default function Admin() {
           </ul>
         </div>
 
-        <button onClick={() => copyReport(open.report)} style={{ ...S.btn, ...S.primary, width: "100%" }}>
-          {copied ? "Скопировано ✓" : "Скопировать отчёт текстом"}
-        </button>
+        <div style={{ display: "flex", gap: 10 }}>
+          <button onClick={() => copyReport(open.report)} style={{ ...S.btn, ...S.primary, flex: 1 }}>
+            {copied ? "Скопировано ✓" : "Скопировать отчёт текстом"}
+          </button>
+          {isSuperAdmin && (
+            <button onClick={() => removeRec(open.id)} style={{ ...S.btn, ...S.ghost, flex: 1, color: "#E25C44", borderColor: "#F0C4BB" }}>
+              Удалить
+            </button>
+          )}
+        </div>
       </div></div>
     );
   }
@@ -227,7 +244,7 @@ export default function Admin() {
         <h1 style={{ ...S.display, fontSize: 24, fontWeight: 700, margin: 0 }}>Архив результатов</h1>
         <div style={{ display: "flex", gap: 8 }}>
           <button onClick={loadResults} style={{ ...S.btn, ...S.ghost, padding: "8px 14px", fontSize: 14 }}>Обновить</button>
-          <button onClick={() => setAuthorized(false)} style={{ ...S.btn, ...S.ghost, padding: "8px 14px", fontSize: 14 }}>Выйти</button>
+          <button onClick={() => { setAuthorized(false); setIsSuperAdmin(false); }} style={{ ...S.btn, ...S.ghost, padding: "8px 14px", fontSize: 14 }}>Выйти</button>
         </div>
       </div>
 
@@ -255,11 +272,17 @@ export default function Admin() {
                 <div style={{ fontSize: 13, color: "#44413B", marginTop: 4 }}>Топ-3: {top3.join(", ")}</div>
               )}
             </div>
-            <div>
+            <div style={{ display: "flex", gap: 8 }}>
               <button onClick={() => setOpen(item)} disabled={!item.report_json}
                 style={{ ...S.btn, ...S.primary, padding: "9px 16px", fontSize: 14, opacity: item.report_json ? 1 : 0.4 }}>
                 Открыть
               </button>
+              {isSuperAdmin && (
+                <button onClick={() => removeRec(item.id)}
+                  style={{ ...S.btn, ...S.ghost, padding: "9px 14px", fontSize: 14, color: "#E25C44", borderColor: "#F0C4BB" }}>
+                  Удалить
+                </button>
+              )}
             </div>
           </div>
         );
