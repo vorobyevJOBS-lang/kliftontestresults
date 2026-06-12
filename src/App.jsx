@@ -66,31 +66,40 @@ export default function App() {
   }, [talentScores]);
 
   const roleMatches = useMemo(() => {
-    return Object.entries(ROLE_PROFILES)
-      .map(([roleId, role]) => {
-        let score = 0;
-        let maxScore = 0;
+  return Object.entries(ROLE_PROFILES)
+    .map(([roleId, role]) => {
 
-        Object.entries(role.weights).forEach(
-          ([talentId, weight]) => {
-            score +=
-              (talentScores[talentId] || 0) *
-              weight;
+      let score = 0;
+      let maxScore = 0;
 
-            maxScore += totalQuestions * weight;
-          }
-        );
+      Object.entries(role.weights).forEach(
+        ([talentId, weight]) => {
 
-        return {
-          roleId,
-          roleName: role.name,
-          fit: Math.round(
+          const talentValue =
+            talentScores[talentId] || 0;
+
+          score += talentValue * weight;
+
+          maxScore += 25 * weight;
+
+        }
+      );
+
+      return {
+        roleId,
+        roleName: role.name,
+        fit: Math.min(
+          100,
+          Math.round(
             (score / maxScore) * 100
           )
-        };
-      })
-      .sort((a, b) => b.fit - a.fit);
-  }, [talentScores, totalQuestions]);
+        )
+      };
+
+    })
+    .sort((a, b) => b.fit - a.fit);
+
+}, [talentScores]);
     const saveResult = async () => {
     try {
       await supabase.from("results").insert({
