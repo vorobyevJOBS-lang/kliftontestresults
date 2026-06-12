@@ -77,6 +77,17 @@ RESPONSIBILITY: 8
 }
 },
 
+callcenter_head: {
+name: "Руководитель колл-центра",
+weights: {
+LEADERSHIP: 10,
+COMMUNICATION: 9,
+ACHIEVEMENT: 9,
+ANALYTICAL: 8,
+PERSISTENCE: 7
+}
+},
+
 product_manager: {
 name: "Руководитель продукта",
 weights: {

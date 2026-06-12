@@ -223,6 +223,23 @@ export default function Admin() {
           </ul>
         </div>
 
+        {/* Рекомендации по развитию (для сотрудников) */}
+        {r.developmentPlan.length > 0 && (
+          <div style={{ ...S.card, background: "#ECEAFB", border: "1px solid #D8D4F5" }}>
+            <div style={{ ...S.display, fontSize: 15, fontWeight: 700, marginBottom: 4, color: "#6457D6" }}>Рекомендации по развитию</div>
+            <div style={{ fontSize: 13, color: "#6B675F", marginBottom: 12 }}>
+              Зоны роста, важные для текущей роли — конкретные шаги, которые можно начать применять уже сейчас.
+            </div>
+            <ul style={{ margin: 0, paddingLeft: 18, lineHeight: 1.6, fontSize: 14, color: "#44413B" }}>
+              {r.developmentPlan.map((d, i) => (
+                <li key={i} style={{ marginBottom: 8 }}>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: "#6457D6" }}>{TALENTS[d.id].name} (#{d.rank}, {d.pct}%):</span> {d.tip}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
         <div style={{ display: "flex", gap: 10 }}>
           <button onClick={() => copyReport(open.report)} style={{ ...S.btn, ...S.primary, flex: 1 }}>
             {copied ? "Скопировано ✓" : "Скопировать отчёт текстом"}

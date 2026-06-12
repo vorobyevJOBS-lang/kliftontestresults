@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { QUESTIONS } from "./questions";
 import { TALENTS } from "./talents";
 import { ROLE_PROFILES } from "./roles";
-import { TALENT_META } from "./talentMeta";
+import { TALENT_META, TALENT_GROWTH } from "./talentMeta";
 import { ROLE_QUESTIONS } from "./roleQuestions";
 import { supabase } from "./supabase";
 
@@ -185,9 +185,21 @@ function computeResult(answers, positionId, schoolPositionIds) {
     });
   }
 
+  // план развития — только для действующих сотрудников: ключевые для их роли таланты,
+  // которые слабее остальных КЛЮЧЕВЫХ для роли талантов (даже если в общем профиле они не самые худшие —
+  // важно, что относительно требований именно этой роли это зона роста)
+  const keyAvgRankForDev = keyTalents.reduce((a, t) => a + t.rank, 0) / keyTalents.length;
+  const developmentPlan = !isRecommended
+    ? keyTalents
+        .filter((t) => t.rank > keyAvgRankForDev && TALENT_GROWTH[t.id])
+        .sort((a, b) => b.rank - a.rank)
+        .slice(0, 4)
+        .map((t) => ({ id: t.id, rank: t.rank, pct: t.pct, tip: TALENT_GROWTH[t.id] }))
+    : [];
+
   return {
     talentScores, domainScores, top5, bottom3, roleMatches, thisRoleFit,
-    role, isRecommended, avgKeyRank, weakKeys, fit, fitNote, portrait, pitfalls, watchpoints, targetedQuestions,
+    role, isRecommended, avgKeyRank, weakKeys, fit, fitNote, portrait, pitfalls, watchpoints, targetedQuestions, developmentPlan,
   };
 }
 
@@ -238,6 +250,11 @@ function buildPlainText(rec) {
   lines.push(``);
   lines.push(`ТОЧЕЧНЫЕ ВОПРОСЫ ДЛЯ СОБЕСЕДОВАНИЯ${r.isRecommended ? ` (под рекомендуемую должность «${r.role.name}»)` : ` (под должность «${r.role.name}»)`}:`);
   r.targetedQuestions.forEach((tq) => lines.push(`— [${TALENTS[tq.id].name}, #${tq.rank}] ${tq.q}`));
+  if (r.developmentPlan.length > 0) {
+    lines.push(``);
+    lines.push(`═══ РЕКОМЕНДАЦИИ ПО РАЗВИТИЮ (для действующего сотрудника) ═══`);
+    r.developmentPlan.forEach((d) => lines.push(`— [${TALENTS[d.id].name}, #${d.rank}, ${d.pct}%] ${d.tip}`));
+  }
   return lines.join("\n");
 }
 
