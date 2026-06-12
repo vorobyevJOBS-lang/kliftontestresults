@@ -329,33 +329,27 @@ export default function App() {
           Все таланты
         </h2>
 
-        {Object.entries(
-          talentScores
-        )
-          .sort(
-            (a, b) =>
-              b[1] - a[1]
-          )
-          .map(
-            ([talentId, score]) => (
-              <div
-                key={talentId}
-                style={{
-                  marginBottom: 6
-                }}
-              >
-                {
-                  TALENTS[
-                    talentId
-                  ]?.name
-                }
-                : {score}
-              </div>
-            )
-          )}
+        {Object.entries(talentScores)
+  .sort((a, b) => b[1] - a[1])
+  .map(([talentId, score]) => (
+    <div
+      key={talentId}
+      style={{
+        marginBottom: 6
+      }}
+    >
+      {TALENTS[talentId]?.name}: {score}
+
+            </div>
+
+          ))}
+
       </div>
+
     );
+
   }
 
   return null;
+
 }
