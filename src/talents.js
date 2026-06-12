@@ -1,161 +1,143 @@
 export const TALENTS = {
+
 ACHIEVEMENT: {
-id: “ACHIEVEMENT”,
-name: “Результативность”,
-domain: “Исполнение”,
-description:
-“Ориентирован на достижение конкретного измеримого результата.”
+id: "ACHIEVEMENT",
+name: "Достижение",
+domain: "Исполнение",
+description: "Стремится добиваться результата и завершать задачи."
 },
 
 RESPONSIBILITY: {
-id: “RESPONSIBILITY”,
-name: “Ответственность”,
-domain: “Исполнение”,
-description:
-“Берет на себя обязательства и стремится выполнять обещания.”
+id: "RESPONSIBILITY",
+name: "Ответственность",
+domain: "Исполнение",
+description: "Берет обязательства и доводит дело до конца."
 },
 
 ORGANIZATION: {
-id: “ORGANIZATION”,
-name: “Организованность”,
-domain: “Исполнение”,
-description:
-“Любит выстраивать процессы, порядок и понятную структуру.”
+id: "ORGANIZATION",
+name: "Организация",
+domain: "Исполнение",
+description: "Любит порядок, процессы и систему."
 },
 
 DISCIPLINE: {
-id: “DISCIPLINE”,
-name: “Дисциплина”,
-domain: “Исполнение”,
-description:
-“Комфортно чувствует себя в рамках правил и регламентов.”
-},
-
-PERSISTENCE: {
-id: “PERSISTENCE”,
-name: “Настойчивость”,
-domain: “Исполнение”,
-description:
-“Продолжает двигаться к цели несмотря на трудности и отказы.”
+id: "DISCIPLINE",
+name: "Дисциплина",
+domain: "Исполнение",
+description: "Предпочитает структуру и предсказуемость."
 },
 
 COMMUNICATION: {
-id: “COMMUNICATION”,
-name: “Коммуникация”,
-domain: “Влияние”,
-description:
-“Легко выражает мысли и выстраивает контакт с людьми.”
+id: "COMMUNICATION",
+name: "Коммуникация",
+domain: "Влияние",
+description: "Легко взаимодействует с людьми."
 },
 
 INFLUENCE: {
-id: “INFLUENCE”,
-name: “Убеждение”,
-domain: “Влияние”,
-description:
-“Способен влиять на решения и менять мнение других людей.”
+id: "INFLUENCE",
+name: "Влияние",
+domain: "Влияние",
+description: "Умеет убеждать и влиять на решения."
 },
 
 SELF_ASSURANCE: {
-id: “SELF_ASSURANCE”,
-name: “Уверенность”,
-domain: “Влияние”,
-description:
-“Доверяет собственным решениям и сохраняет уверенность под давлением.”
-},
-
-NEGOTIATION: {
-id: “NEGOTIATION”,
-name: “Переговоры”,
-domain: “Влияние”,
-description:
-“Умеет находить взаимовыгодные решения и договариваться.”
+id: "SELF_ASSURANCE",
+name: "Уверенность",
+domain: "Влияние",
+description: "Уверен в своих решениях."
 },
 
 LEADERSHIP: {
-id: “LEADERSHIP”,
-name: “Лидерство”,
-domain: “Влияние”,
-description:
-“Стремится брать ответственность за направление и результат группы.”
+id: "LEADERSHIP",
+name: "Лидерство",
+domain: "Влияние",
+description: "Готов вести людей за собой."
 },
 
 EMPATHY: {
-id: “EMPATHY”,
-name: “Эмпатия”,
-domain: “Отношения”,
-description:
-“Тонко чувствует эмоции и состояние других людей.”
+id: "EMPATHY",
+name: "Эмпатия",
+domain: "Отношения",
+description: "Чувствует состояние других людей."
 },
 
-CUSTOMER_FOCUS: {
-id: “CUSTOMER_FOCUS”,
-name: “Клиентоориентированность”,
-domain: “Отношения”,
-description:
-“Стремится понимать потребности людей и помогать им достигать целей.”
-},
-
-TEAMWORK: {
-id: “TEAMWORK”,
-name: “Командность”,
-domain: “Отношения”,
-description:
-“Предпочитает сотрудничество и совместное достижение результатов.”
+RELATIONSHIP: {
+id: "RELATIONSHIP",
+name: "Отношения",
+domain: "Отношения",
+description: "Создает долгосрочные связи."
 },
 
 DEVELOPER: {
-id: “DEVELOPER”,
-name: “Развитие других”,
-domain: “Отношения”,
-description:
-“Получает удовлетворение от роста и успехов других людей.”
+id: "DEVELOPER",
+name: "Развитие людей",
+domain: "Отношения",
+description: "Любит помогать людям расти."
 },
 
-EMOTIONAL_STABILITY: {
-id: “EMOTIONAL_STABILITY”,
-name: “Эмоциональная устойчивость”,
-domain: “Отношения”,
-description:
-“Сохраняет спокойствие и эффективность в стрессовых ситуациях.”
+CUSTOMER_FOCUS: {
+id: "CUSTOMER_FOCUS",
+name: "Клиентоориентированность",
+domain: "Отношения",
+description: "Сосредоточен на потребностях клиента."
 },
 
-ANALYTICAL: {
-id: “ANALYTICAL”,
-name: “Аналитика”,
-domain: “Мышление”,
-description:
-“Любит искать закономерности, факты и причины происходящего.”
+TEAMWORK: {
+id: "TEAMWORK",
+name: "Командность",
+domain: "Отношения",
+description: "Любит работать в команде."
 },
 
 STRATEGIC: {
-id: “STRATEGIC”,
-name: “Стратегичность”,
-domain: “Мышление”,
-description:
-“Видит несколько сценариев развития событий и выбирает лучший путь.”
+id: "STRATEGIC",
+name: "Стратегия",
+domain: "Мышление",
+description: "Видит возможности и перспективы."
+},
+
+ANALYTICAL: {
+id: "ANALYTICAL",
+name: "Аналитика",
+domain: "Мышление",
+description: "Оперирует фактами и логикой."
 },
 
 LEARNER: {
-id: “LEARNER”,
-name: “Обучаемость”,
-domain: “Мышление”,
-description:
-“Получает удовольствие от освоения новых знаний и навыков.”
+id: "LEARNER",
+name: "Обучаемость",
+domain: "Мышление",
+description: "Любит получать новые знания."
 },
 
 IDEATION: {
-id: “IDEATION”,
-name: “Генерация идей”,
-domain: “Мышление”,
-description:
-“Легко придумывает новые подходы, решения и концепции.”
+id: "IDEATION",
+name: "Генератор идей",
+domain: "Мышление",
+description: "Постоянно создает новые идеи."
 },
 
 PROBLEM_SOLVING: {
-id: “PROBLEM_SOLVING”,
-name: “Решение проблем”,
-domain: “Мышление”,
-description:
-“Быстро находит способы устранения препятствий и достижения цели.”
+id: "PROBLEM_SOLVING",
+name: "Решение проблем",
+domain: "Мышление",
+description: "Находит решения сложных задач."
+},
+
+PERSISTENCE: {
+id: "PERSISTENCE",
+name: "Настойчивость",
+domain: "Исполнение",
+description: "Не сдается после отказов."
+},
+
+NEGOTIATION: {
+id: "NEGOTIATION",
+name: "Переговоры",
+domain: "Влияние",
+description: "Умеет договариваться и искать компромисс."
 }
+
 };
