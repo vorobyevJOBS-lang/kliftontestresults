@@ -27,8 +27,12 @@ export default function App() {
     if (questionIndex + 1 < totalQuestions) {
       setQuestionIndex(questionIndex + 1);
     } else {
-      setScreen("result");
-    }
+
+  saveResult();
+
+  setScreen("result");
+
+}
   };
 
   const talentScores = useMemo(() => {
@@ -231,125 +235,30 @@ export default function App() {
     );
   }
     if (screen === "result") {
-    return (
-      <div
-        style={{
-          maxWidth: 1000,
-          margin: "40px auto",
-          padding: 20
-        }}
-      >
-        <h1>Результаты теста</h1>
 
-        <h2>Кандидат</h2>
-
-        <p>
-          <b>{candidateName}</b>
-        </p>
-
-        <button
-          onClick={saveResult}
-          style={{
-            marginBottom: 30
-          }}
-        >
-          Сохранить результат
-        </button>
-
-        <h2>ТОП-5 талантов</h2>
-
-        {topTalents.map(
-          ([talentId, score], index) => (
-            <div
-              key={talentId}
-              style={{
-                padding: 12,
-                marginBottom: 8,
-                border: "1px solid #ddd"
-              }}
-            >
-              <b>
-                #{index + 1}{" "}
-                {TALENTS[talentId]?.name}
-              </b>
-
-              <div>
-                Домен:{" "}
-                {
-                  TALENTS[talentId]
-                    ?.domain
-                }
-              </div>
-
-              <div>
-                Баллы: {score}
-              </div>
-
-              <div>
-                {
-                  TALENTS[talentId]
-                    ?.description
-                }
-              </div>
-            </div>
-          )
-        )}
-
-        <h2
-          style={{
-            marginTop: 40
-          }}
-        >
-          Подходящие должности
-        </h2>
-
-        {roleMatches.map((role) => (
-          <div
-            key={role.roleId}
-            style={{
-              border: "1px solid #ddd",
-              marginBottom: 10,
-              padding: 12
-            }}
-          >
-            <b>{role.roleName}</b>
-
-            <div>
-              Соответствие:{" "}
-              {role.fit}%
-            </div>
-          </div>
-        ))}
-
-        <h2
-          style={{
-            marginTop: 40
-          }}
-        >
-          Все таланты
-        </h2>
-
-        {Object.entries(talentScores)
-  .sort((a, b) => b[1] - a[1])
-  .map(([talentId, score]) => (
+  return (
     <div
-      key={talentId}
       style={{
-        marginBottom: 6
+        maxWidth: 700,
+        margin: "40px auto",
+        padding: 20,
+        textAlign: "center"
       }}
     >
-      {TALENTS[talentId]?.name}: {score}
+      <h1>
+        Спасибо за прохождение теста
+      </h1>
 
-            </div>
+      <p>
+        Результат успешно сохранён.
+      </p>
 
-          ))}
+      <p>
+        Мы свяжемся с вами после анализа.
+      </p>
+    </div>
+  );
+}
 
-      </div>
-
-    );
-
-  }
-
-  return null;
-
+return null;
 }
