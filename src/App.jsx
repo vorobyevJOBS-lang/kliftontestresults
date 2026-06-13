@@ -25,13 +25,22 @@ const MAX_BY_TALENT = (() => {
 })();
 
 const ALL_POSITIONS = Object.entries(ROLE_PROFILES).map(([id, r]) => ({ id, name: r.name }));
-const SCHOOLS = [
-  { id: "klyachka", name: "Клячка" },
-  { id: "jobs", name: "Jobs" },
+
+// Филиалы: каждый имеет уникальный id (используется для фильтрации архива и привязки логинов admins),
+// принадлежность к "школе" (klyachka/jobs) определяет набор доступных должностей.
+const BRANCHES = [
+  { id: "klyachka_nvkz", school: "klyachka", name: "Клячка — Новокузнецк" },
+  { id: "klyachka_krsk_center", school: "klyachka", name: "Клячка — Красноярск Центр" },
+  { id: "klyachka_krsk_vzlet", school: "klyachka", name: "Клячка — Красноярск Взлётка" },
+  { id: "jobs_main", school: "jobs", name: "Jobs" },
 ];
-function positionsForSchool(schoolId) {
-  if (schoolId === "klyachka") return ALL_POSITIONS.filter((p) => p.id !== "tutor");
+
+function positionsForSchool(school) {
+  if (school === "klyachka") return ALL_POSITIONS.filter((p) => p.id !== "tutor");
   return ALL_POSITIONS;
+}
+function branchById(id) {
+  return BRANCHES.find((b) => b.id === id) || BRANCHES[0];
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -68,6 +77,61 @@ function DomainTag({ domain }) {
 // РАСЧЁТ РЕЗУЛЬТАТА
 // ─────────────────────────────────────────────────────────────
 function computeResult(answers, positionId, schoolPositionIds) {
+  // ── 0. Пропущенные вопросы (таймер истёк) ──────────────────
+  const nullAnswers = answers.filter((a) => a === null).length;
+
+  // ── 1. Основной профиль только по НЕ-validation вопросам ───
+  // Нужен для consistency check, чтобы сравнить с validation-вопросами
+  const mainRaw = {}, mainMax = {};
+  Object.keys(TALENTS).forEach((k) => { mainRaw[k] = 0; mainMax[k] = 0; });
+  QUESTIONS.forEach((q) => {
+    if (!q.validation) { mainMax[q.talentA]++; mainMax[q.talentB]++; }
+  });
+  answers.forEach((side, i) => {
+    const q = QUESTIONS[i];
+    if (!q || q.validation) return;
+    if (side === "A") mainRaw[q.talentA]++;
+    if (side === "B") mainRaw[q.talentB]++;
+  });
+  const mainPct = {};
+  Object.keys(TALENTS).forEach((k) => {
+    mainPct[k] = Math.round((mainRaw[k] / (mainMax[k] || 1)) * 100);
+  });
+
+  // ── 2. Consistency check на validation-вопросах ─────────────
+  // Сравниваем ответ на каждый validation-вопрос с тем,
+  // что ожидается исходя из основного профиля.
+  // Если разница в основном профиле ≤ 5% — пара считается нейтральной (не вносит ошибки).
+  const validationQs = QUESTIONS.filter((q) => q.validation);
+  let consistentCount = 0, validationAnswered = 0;
+  validationQs.forEach((q) => {
+    const idx = QUESTIONS.indexOf(q);
+    const side = answers[idx];
+    if (side === null || side === undefined) return;
+    validationAnswered++;
+    const pA = mainPct[q.talentA] ?? 50;
+    const pB = mainPct[q.talentB] ?? 50;
+    if (Math.abs(pA - pB) <= 5) {
+      consistentCount++; // нейтральная пара — не штрафуем
+    } else {
+      const expected = pA >= pB ? "A" : "B";
+      if (side === expected) consistentCount++;
+    }
+  });
+  const consistencyScore = validationAnswered > 0
+    ? Math.round((consistentCount / validationAnswered) * 100)
+    : null;
+  const consistencyColor =
+    consistencyScore === null ? "#8A867E" :
+    consistencyScore >= 70   ? "#2E9E87" :
+    consistencyScore >= 50   ? "#D98E2B" : "#E25C44";
+  const consistencyLabel =
+    consistencyScore === null ? "Нет данных" :
+    consistencyScore >= 70   ? "Ответы согласованные" :
+    consistencyScore >= 50   ? "Есть противоречия — уточните на собеседовании" :
+                               "Много противоречий — результат под вопросом";
+
+  // ── 3. Полный профиль (все вопросы включая validation) ──────
   const scores = {};
   Object.keys(TALENTS).forEach((k) => { scores[k] = 0; });
   answers.forEach((side, i) => {
@@ -111,15 +175,27 @@ function computeResult(answers, positionId, schoolPositionIds) {
     .filter(([roleId]) => allowedIds.includes(roleId))
     .map(([roleId, r]) => {
       let weighted = 0, totalWeight = 0;
+      const roleKeyTs = [];
       Object.entries(r.weights).forEach(([talentId, weight]) => {
         const t = talentScores.find((x) => x.id === talentId);
         weighted += (t ? t.z : 0) * weight;
         totalWeight += weight;
+        if (t) roleKeyTs.push(t);
       });
-      const avgZ = weighted / totalWeight; // средняя z-оценка по ключевым талантам роли, взвешенная
-      // переводим в 0-100%, растягивая диапазон возможных z-оценок этого профиля
+      const avgZ = weighted / totalWeight;
+      // Относительная оценка (z-score растянут до 0-100%)
       const span = (maxZ - minZ) || 1;
-      const fit = Math.round(((avgZ - minZ) / span) * 100);
+      const relativeFit = Math.round(((avgZ - minZ) / span) * 100);
+      // Абсолютная оценка: какая доля ключевых талантов в топ-половине профиля (rank ≤ 10 из 20)
+      const halfRank = Math.ceil(talentScores.length / 2);
+      const absoluteFit = roleKeyTs.length > 0
+        ? Math.round((roleKeyTs.filter((t) => t.rank <= halfRank).length / roleKeyTs.length) * 100)
+        : 50;
+      // Итог: 40% относительный + 60% абсолютный
+      // Это не даёт слабому кандидату 100% по "лучшей из плохих" роли
+      const fit = Math.round(
+        0.4 * Math.max(0, Math.min(100, relativeFit)) + 0.6 * absoluteFit
+      );
       return { roleId, roleName: r.name, fit: Math.max(0, Math.min(100, fit)) };
     }).sort((a, b) => b.fit - a.fit);
 
@@ -200,22 +276,31 @@ function computeResult(answers, positionId, schoolPositionIds) {
   return {
     talentScores, domainScores, top5, bottom3, roleMatches, thisRoleFit,
     role, isRecommended, avgKeyRank, weakKeys, fit, fitNote, portrait, pitfalls, watchpoints, targetedQuestions, developmentPlan,
+    consistencyScore, consistencyLabel, consistencyColor, nullAnswers,
   };
 }
 
 function buildPlainText(rec) {
   const r = rec.result;
   const lines = [];
-  const schoolName = SCHOOLS.find((s) => s.id === rec.schoolId)?.name || rec.schoolId || "—";
+  const branchName = branchById(rec.branchId).name;
   const typeName = rec.applicantType === "employee" ? "Действующий сотрудник" : "Кандидат на собеседование";
   lines.push(`РЕЗУЛЬТАТ ТЕСТА СИЛЬНЫХ СТОРОН (${QUESTIONS.length} пар утверждений)`);
   lines.push(`Имя: ${rec.name}`);
-  lines.push(`Школа: ${schoolName} · Тип: ${typeName}`);
+  lines.push(`Филиал: ${branchName} · Тип: ${typeName}`);
   lines.push(`Должность: ${r.role.name} · Дата: ${new Date(rec.date).toLocaleDateString("ru-RU")}`);
   if (rec.candidateEmail) lines.push(`Email: ${rec.candidateEmail}`);
   lines.push(``);
   lines.push(`ВЕРДИКТ: ${r.fit} (${r.thisRoleFit.fit}%)`);
   lines.push(r.fitNote);
+  lines.push(``);
+  const reliabilityLine = r.consistencyScore != null
+    ? `НАДЁЖНОСТЬ ОТВЕТОВ: ${r.consistencyLabel} (${r.consistencyScore}%)`
+    : `НАДЁЖНОСТЬ ОТВЕТОВ: нет данных`;
+  const skipWarning = (r.nullAnswers ?? 0) > 0
+    ? ` · ⚠ ${r.nullAnswers} вопр. пропущено по таймеру`
+    : "";
+  lines.push(reliabilityLine + skipWarning);
   lines.push(``);
   lines.push(`═══ СВОДКА ДЛЯ РУКОВОДИТЕЛЯ ═══`);
   lines.push(``);
@@ -264,7 +349,7 @@ function buildPlainText(rec) {
 export default function App() {
   const [screen, setScreen] = useState("home");
   const [name, setName] = useState("");
-  const [schoolId, setSchoolId] = useState(SCHOOLS[0].id);
+  const [branchId, setBranchId] = useState(BRANCHES[0].id);
   const [applicantType, setApplicantType] = useState("candidate"); // candidate | employee
   const [positionId, setPositionId] = useState(ALL_POSITIONS[0].id);
   const [qi, setQi] = useState(0);
@@ -274,15 +359,15 @@ export default function App() {
   const [timeLeft, setTimeLeft] = useState(20);
   const [submitting, setSubmitting] = useState(false);
 
-  const availablePositions = positionsForSchool(schoolId);
+  const availablePositions = positionsForSchool(branchById(branchId).school);
 
   useEffect(() => {
-    // если текущая должность недоступна для выбранной школы (например тьютор для Клячки) — сбросить на первую доступную
+    // если текущая должность недоступна для выбранного филиала (например тьютор для Клячки) — сбросить на первую доступную
     if (!availablePositions.find((p) => p.id === positionId)) {
       setPositionId(availablePositions[0].id);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [schoolId]);
+  }, [branchId]);
 
   useEffect(() => {
     const link = document.createElement("link");
@@ -291,19 +376,17 @@ export default function App() {
     document.head.appendChild(link);
   }, []);
 
-  // таймер на пару (20 секунд)
+  // таймер на пару — считает время, но НЕ пропускает вопрос автоматически.
+  // При истечении 20 сек таймер продолжает расти (показывает перерасход),
+  // чтобы HR видел среднее время на вопрос в будущем. Ответить можно всегда.
   useEffect(() => {
     if (screen !== "test") return;
     setTimeLeft(20);
     const start = Date.now();
     const interval = setInterval(() => {
-      const left = 20 - Math.floor((Date.now() - start) / 1000);
-      if (left <= 0) {
-        clearInterval(interval);
-        answer(null); // время вышло — пропускаем пару
-      } else {
-        setTimeLeft(left);
-      }
+      const elapsed = Math.floor((Date.now() - start) / 1000);
+      // отображаем оставшееся время (может уйти в минус — показываем 0)
+      setTimeLeft(Math.max(0, 20 - elapsed));
     }, 200);
     return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -322,7 +405,7 @@ export default function App() {
     const schoolPositionIds = availablePositions.map((p) => p.id);
     const effectivePositionId = applicantType === "employee" ? positionId : null;
     const result = computeResult(next, effectivePositionId, schoolPositionIds);
-    const rec = { id: Date.now().toString(36), name: name.trim(), positionId: effectivePositionId, schoolId, applicantType, date: Date.now(), result, candidateEmail: "" };
+    const rec = { id: Date.now().toString(36), name: name.trim(), positionId: effectivePositionId, branchId, applicantType, date: Date.now(), result, candidateEmail: "" };
     setCurrent(rec);
     setScreen("finish");
   }
@@ -335,7 +418,7 @@ export default function App() {
 
     const withTimeout = (p, ms) => Promise.race([p, new Promise((resolve) => setTimeout(resolve, ms))]);
 
-    const schoolName = SCHOOLS.find((s) => s.id === rec.schoolId)?.name || rec.schoolId;
+    const branchName = branchById(rec.branchId).name;
     const typeName = rec.applicantType === "employee" ? "Действующий сотрудник" : "Кандидат на собеседование";
 
     await Promise.allSettled([
@@ -346,7 +429,7 @@ export default function App() {
           position_id: rec.positionId || rec.result.thisRoleFit.roleId,
           position_name: rec.result.role.name,
           position_recommended: rec.result.isRecommended,
-          school_id: rec.schoolId,
+          branch_id: rec.branchId,
           applicant_type: rec.applicantType,
           fit: rec.result.thisRoleFit.fit,
           top_talents: rec.result.top5.map((t) => ({ id: t.id, name: TALENTS[t.id].name, pct: t.pct })),
@@ -364,7 +447,7 @@ export default function App() {
             _subject: `Результат теста: ${rec.name} — ${rec.result.role.name}`,
             candidate: rec.name,
             position: rec.result.role.name,
-            school: schoolName,
+            branch: branchName,
             applicant_type: typeName,
             fit: `${rec.result.fit} (${rec.result.thisRoleFit.fit}%)`,
             candidate_email: rec.candidateEmail,
@@ -396,15 +479,11 @@ export default function App() {
         <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Например: Анна Петрова"
           style={{ width: "100%", boxSizing: "border-box", padding: "13px 14px", fontSize: 16, borderRadius: 12, border: "1.5px solid #D8D5CF", fontFamily: "inherit", outline: "none" }} />
 
-        <label style={{ fontSize: 14, fontWeight: 600, display: "block", margin: "18px 0 8px" }}>Школа</label>
-        <div style={{ display: "flex", gap: 10 }}>
-          {SCHOOLS.map((s) => (
-            <button key={s.id} onClick={() => setSchoolId(s.id)}
-              style={{ ...S.btn, flex: 1, padding: "13px 0", background: schoolId === s.id ? "#1C1B1A" : "#F1EFEA", color: schoolId === s.id ? "#fff" : "#1C1B1A" }}>
-              {s.name}
-            </button>
-          ))}
-        </div>
+        <label style={{ fontSize: 14, fontWeight: 600, display: "block", margin: "18px 0 8px" }}>Филиал</label>
+        <select value={branchId} onChange={(e) => setBranchId(e.target.value)}
+          style={{ width: "100%", boxSizing: "border-box", padding: "13px 14px", fontSize: 16, borderRadius: 12, border: "1.5px solid #D8D5CF", fontFamily: "inherit", outline: "none", background: "#fff" }}>
+          {BRANCHES.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+        </select>
 
         <label style={{ fontSize: 14, fontWeight: 600, display: "block", margin: "18px 0 8px" }}>Кто проходит тест</label>
         <div style={{ display: "flex", gap: 10 }}>
@@ -453,8 +532,9 @@ export default function App() {
           <span style={{
             fontSize: 14, fontWeight: 700, minWidth: 32, height: 32, borderRadius: "50%",
             display: "flex", alignItems: "center", justifyContent: "center",
-            background: timeLeft <= 5 ? "#FCEAE6" : "#F1EFEA", color: timeLeft <= 5 ? "#E25C44" : "#1C1B1A",
-          }}>{timeLeft}</span>
+            background: timeLeft === 0 ? "#E25C44" : timeLeft <= 5 ? "#FCEAE6" : "#F1EFEA",
+            color: timeLeft === 0 ? "#fff" : timeLeft <= 5 ? "#E25C44" : "#1C1B1A",
+          }}>{timeLeft === 0 ? "!" : timeLeft}</span>
         </div>
         <Bar pct={pct} color="#1C1B1A" />
 
@@ -471,7 +551,9 @@ export default function App() {
             </button>
           </div>
         </div>
-        <p style={{ fontSize: 13, color: "#8A867E", textAlign: "center" }}>Выбирайте быстро, первой реакцией — на каждую пару есть немного времени.</p>
+        <p style={{ fontSize: 13, color: timeLeft === 0 ? "#E25C44" : "#8A867E", textAlign: "center" }}>
+          {timeLeft === 0 ? "Не торопитесь — выбирайте то, что ближе." : "Выбирайте первой реакцией — не думайте слишком долго."}
+        </p>
       </div></div>
     );
   }
@@ -496,15 +578,56 @@ export default function App() {
     );
   }
 
-  // ── СПАСИБО ──
-  if (screen === "thanks") {
+  // ── РЕЗУЛЬТАТЫ ДЛЯ КАНДИДАТА ──
+  if (screen === "thanks" && current) {
+    const top3 = current.result.top5.slice(0, 3);
+    const domainColors = { "Исполнение": "#D98E2B", "Влияние": "#E25C44", "Отношения": "#2E9E87", "Мышление": "#6457D6" };
+    const domainBg    = { "Исполнение": "#FBF1E2", "Влияние": "#FCEAE6", "Отношения": "#E4F4F0", "Мышление": "#ECEAFB" };
     return (
-      <div style={S.page}><div style={{ ...S.wrap, maxWidth: 480 }}>
-        <div style={{ ...S.card, padding: "48px 28px", textAlign: "center", marginTop: 60 }}>
-          <div style={{ fontSize: 40, marginBottom: 12 }}>✓</div>
-          <div style={{ ...S.display, fontSize: 22, fontWeight: 700 }}>Спасибо за прохождение теста</div>
-          <p style={{ color: "#6B675F", lineHeight: 1.55, marginTop: 10 }}>
-            Результаты получены. Можно закрыть эту страницу.
+      <div style={S.page}><div style={{ ...S.wrap, maxWidth: 560 }}>
+        {/* Заголовок */}
+        <div style={{ textAlign: "center", marginBottom: 28, paddingTop: 32 }}>
+          <div style={{ fontSize: 36, marginBottom: 10 }}>✓</div>
+          <h1 style={{ ...S.display, fontSize: 26, fontWeight: 700, margin: 0 }}>Тест завершён</h1>
+          <p style={{ color: "#6B675F", fontSize: 15, lineHeight: 1.6, marginTop: 10, marginBottom: 0 }}>
+            Ваши результаты отправлены. Вот ваши три главных сильных стороны.
+          </p>
+        </div>
+
+        {/* Топ-3 таланта */}
+        {top3.map((t, i) => {
+          const talent = TALENTS[t.id];
+          const meta = TALENT_META[t.id] || {};
+          const color = domainColors[talent.domain] || "#1C1B1A";
+          const bg = domainBg[talent.domain] || "#F1EFEA";
+          return (
+            <div key={t.id} style={{ ...S.card, borderLeft: `5px solid ${color}`, marginBottom: 14 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 8 }}>
+                <div style={{ ...S.display, fontSize: 22, fontWeight: 700, color: "#8A867E", minWidth: 28 }}>{i + 1}</div>
+                <div>
+                  <div style={{ ...S.display, fontSize: 18, fontWeight: 700 }}>{talent.name}</div>
+                  <span style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".04em", color, background: bg, padding: "2px 8px", borderRadius: 99 }}>
+                    {talent.domain}
+                  </span>
+                </div>
+              </div>
+              <p style={{ margin: 0, color: "#44413B", lineHeight: 1.6, fontSize: 15 }}>
+                {talent.description}
+              </p>
+              {meta.plus && (
+                <p style={{ margin: "10px 0 0", fontSize: 13, color: "#6B675F", lineHeight: 1.5, borderTop: "1px solid #EEECE7", paddingTop: 10 }}>
+                  {meta.plus}
+                </p>
+              )}
+            </div>
+          );
+        })}
+
+        {/* Подсказка внизу */}
+        <div style={{ ...S.card, background: "#F1EFEA", textAlign: "center", padding: "20px 24px" }}>
+          <p style={{ margin: 0, color: "#6B675F", fontSize: 14, lineHeight: 1.6 }}>
+            Полный профиль — у вашего руководителя или HR-специалиста.<br />
+            Эту страницу можно закрыть.
           </p>
         </div>
       </div></div>
@@ -514,4 +637,4 @@ export default function App() {
   return null;
 }
 
-export { computeResult, buildPlainText, DOMAINS, TALENT_META, TALENTS, ALL_POSITIONS as POSITIONS, MAX_BY_TALENT, S, Bar, DomainTag, SCHOOLS, positionsForSchool };
+export { computeResult, buildPlainText, DOMAINS, TALENT_META, TALENTS, ALL_POSITIONS as POSITIONS, MAX_BY_TALENT, S, Bar, DomainTag, BRANCHES, branchById, positionsForSchool };
