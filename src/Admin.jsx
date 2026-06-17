@@ -180,6 +180,34 @@ export default function Admin() {
     if (open && open.id === id) setOpen(null);
   }
 
+  async function removeTools(id) {
+    if (!window.confirm("Удалить этот результат без возможности восстановления?")) return;
+    const { error } = await supabase.from("tools_results").delete().eq("id", id);
+    if (error) { console.error(error); return; }
+    setToolsResults((prev) => prev.filter((r) => r.id !== id));
+    if (openTools && openTools.id === id) setOpenTools(null);
+  }
+  async function removeRezultat(id) {
+    if (!window.confirm("Удалить этот результат без возможности восстановления?")) return;
+    const { error } = await supabase.from("rezultat_results").delete().eq("id", id);
+    if (error) { console.error(error); return; }
+    setRezultatResults((prev) => prev.filter((r) => r.id !== id));
+    if (openRezultat && openRezultat.id === id) setOpenRezultat(null);
+  }
+  async function removeLogis(id) {
+    if (!window.confirm("Удалить этот результат без возможности восстановления?")) return;
+    const { error } = await supabase.from("logis_results").delete().eq("id", id);
+    if (error) { console.error(error); return; }
+    setLogisResults((prev) => prev.filter((r) => r.id !== id));
+    if (openLogis && openLogis.id === id) setOpenLogis(null);
+  }
+  async function removeSails(id) {
+    if (!window.confirm("Удалить этот результат без возможности восстановления?")) return;
+    const { error } = await supabase.from("sails_results").delete().eq("id", id);
+    if (error) { console.error(error); return; }
+    setSailsResults((prev) => prev.filter((r) => r.id !== id));
+  }
+
   async function loadAdmins() {
     const { data, error } = await supabase.from("admins").select("*").order("login");
     if (error) { console.error(error); return; }
@@ -609,10 +637,26 @@ export default function Admin() {
   // ── АРХИВ ──
   // Доступные филиалы: суперадмин видит всё (с фильтром), обычный админ — только свой
   const visibleResults = results.filter((item) => {
-    if (!isSuperAdmin) return item.branch_id === myBranchId;
+    if (!isSuperAdmin) {
+      if (!myBranchId) return true;
+      return item.branch_id === myBranchId;
+    }
     if (branchFilter === "all") return true;
     return item.branch_id === branchFilter;
   }).filter((item) => item.applicant_type === typeTab || (!item.applicant_type && typeTab === "employee"));
+
+  const filterByBranch = (items) => {
+    if (isSuperAdmin) {
+      if (branchFilter === "all") return items;
+      return items.filter(item => item.branch_id === branchFilter);
+    }
+    if (!myBranchId) return items;
+    return items.filter(item => item.branch_id === myBranchId);
+  };
+  const visibleTools = filterByBranch(toolsResults);
+  const visibleRezultat = filterByBranch(rezultatResults);
+  const visibleLogis = logisResults;
+  const visibleSails = sailsResults;
 
   return (
     <div style={S.page}><div style={S.wrap}>
@@ -751,11 +795,25 @@ export default function Admin() {
         {openTools ? (
           // Подробная карточка Тулс
           <div>
-            <button onClick={() => setOpenTools(null)}
-              style={{ ...S.btn, ...S.ghost, padding: "8px 14px", fontSize: 14, marginBottom: 16 }}>
-              ← Назад к списку
-            </button>
-            <div style={S.card}>
+            <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
+              <button onClick={() => setOpenTools(null)}
+                style={{ ...S.btn, ...S.ghost, padding: "8px 14px", fontSize: 14 }}>
+                ← Назад к списку
+              </button>
+              {isSuperAdmin && (
+                <>
+                  <button onClick={() => downloadPdf(openTools.candidate_name)}
+                    style={{ ...S.btn, padding: "8px 14px", fontSize: 13, background: "#EEF3FF", color: "#3B7BF6" }}>
+                    {pdfLoading ? "Создаём PDF..." : "⬇ Скачать PDF"}
+                  </button>
+                  <button onClick={() => removeTools(openTools.id)}
+                    style={{ ...S.btn, padding: "8px 14px", fontSize: 13, background: "#FEE2E2", color: "#DC2626" }}>
+                    🗑 Удалить
+                  </button>
+                </>
+              )}
+            </div>
+            <div ref={reportRef} style={S.card}>
               <ToolsResultCard rec={openTools} />
             </div>
           </div>
@@ -763,7 +821,7 @@ export default function Admin() {
           // Список результатов Тулс
           <>
             {toolsLoading && <div style={{ ...S.card, color: "#6B675F" }}>Загрузка...</div>}
-            {!toolsLoading && toolsResults.length === 0 && (
+            {!toolsLoading && visibleTools.length === 0 && (
               <div style={{ ...S.card, color: "#6B675F" }}>
                 <div style={{ fontWeight: 700, marginBottom: 6 }}>Результатов Тулс пока нет</div>
                 <p style={{ margin: 0, fontSize: 14, lineHeight: 1.6 }}>
@@ -771,7 +829,7 @@ export default function Admin() {
                 </p>
               </div>
             )}
-            {toolsResults.map((item) => {
+            {visibleTools.map((item) => {
               const scores = item.scores || {};
               const topInd = Object.entries(scores).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([k]) => k);
               return (
@@ -788,10 +846,18 @@ export default function Admin() {
                       </div>
                     )}
                   </div>
-                  <button onClick={() => setOpenTools(item)}
-                    style={{ ...S.btn, ...S.primary, padding: "9px 16px", fontSize: 14 }}>
-                    Открыть
-                  </button>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button onClick={() => setOpenTools(item)}
+                      style={{ ...S.btn, ...S.primary, padding: "9px 16px", fontSize: 14 }}>
+                      Открыть
+                    </button>
+                    {isSuperAdmin && (
+                      <button onClick={() => removeTools(item.id)}
+                        style={{ ...S.btn, padding: "9px 12px", fontSize: 13, background: "#FEE2E2", color: "#DC2626", borderRadius: 10 }}>
+                        ✕
+                      </button>
+                    )}
+                  </div>
                 </div>
               );
             })}
@@ -801,17 +867,33 @@ export default function Admin() {
 
       {testTab === "rezultat" && (<>
         {openRezultat ? (
-          <RezultResultCard result={openRezultat} onClose={() => setOpenRezultat(null)} />
+          <div>
+            {isSuperAdmin && (
+              <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
+                <button onClick={() => downloadPdf(openRezultat.candidate_name)}
+                  style={{ ...S.btn, padding: "8px 14px", fontSize: 13, background: "#EEF3FF", color: "#3B7BF6" }}>
+                  {pdfLoading ? "Создаём PDF..." : "⬇ Скачать PDF"}
+                </button>
+                <button onClick={() => removeRezultat(openRezultat.id)}
+                  style={{ ...S.btn, padding: "8px 14px", fontSize: 13, background: "#FEE2E2", color: "#DC2626" }}>
+                  🗑 Удалить
+                </button>
+              </div>
+            )}
+            <div ref={reportRef}>
+              <RezultResultCard result={openRezultat} onClose={() => setOpenRezultat(null)} />
+            </div>
+          </div>
         ) : (
           <>
             {rezultatLoading && <div style={{ ...S.card, color: "#6B675F" }}>Загрузка...</div>}
-            {!rezultatLoading && rezultatResults.length === 0 && (
+            {!rezultatLoading && visibleRezultat.length === 0 && (
               <div style={{ ...S.card }}>
                 <div style={{ fontWeight: 700, marginBottom: 6 }}>Результатов Резалт пока нет</div>
                 <div style={{ color: "#6B675F", fontSize: 14 }}>Кандидаты смогут проходить тест Резалт через главную страницу.</div>
               </div>
             )}
-            {rezultatResults.map((item) => {
+            {visibleRezultat.map((item) => {
               const date = item.created_at ? new Date(item.created_at).toLocaleDateString("ru-RU") : "—";
               const jobsCount = item.jobs ? item.jobs.length : 1;
               return (
@@ -826,7 +908,15 @@ export default function Admin() {
                         {jobsCount > 1 ? ` · ${jobsCount} места работы` : ""}
                       </div>
                     </div>
-                    <div style={{ fontSize: 13, color: "#3B7BF6" }}>Открыть →</div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <div style={{ fontSize: 13, color: "#3B7BF6" }}>Открыть →</div>
+                      {isSuperAdmin && (
+                        <button onClick={(e) => { e.stopPropagation(); removeRezultat(item.id); }}
+                          style={{ ...S.btn, padding: "5px 10px", fontSize: 12, background: "#FEE2E2", color: "#DC2626", borderRadius: 8 }}>
+                          ✕
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               );
@@ -837,10 +927,24 @@ export default function Admin() {
 
       {testTab === "logis" && (<>
         {openLogis ? (
-          <div style={S.card}>
-            <button onClick={() => setOpenLogis(null)} style={{ ...S.btn, ...S.ghost, padding: "8px 14px", fontSize: 14, marginBottom: 18 }}>
-              ← К списку
-            </button>
+          <div ref={reportRef} style={S.card}>
+            <div style={{ display: "flex", gap: 8, marginBottom: 18, flexWrap: "wrap" }}>
+              <button onClick={() => setOpenLogis(null)} style={{ ...S.btn, ...S.ghost, padding: "8px 14px", fontSize: 14 }}>
+                ← К списку
+              </button>
+              {isSuperAdmin && (
+                <>
+                  <button onClick={() => downloadPdf(openLogis.name)}
+                    style={{ ...S.btn, padding: "8px 14px", fontSize: 13, background: "#EEF3FF", color: "#3B7BF6" }}>
+                    {pdfLoading ? "Создаём PDF..." : "⬇ Скачать PDF"}
+                  </button>
+                  <button onClick={() => removeLogis(openLogis.id)}
+                    style={{ ...S.btn, padding: "8px 14px", fontSize: 13, background: "#FEE2E2", color: "#DC2626" }}>
+                    🗑 Удалить
+                  </button>
+                </>
+              )}
+            </div>
             <h2 style={{ margin: "0 0 6px" }}>{openLogis.name}</h2>
             <div style={{ color: "#8A867E", fontSize: 14, marginBottom: 20 }}>
               {openLogis.completed_at ? new Date(openLogis.completed_at).toLocaleString("ru-RU") : "—"}
@@ -871,13 +975,13 @@ export default function Admin() {
         ) : (
           <>
             {logisLoading && <div style={{ ...S.card, color: "#6B675F" }}>Загрузка...</div>}
-            {!logisLoading && logisResults.length === 0 && (
+            {!logisLoading && visibleLogis.length === 0 && (
               <div style={{ ...S.card }}>
                 <div style={{ fontWeight: 700, marginBottom: 6 }}>Результатов Логис пока нет</div>
                 <div style={{ color: "#6B675F", fontSize: 14 }}>Кандидаты смогут проходить тест через главную страницу.</div>
               </div>
             )}
-            {logisResults.map((item) => {
+            {visibleLogis.map((item) => {
               const date = item.completed_at ? new Date(item.completed_at).toLocaleDateString("ru-RU") : "—";
               const level = item.score >= 130 ? "Очень высокий" :
                             item.score >= 120 ? "Высокий" :
@@ -894,8 +998,16 @@ export default function Admin() {
                         {date} · Балл: {item.score} · {level}
                       </div>
                     </div>
-                    <div style={{ fontSize: 22, fontWeight: 800, color: item.score >= 120 ? "#43a047" : item.score >= 100 ? "#fb8c00" : "#e53935" }}>
-                      {item.score}
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <div style={{ fontSize: 22, fontWeight: 800, color: item.score >= 120 ? "#43a047" : item.score >= 100 ? "#fb8c00" : "#e53935" }}>
+                        {item.score}
+                      </div>
+                      {isSuperAdmin && (
+                        <button onClick={(e) => { e.stopPropagation(); removeLogis(item.id); }}
+                          style={{ ...S.btn, padding: "5px 10px", fontSize: 12, background: "#FEE2E2", color: "#DC2626", borderRadius: 8 }}>
+                          ✕
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -908,13 +1020,13 @@ export default function Admin() {
       {testTab === "sails" && (<>
         <h3 style={{ ...S.display, fontSize: 18, fontWeight: 700, marginBottom: 16 }}>💎 Результаты Сэйлс</h3>
         {sailsLoading && <div style={{ ...S.card, color: "#6B675F" }}>Загрузка...</div>}
-        {!sailsLoading && sailsResults.length === 0 && (
+        {!sailsLoading && visibleSails.length === 0 && (
           <div style={{ ...S.card }}>
             <div style={{ fontWeight: 700, marginBottom: 6 }}>Результатов Сэйлс пока нет</div>
             <div style={{ color: "#6B675F", fontSize: 14 }}>Они появятся после прохождения теста.</div>
           </div>
         )}
-        {sailsResults.map((item) => {
+        {visibleSails.map((item) => {
           const ans = item.answers || {};
           const yesCount = Object.values(ans).filter(v => v === "yes").length;
           const noCount = Object.values(ans).filter(v => v === "no").length;
@@ -935,6 +1047,12 @@ export default function Admin() {
                   <span style={{ fontSize: 12, fontWeight: 700, color: "#ff9800", background: "#fff3e0", padding: "3px 10px", borderRadius: 99 }}>Иногда: {sometimesCount}</span>
                   <span style={{ fontSize: 12, fontWeight: 700, color: "#f44336", background: "#ffebee", padding: "3px 10px", borderRadius: 99 }}>Нет: {noCount}</span>
                   <span style={{ fontSize: 12, color: "#6B675F", background: "#f5f5f5", padding: "3px 10px", borderRadius: 99 }}>{total}/120</span>
+                  {isSuperAdmin && (
+                    <button onClick={() => removeSails(item.id)}
+                      style={{ ...S.btn, padding: "4px 10px", fontSize: 12, background: "#FEE2E2", color: "#DC2626", borderRadius: 8 }}>
+                      ✕ Удалить
+                    </button>
+                  )}
                 </div>
               </div>
               {Object.keys(sc).length > 0 && (
