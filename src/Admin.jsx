@@ -1081,7 +1081,6 @@ export default function Admin() {
                   })}
                 </div>
               )}
-            </div>
               {Object.keys(sc).length > 0 && (
                 <AnalysisBlock analysis={sailsAnalysis(sc)} />
               )}
