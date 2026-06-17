@@ -158,7 +158,7 @@ export default function ToolsTest({ onBack }) {
       candidate_age: age.trim() ? parseInt(age) : null,
       scores,
       syndromes,
-      answers_count: maybeCount,
+      answers_count: answeredCount,
       total_questions: TOTAL_QUESTIONS,
       answered_count: answeredCount,
       time_spent: timeSpent,
