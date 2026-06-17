@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { TOOLS_INDICATORS, TOOLS_DESCRIPTIONS, LEVEL_STYLE, getToolsLevel, scoreToPercent } from "./toolsMeta";
-import { toolsAnalysis } from "./analysisUtils";
-import AnalysisBlock from "./AnalysisBlock";
+import { toolsAnalysis, detectToolsSyndromes } from "./analysisUtils";
 
 // Горизонтальная шкала -100..+100 с маркером
 function ScaleBar({ score, color }) {
@@ -94,6 +93,59 @@ function IndicatorRow({ ind, score, expanded, onToggle }) {
 // Props:
 //   rec — объект из Supabase tools_results или распарсенный PDF
 // ─────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
+// БЛОК СИНДРОМОВ — по официальной инструкции HRScanner
+// ─────────────────────────────────────────────────────────────
+const SEVERITY_STYLES = {
+  positive: { bg: "#E8F5E9", border: "#4CAF50", text: "#2E7D32", icon: "✅" },
+  info:     { bg: "#E3F2FD", border: "#2196F3", text: "#0D47A1", icon: "ℹ️" },
+  warning:  { bg: "#FFF8E1", border: "#FFA000", text: "#E65100", icon: "⚠️" },
+  danger:   { bg: "#FFEBEE", border: "#F44336", text: "#C62828", icon: "🚨" },
+};
+
+function SyndromesBlock({ scores }) {
+  const syndromes = detectToolsSyndromes(scores);
+  if (!syndromes || syndromes.length === 0) return null;
+
+  const grouped = {
+    danger:   syndromes.filter(s => s.severity === "danger"),
+    warning:  syndromes.filter(s => s.severity === "warning"),
+    info:     syndromes.filter(s => s.severity === "info"),
+    positive: syndromes.filter(s => s.severity === "positive"),
+  };
+
+  return (
+    <div style={{ marginTop: 24 }}>
+      <div style={{ fontWeight: 700, fontSize: 14, letterSpacing: ".05em", textTransform: "uppercase", color: "#6B675F", marginBottom: 14 }}>
+        🧠 Синдромы по инструкции
+      </div>
+      {["danger","warning","info","positive"].map(sev => {
+        const items = grouped[sev];
+        if (!items.length) return null;
+        const st = SEVERITY_STYLES[sev];
+        return (
+          <div key={sev} style={{ marginBottom: 12 }}>
+            {items.map((synd, i) => (
+              <div key={i} style={{
+                background: st.bg, border: `1.5px solid ${st.border}`,
+                borderRadius: 12, padding: "12px 16px", marginBottom: 8,
+              }}>
+                <div style={{ fontWeight: 700, fontSize: 14, color: st.text, marginBottom: 4 }}>
+                  {st.icon} {synd.name}
+                </div>
+                <div style={{ fontSize: 13, color: "#444", lineHeight: 1.5 }}>
+                  {synd.desc}
+                </div>
+              </div>
+            ))}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+
 export default function ToolsResultCard({ rec }) {
   const [expandedId, setExpandedId] = useState(null);
 
@@ -159,24 +211,8 @@ export default function ToolsResultCard({ rec }) {
         />
       ))}
 
-      {/* Синдромы */}
-      {syndromes.length > 0 && (
-        <div style={{ marginTop: 20, background: "#F6F5F2", borderRadius: 14, padding: "16px 18px" }}>
-          <div style={{ fontWeight: 700, fontSize: 13, letterSpacing: ".06em", textTransform: "uppercase", color: "#8A867E", marginBottom: 10 }}>
-            Синдромы и перевесы
-          </div>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            {syndromes.map((s, i) => (
-              <span key={i} style={{ fontSize: 13, fontWeight: 600, background: "#fff", border: "1.5px solid #D8D5CF", borderRadius: 10, padding: "5px 12px", color: "#1C1B1A" }}>
-                {s}
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Анализ кандидата */}
-      <AnalysisBlock analysis={toolsAnalysis(scores)} />
+      {/* Синдромы по официальной инструкции */}
+      <SyndromesBlock scores={scores} />
     </div>
   );
 }

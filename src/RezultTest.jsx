@@ -456,13 +456,28 @@ export default function RezultTest({ onBack }) {
           >
             ← Назад
           </button>
-          <button
-            onClick={nextQuestion}
-            disabled={saving}
-            style={btnPrimary}
-          >
-            {saving ? "Сохранение..." : q.isLast ? "Завершить" : "Далее"}
-          </button>
+          {(() => {
+            // Заблокировать "Далее" если требуется комментарий, но он пустой
+            const needsComment = q.type === "radio_with_comment" && q.commentLabel;
+            const hasComment = ans?.comment && ans.comment.trim().length > 0;
+            const needsText = q.type === "text";
+            const hasText = ans?.text && ans.text.trim().length > 0;
+            const blocked = saving || (needsComment && !hasComment) || (needsText && !hasText);
+            return (
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
+                {needsComment && !hasComment && (
+                  <div style={{ fontSize: 12, color: "#E25C44" }}>⚠ Введите комментарий, чтобы продолжить</div>
+                )}
+                <button
+                  onClick={nextQuestion}
+                  disabled={blocked}
+                  style={{ ...btnPrimary, opacity: blocked ? 0.45 : 1, cursor: blocked ? "not-allowed" : "pointer" }}
+                >
+                  {saving ? "Сохранение..." : q.isLast ? "Завершить" : "Далее →"}
+                </button>
+              </div>
+            );
+          })()}
         </div>
       </div>
     </div>
