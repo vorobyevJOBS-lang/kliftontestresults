@@ -5,6 +5,10 @@ import { ROLE_PROFILES } from "./roles";
 import { TALENT_META, TALENT_GROWTH } from "./talentMeta";
 import { ROLE_QUESTIONS } from "./roleQuestions";
 import { supabase } from "./supabase";
+import RezultTest from "./RezultTest";
+import ToolsTest from "./ToolsTest";
+import LogisTest from "./LogisTest";
+import SailsTest from "./SailsTest";
 
 // ─────────────────────────────────────────────────────────────
 // ДОМЕНЫ — визуальная группировка талантов
@@ -348,6 +352,7 @@ function buildPlainText(rec) {
 // ─────────────────────────────────────────────────────────────
 export default function App() {
   const [screen, setScreen] = useState("home");
+  const [activeTest, setActiveTest] = useState(null); // null | "rezultat" | "tools"
   const [name, setName] = useState("");
   const [branchId, setBranchId] = useState(BRANCHES[0].id);
   const [applicantType, setApplicantType] = useState("candidate"); // candidate | employee
@@ -463,16 +468,103 @@ export default function App() {
   }
 
   // ── ГЛАВНАЯ ──
+  // Route to Резалт test
+  if (activeTest === "rezultat") return (
+    <RezultTest onBack={() => setActiveTest(null)} />
+  );
+  if (activeTest === "logis") return (
+    <LogisTest onBack={() => setActiveTest(null)} />
+  );
+  if (activeTest === "sails") return (
+    <SailsTest onBack={() => setActiveTest(null)} />
+  );
+  if (activeTest === "tools") return (
+    <ToolsTest onBack={() => setActiveTest(null)} />
+  );
+
   if (screen === "home") return (
     <div style={S.page}><div style={S.wrap}>
       <div style={{ marginBottom: 28 }}>
         <div style={{ ...S.display, fontSize: 13, fontWeight: 700, letterSpacing: ".12em", textTransform: "uppercase", color: "#8A867E", marginBottom: 12 }}>Оценка кандидатов</div>
-        <h1 style={{ ...S.display, fontSize: 30, lineHeight: 1.15, margin: 0, fontWeight: 700 }}>Тест сильных сторон</h1>
+        <h1 style={{ ...S.display, fontSize: 30, lineHeight: 1.15, margin: 0, fontWeight: 700 }}>Выберите тест</h1>
         <p style={{ color: "#6B675F", fontSize: 16, lineHeight: 1.55, marginTop: 12 }}>
-          {QUESTIONS.length} пар утверждений · ≈ 45-50 минут. В каждой паре выбирайте, что вам ближе — A или B.
-          На каждую пару есть немного времени, это нормально и сделано специально.
+          Выберите тест для кандидата или сотрудника.
         </p>
       </div>
+
+      {/* Карточки тестов */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px,1fr))", gap: 12, marginBottom: 28 }}>
+        {/* Клифтон — активен */}
+        <div style={{ background: "#1C1B1A", color: "#fff", borderRadius: 16, padding: 20, cursor: "default" }}>
+          <div style={{ fontSize: 20, marginBottom: 8 }}>🏆</div>
+          <div style={{ ...S.display, fontWeight: 700, fontSize: 17, marginBottom: 6 }}>Клифтон</div>
+          <div style={{ fontSize: 13, color: "#A8A49C", lineHeight: 1.5, marginBottom: 14 }}>
+            Тест сильных сторон — {QUESTIONS.length} пар · ≈ 45 мин
+          </div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: "#4CD080", background: "rgba(76,208,128,.15)", padding: "3px 10px", borderRadius: 99, display: "inline-block" }}>
+            Доступен
+          </div>
+        </div>
+
+        {/* Резалт — активен */}
+        <div onClick={() => setActiveTest("rezultat")}
+          style={{ background: "#fff", borderRadius: 16, padding: 20, border: "1.5px solid #EEECE7", cursor: "pointer" }}
+          onMouseEnter={e => e.currentTarget.style.boxShadow = "0 4px 16px rgba(59,123,246,0.12)"}
+          onMouseLeave={e => e.currentTarget.style.boxShadow = "none"}
+        >
+          <div style={{ fontSize: 20, marginBottom: 8 }}>📊</div>
+          <div style={{ ...S.display, fontWeight: 700, fontSize: 17, marginBottom: 6 }}>Резалт</div>
+          <div style={{ fontSize: 13, color: "#6B675F", lineHeight: 1.5, marginBottom: 14 }}>Продуктивность соискателя · 19 вопросов</div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: "#4CD080", background: "rgba(76,208,128,.15)", padding: "3px 10px", borderRadius: 99, display: "inline-block" }}>
+            Доступен
+          </div>
+        </div>
+
+        {/* Тулс — активен */}
+        <div onClick={() => setActiveTest("tools")}
+          style={{ background: "#fff", borderRadius: 16, padding: 20, border: "1.5px solid #EEECE7", cursor: "pointer" }}
+          onMouseEnter={e => e.currentTarget.style.boxShadow = "0 4px 16px rgba(59,123,246,0.12)"}
+          onMouseLeave={e => e.currentTarget.style.boxShadow = "none"}
+        >
+          <div style={{ fontSize: 20, marginBottom: 8 }}>🎯</div>
+          <div style={{ ...S.display, fontWeight: 700, fontSize: 17, marginBottom: 6 }}>Тулс</div>
+          <div style={{ fontSize: 13, color: "#6B675F", lineHeight: 1.5, marginBottom: 14 }}>Тест характера · 10 показателей · 200 вопросов</div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: "#4CD080", background: "rgba(76,208,128,.15)", padding: "3px 10px", borderRadius: 99, display: "inline-block" }}>
+            Доступен
+          </div>
+        </div>
+
+        {/* Логис — активен */}
+        <div onClick={() => setActiveTest("logis")}
+          style={{ background: "#fff", borderRadius: 16, padding: 20, border: "1.5px solid #EEECE7", cursor: "pointer" }}>
+          <div style={{ fontSize: 20, marginBottom: 8 }}>🧠</div>
+          <div style={{ ...S.display, fontWeight: 700, fontSize: 17, marginBottom: 6 }}>Логис</div>
+          <div style={{ fontSize: 13, color: "#6B675F", lineHeight: 1.5, marginBottom: 14 }}>Тест на IQ · 80 вопросов · 30 мин</div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: "#fff", background: "#6c63ff", padding: "3px 10px", borderRadius: 99, display: "inline-block" }}>
+            Доступен
+          </div>
+        </div>
+
+        {/* Сэйлс */}
+        <div onClick={() => setActiveTest("sails")} style={{ background: "#fff", borderRadius: 16, padding: 20, border: "1.5px solid #EEECE7", cursor: "pointer", transition: "box-shadow .15s" }}
+          onMouseEnter={e => e.currentTarget.style.boxShadow = "0 4px 16px rgba(224,64,251,.15)"}
+          onMouseLeave={e => e.currentTarget.style.boxShadow = "none"}>
+          <div style={{ fontSize: 20, marginBottom: 8 }}>💎</div>
+          <div style={{ ...S.display, fontWeight: 700, fontSize: 17, marginBottom: 6 }}>Сэйлс</div>
+          <div style={{ fontSize: 13, color: "#6B675F", lineHeight: 1.5, marginBottom: 14 }}>Способности в продажах · 120 вопросов</div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: "#9c27b0", background: "#f3e5f5", padding: "3px 10px", borderRadius: 99, display: "inline-block" }}>
+            Доступен
+          </div>
+        </div>
+      </div>
+
+      {/* Форма Клифтон */}
+      <div style={{ ...S.display, fontSize: 13, fontWeight: 700, letterSpacing: ".12em", textTransform: "uppercase", color: "#8A867E", marginBottom: 12 }}>
+        Тест Клифтон
+      </div>
+      <p style={{ color: "#6B675F", fontSize: 15, lineHeight: 1.55, marginTop: 0, marginBottom: 20 }}>
+        {QUESTIONS.length} пар утверждений · ≈ 45-50 минут. В каждой паре выбирайте, что вам ближе — A или B.
+      </p>
 
       <div style={S.card}>
         <label style={{ fontSize: 14, fontWeight: 600, display: "block", marginBottom: 8 }}>Имя</label>

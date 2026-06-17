@@ -3,6 +3,9 @@ import { supabase } from "./supabase";
 import { S, Bar, DomainTag, DOMAINS, TALENT_META, TALENTS, POSITIONS, BRANCHES, branchById } from "./App";
 import { jsPDF } from "jspdf";
 import html2canvas from "html2canvas";
+import ToolsResultCard from "./ToolsResultCard";
+import { SAILS_SCALE_NAMES, sailsLevel } from "./sailsQuestions";
+import RezultResultCard from "./RezultResultCard";
 
 export default function Admin() {
   const [login, setLogin] = useState("");
@@ -22,6 +25,18 @@ export default function Admin() {
   const [pdfLoading, setPdfLoading] = useState(false);
   const [compareMode, setCompareMode] = useState(false);
   const [compareIds, setCompareIds] = useState(new Set());
+  const [testTab, setTestTab] = useState("clifton"); // clifton | tools
+  const [toolsResults, setToolsResults] = useState([]);
+  const [toolsLoading, setToolsLoading] = useState(false);
+  const [openTools, setOpenTools] = useState(null); // выбранная запись Тулс
+  const [rezultatResults, setRezultatResults] = useState([]);
+  const [rezultatLoading, setRezultatLoading] = useState(false);
+  const [openRezultat, setOpenRezultat] = useState(null);
+  const [logisResults, setLogisResults] = useState([]);
+  const [logisLoading, setLogisLoading] = useState(false);
+  const [openLogis, setOpenLogis] = useState(null);
+  const [sailsResults, setSailsResults] = useState([]);
+  const [sailsLoading, setSailsLoading] = useState(false);
   const reportRef = useRef(null);
 
   const handleLogin = async () => {
@@ -39,6 +54,10 @@ export default function Admin() {
       setIsSuperAdmin(superAdmin);
       setMyBranchId(superAdmin ? null : data.branch_id || null);
       loadResults();
+      loadToolsResults();
+      loadRezultatResults();
+      loadLogisResults();
+      loadSailsResults();
     } else {
       setLoginError(true);
     }
@@ -102,6 +121,54 @@ export default function Admin() {
       setPdfLoading(false);
     }
   }
+
+  const loadToolsResults = async () => {
+    setToolsLoading(true);
+    const { data, error } = await supabase
+      .from("tools_results")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(200);
+    if (error) console.error("tools_results:", error);
+    if (data) setToolsResults(data);
+    setToolsLoading(false);
+  };
+
+  const loadRezultatResults = async () => {
+    setRezultatLoading(true);
+    const { data, error } = await supabase
+      .from("rezultat_results")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(200);
+    if (error) console.error("rezultat_results:", error);
+    if (data) setRezultatResults(data);
+    setRezultatLoading(false);
+  };
+
+  const loadLogisResults = async () => {
+    setLogisLoading(true);
+    const { data, error } = await supabase
+      .from("logis_results")
+      .select("*")
+      .order("completed_at", { ascending: false })
+      .limit(200);
+    if (error) console.error("logis_results:", error);
+    if (data) setLogisResults(data);
+    setLogisLoading(false);
+  };
+
+  const loadSailsResults = async () => {
+    setSailsLoading(true);
+    const { data, error } = await supabase
+      .from("sails_results")
+      .select("*")
+      .order("completed_at", { ascending: false })
+      .limit(200);
+    if (error) console.error("sails_results:", error);
+    if (data) setSailsResults(data);
+    setSailsLoading(false);
+  };
 
   async function removeRec(id) {
     if (!window.confirm("Удалить этот результат без возможности восстановления?")) return;
@@ -553,14 +620,26 @@ export default function Admin() {
           {isSuperAdmin && (
             <button onClick={() => { loadAdmins(); setView("branches"); }} style={{ ...S.btn, ...S.ghost, padding: "8px 14px", fontSize: 14 }}>Филиалы</button>
           )}
-          <button
-            onClick={() => { setCompareMode((m) => !m); setCompareIds(new Set()); }}
-            style={{ ...S.btn, padding: "8px 14px", fontSize: 14, background: compareMode ? "#1C1B1A" : "#F1EFEA", color: compareMode ? "#fff" : "#1C1B1A" }}>
-            {compareMode ? "Отмена сравнения" : "Сравнить"}
-          </button>
-          <button onClick={loadResults} style={{ ...S.btn, ...S.ghost, padding: "8px 14px", fontSize: 14 }}>Обновить</button>
+          {testTab === "clifton" && (
+            <button
+              onClick={() => { setCompareMode((m) => !m); setCompareIds(new Set()); }}
+              style={{ ...S.btn, padding: "8px 14px", fontSize: 14, background: compareMode ? "#1C1B1A" : "#F1EFEA", color: compareMode ? "#fff" : "#1C1B1A" }}>
+              {compareMode ? "Отмена сравнения" : "Сравнить"}
+            </button>
+          )}
+          <button onClick={() => { loadResults(); loadToolsResults(); loadRezultatResults(); }} style={{ ...S.btn, ...S.ghost, padding: "8px 14px", fontSize: 14 }}>Обновить</button>
           <button onClick={() => { setAuthorized(false); setIsSuperAdmin(false); }} style={{ ...S.btn, ...S.ghost, padding: "8px 14px", fontSize: 14 }}>Выйти</button>
         </div>
+      </div>
+
+      {/* Переключатель теста */}
+      <div style={{ display: "flex", gap: 8, marginBottom: 18 }}>
+        {[["clifton", "🏆 Клифтон"], ["tools", "🎯 Тулс"], ["rezultat", "📋 Резалт"], ["logis", "🧠 Логис"], ["sails", "💎 Сэйлс"]].map(([id, label]) => (
+          <button key={id} onClick={() => setTestTab(id)}
+            style={{ ...S.btn, padding: "10px 20px", fontSize: 14, background: testTab === id ? "#1C1B1A" : "#F1EFEA", color: testTab === id ? "#fff" : "#1C1B1A" }}>
+            {label}
+          </button>
+        ))}
       </div>
 
       {!isSuperAdmin && myBranchId && (
@@ -579,6 +658,9 @@ export default function Admin() {
           </select>
         </div>
       )}
+
+      {/* ────────── КЛИФТОН ────────── */}
+      {testTab === "clifton" && (<>
 
       {/* Таб Сотрудники / Кандидаты */}
       <div style={{ display: "flex", gap: 10, marginBottom: 18 }}>
@@ -660,6 +742,228 @@ export default function Admin() {
           </div>
         );
       })}
+      </>)} {/* конец Клифтон */}
+
+      {/* ────────── ТУЛС ────────── */}
+      {testTab === "tools" && (<>
+        {openTools ? (
+          // Подробная карточка Тулс
+          <div>
+            <button onClick={() => setOpenTools(null)}
+              style={{ ...S.btn, ...S.ghost, padding: "8px 14px", fontSize: 14, marginBottom: 16 }}>
+              ← Назад к списку
+            </button>
+            <div style={S.card}>
+              <ToolsResultCard rec={openTools} />
+            </div>
+          </div>
+        ) : (
+          // Список результатов Тулс
+          <>
+            {toolsLoading && <div style={{ ...S.card, color: "#6B675F" }}>Загрузка...</div>}
+            {!toolsLoading && toolsResults.length === 0 && (
+              <div style={{ ...S.card, color: "#6B675F" }}>
+                <div style={{ fontWeight: 700, marginBottom: 6 }}>Результатов Тулс пока нет</div>
+                <p style={{ margin: 0, fontSize: 14, lineHeight: 1.6 }}>
+                  Загрузите результаты через скрипт импорта (import_tools.py) из папки с PDF-файлами.
+                </p>
+              </div>
+            )}
+            {toolsResults.map((item) => {
+              const scores = item.scores || {};
+              const topInd = Object.entries(scores).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([k]) => k);
+              return (
+                <div key={item.id} style={{ ...S.card, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+                  <div>
+                    <div style={{ fontWeight: 700 }}>{item.candidate_name}</div>
+                    <div style={{ fontSize: 13, color: "#8A867E", marginTop: 2 }}>
+                      {item.created_at ? new Date(item.created_at).toLocaleDateString("ru-RU") : ""}
+                      {item.answers_count ? ` · Ответов: ${item.answers_count}/200` : ""}
+                    </div>
+                    {topInd.length > 0 && (
+                      <div style={{ fontSize: 13, color: "#44413B", marginTop: 4 }}>
+                        Топ: {topInd.join(", ")}
+                      </div>
+                    )}
+                  </div>
+                  <button onClick={() => setOpenTools(item)}
+                    style={{ ...S.btn, ...S.primary, padding: "9px 16px", fontSize: 14 }}>
+                    Открыть
+                  </button>
+                </div>
+              );
+            })}
+          </>
+        )}
+      </>)} {/* конец Тулс */}
+
+      {testTab === "rezultat" && (<>
+        {openRezultat ? (
+          <RezultResultCard result={openRezultat} onClose={() => setOpenRezultat(null)} />
+        ) : (
+          <>
+            {rezultatLoading && <div style={{ ...S.card, color: "#6B675F" }}>Загрузка...</div>}
+            {!rezultatLoading && rezultatResults.length === 0 && (
+              <div style={{ ...S.card }}>
+                <div style={{ fontWeight: 700, marginBottom: 6 }}>Результатов Резалт пока нет</div>
+                <div style={{ color: "#6B675F", fontSize: 14 }}>Кандидаты смогут проходить тест Резалт через главную страницу.</div>
+              </div>
+            )}
+            {rezultatResults.map((item) => {
+              const date = item.created_at ? new Date(item.created_at).toLocaleDateString("ru-RU") : "—";
+              const jobsCount = item.jobs ? item.jobs.length : 1;
+              return (
+                <div key={item.id} style={{ ...S.card, cursor: "pointer", marginBottom: 10 }}
+                  onClick={() => setOpenRezultat(item)}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <div>
+                      <div style={{ fontWeight: 700, fontSize: 16 }}>{item.candidate_name}</div>
+                      <div style={{ fontSize: 13, color: "#8A867E", marginTop: 2 }}>
+                        {item.candidate_age ? `${item.candidate_age} лет · ` : ""}{date}
+                        {item.candidate_city ? ` · ${item.candidate_city}` : ""}
+                        {jobsCount > 1 ? ` · ${jobsCount} места работы` : ""}
+                      </div>
+                    </div>
+                    <div style={{ fontSize: 13, color: "#3B7BF6" }}>Открыть →</div>
+                  </div>
+                </div>
+              );
+            })}
+          </>
+        )}
+      </>)} {/* конец Резалт */}
+
+      {testTab === "logis" && (<>
+        {openLogis ? (
+          <div style={S.card}>
+            <button onClick={() => setOpenLogis(null)} style={{ ...S.btn, ...S.ghost, padding: "8px 14px", fontSize: 14, marginBottom: 18 }}>
+              ← К списку
+            </button>
+            <h2 style={{ margin: "0 0 6px" }}>{openLogis.name}</h2>
+            <div style={{ color: "#8A867E", fontSize: 14, marginBottom: 20 }}>
+              {openLogis.completed_at ? new Date(openLogis.completed_at).toLocaleString("ru-RU") : "—"}
+            </div>
+            <div style={{ display: "flex", gap: 32, marginBottom: 24, flexWrap: "wrap" }}>
+              <div style={{ textAlign: "center" }}>
+                <div style={{ fontSize: 48, fontWeight: 800, color: openLogis.score >= 120 ? "#43a047" : openLogis.score >= 100 ? "#fb8c00" : "#e53935" }}>
+                  {openLogis.score}
+                </div>
+                <div style={{ fontSize: 13, color: "#8A867E" }}>Балл (из 160)</div>
+              </div>
+              <div style={{ textAlign: "center" }}>
+                <div style={{ fontSize: 48, fontWeight: 800, color: "#333" }}>{openLogis.correct_answers}</div>
+                <div style={{ fontSize: 13, color: "#8A867E" }}>Правильных из 80</div>
+              </div>
+            </div>
+            <div style={{ fontSize: 14, color: "#555" }}>
+              Уровень IQ:&nbsp;<strong>
+                {openLogis.score >= 130 ? "Очень высокий" :
+                 openLogis.score >= 120 ? "Высокий" :
+                 openLogis.score >= 110 ? "Выше среднего" :
+                 openLogis.score >= 100 ? "Средний" :
+                 openLogis.score >= 90  ? "Ниже среднего" : "Низкий"}
+              </strong>
+            </div>
+          </div>
+        ) : (
+          <>
+            {logisLoading && <div style={{ ...S.card, color: "#6B675F" }}>Загрузка...</div>}
+            {!logisLoading && logisResults.length === 0 && (
+              <div style={{ ...S.card }}>
+                <div style={{ fontWeight: 700, marginBottom: 6 }}>Результатов Логис пока нет</div>
+                <div style={{ color: "#6B675F", fontSize: 14 }}>Кандидаты смогут проходить тест через главную страницу.</div>
+              </div>
+            )}
+            {logisResults.map((item) => {
+              const date = item.completed_at ? new Date(item.completed_at).toLocaleDateString("ru-RU") : "—";
+              const level = item.score >= 130 ? "Очень высокий" :
+                            item.score >= 120 ? "Высокий" :
+                            item.score >= 110 ? "Выше среднего" :
+                            item.score >= 100 ? "Средний" :
+                            item.score >= 90  ? "Ниже среднего" : "Низкий";
+              return (
+                <div key={item.id} style={{ ...S.card, cursor: "pointer", marginBottom: 10 }}
+                  onClick={() => setOpenLogis(item)}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <div>
+                      <div style={{ fontWeight: 700, fontSize: 16 }}>{item.name}</div>
+                      <div style={{ fontSize: 13, color: "#8A867E", marginTop: 2 }}>
+                        {date} · Балл: {item.score} · {level}
+                      </div>
+                    </div>
+                    <div style={{ fontSize: 22, fontWeight: 800, color: item.score >= 120 ? "#43a047" : item.score >= 100 ? "#fb8c00" : "#e53935" }}>
+                      {item.score}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </>
+        )}
+      </>)} {/* конец Логис */}
+
+      {testTab === "sails" && (<>
+        <h3 style={{ ...S.display, fontSize: 18, fontWeight: 700, marginBottom: 16 }}>💎 Результаты Сэйлс</h3>
+        {sailsLoading && <div style={{ ...S.card, color: "#6B675F" }}>Загрузка...</div>}
+        {!sailsLoading && sailsResults.length === 0 && (
+          <div style={{ ...S.card }}>
+            <div style={{ fontWeight: 700, marginBottom: 6 }}>Результатов Сэйлс пока нет</div>
+            <div style={{ color: "#6B675F", fontSize: 14 }}>Они появятся после прохождения теста.</div>
+          </div>
+        )}
+        {sailsResults.map((item) => {
+          const ans = item.answers || {};
+          const yesCount = Object.values(ans).filter(v => v === "yes").length;
+          const noCount = Object.values(ans).filter(v => v === "no").length;
+          const sometimesCount = Object.values(ans).filter(v => v === "sometimes").length;
+          const total = Object.keys(ans).length;
+          const sc = item.scales || {};
+          return (
+            <div key={item.id} style={{ ...S.card, marginBottom: 16 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: 16 }}>{item.name}</div>
+                  <div style={{ color: "#6B675F", fontSize: 13, marginTop: 4 }}>
+                    {new Date(item.completed_at).toLocaleString("ru")}
+                  </div>
+                </div>
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: "#4caf50", background: "#e8f5e9", padding: "3px 10px", borderRadius: 99 }}>Да: {yesCount}</span>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: "#ff9800", background: "#fff3e0", padding: "3px 10px", borderRadius: 99 }}>Иногда: {sometimesCount}</span>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: "#f44336", background: "#ffebee", padding: "3px 10px", borderRadius: 99 }}>Нет: {noCount}</span>
+                  <span style={{ fontSize: 12, color: "#6B675F", background: "#f5f5f5", padding: "3px 10px", borderRadius: 99 }}>{total}/120</span>
+                </div>
+              </div>
+              {Object.keys(sc).length > 0 && (
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px 24px" }}>
+                  {Object.entries(SAILS_SCALE_NAMES).map(([code, name]) => {
+                    const score = sc[code] ?? 0;
+                    const lvl = sailsLevel(score);
+                    return (
+                      <div key={code}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 3 }}>
+                          <span style={{ fontSize: 12, color: "#444" }}>
+                            <span style={{ color: "#9c27b0", fontWeight: 700, marginRight: 4 }}>{code}</span>
+                            {name}
+                          </span>
+                          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                            <span style={{ fontSize: 10, color: "#888" }}>{lvl.label}</span>
+                            <span style={{ fontSize: 13, fontWeight: 700, color: "#222", minWidth: 24, textAlign: "right" }}>{score}</span>
+                          </div>
+                        </div>
+                        <div style={{ height: 5, background: "#eee", borderRadius: 3, overflow: "hidden" }}>
+                          <div style={{ height: "100%", width: `${score}%`, background: lvl.color, borderRadius: 3 }} />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </>)} {/* конец Сэйлс */}
+
     </div></div>
   );
 }
