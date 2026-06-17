@@ -5,6 +5,8 @@ import { jsPDF } from "jspdf";
 import html2canvas from "html2canvas";
 import ToolsResultCard from "./ToolsResultCard";
 import { SAILS_SCALE_NAMES, SAILS_SCALE_DESC, sailsLevel } from "./sailsQuestions";
+import { logisAnalysis, sailsAnalysis } from "./analysisUtils";
+import AnalysisBlock from "./AnalysisBlock";
 import RezultResultCard from "./RezultResultCard";
 
 export default function Admin() {
@@ -864,6 +866,7 @@ export default function Admin() {
                  openLogis.score >= 90  ? "Ниже среднего" : "Низкий"}
               </strong>
             </div>
+            <AnalysisBlock analysis={logisAnalysis(openLogis.score, openLogis.correct_answers)} />
           </div>
         ) : (
           <>
@@ -959,6 +962,10 @@ export default function Admin() {
                     );
                   })}
                 </div>
+              )}
+            </div>
+              {Object.keys(sc).length > 0 && (
+                <AnalysisBlock analysis={sailsAnalysis(sc)} />
               )}
             </div>
           );

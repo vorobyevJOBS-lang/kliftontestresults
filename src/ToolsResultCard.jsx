@@ -1,4 +1,7 @@
+import { useState } from "react";
 import { TOOLS_INDICATORS, TOOLS_DESCRIPTIONS, LEVEL_STYLE, getToolsLevel, scoreToPercent } from "./toolsMeta";
+import { toolsAnalysis } from "./analysisUtils";
+import AnalysisBlock from "./AnalysisBlock";
 
 // Горизонтальная шкала -100..+100 с маркером
 function ScaleBar({ score, color }) {
@@ -92,7 +95,7 @@ function IndicatorRow({ ind, score, expanded, onToggle }) {
 //   rec — объект из Supabase tools_results или распарсенный PDF
 // ─────────────────────────────────────────────────────────────
 export default function ToolsResultCard({ rec }) {
-  const [expandedId, setExpandedId] = React.useState(null);
+  const [expandedId, setExpandedId] = useState(null);
 
   if (!rec) return null;
   const scores = rec.scores || {};
@@ -171,6 +174,9 @@ export default function ToolsResultCard({ rec }) {
           </div>
         </div>
       )}
+
+      {/* Анализ кандидата */}
+      <AnalysisBlock analysis={toolsAnalysis(scores)} />
     </div>
   );
 }

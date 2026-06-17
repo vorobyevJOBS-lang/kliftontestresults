@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { REZULTAT_QUESTIONS } from "./rezultMeta";
+import { rezultatAnalysis } from "./analysisUtils";
+import AnalysisBlock from "./AnalysisBlock";
 
 function getAnswerText(q, ans) {
   if (!ans) return <span style={{ color: "#bbb" }}>— не отвечено —</span>;
@@ -59,12 +61,13 @@ function JobBlock({ jobAnswers, jobNum }) {
           </div>
         );
       })}
+      <AnalysisBlock analysis={rezultatAnalysis(result)} />
     </div>
   );
 }
 
 export default function RezultResultCard({ result, onClose }) {
-  const [expandedJob, setExpandedJob] = useState(null);
+  const [expandedJob, setExpandedJob] = useState(0);
   const { candidate_name, candidate_age, candidate_phone, candidate_city,
     candidate_gender, previous_test, jobs, created_at } = result;
 
@@ -137,6 +140,7 @@ export default function RezultResultCard({ result, onClose }) {
           {expandedJob === i && <JobBlock jobAnswers={jobAnswers} jobNum={i} />}
         </div>
       ))}
+      <AnalysisBlock analysis={rezultatAnalysis(result)} />
     </div>
   );
 }
