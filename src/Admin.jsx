@@ -4,7 +4,7 @@ import { S, Bar, DomainTag, DOMAINS, TALENT_META, TALENTS, POSITIONS, BRANCHES, 
 import { jsPDF } from "jspdf";
 import html2canvas from "html2canvas";
 import ToolsResultCard from "./ToolsResultCard";
-import { SAILS_SCALE_NAMES, sailsLevel } from "./sailsQuestions";
+import { SAILS_SCALE_NAMES, SAILS_SCALE_DESC, sailsLevel } from "./sailsQuestions";
 import RezultResultCard from "./RezultResultCard";
 
 export default function Admin() {
@@ -945,6 +945,7 @@ export default function Admin() {
                           <span style={{ fontSize: 12, color: "#444" }}>
                             <span style={{ color: "#9c27b0", fontWeight: 700, marginRight: 4 }}>{code}</span>
                             {name}
+                            <span style={{ color: "#aaa", fontWeight: 400, marginLeft: 4, fontSize: 11 }}>— {SAILS_SCALE_DESC[code]}</span>
                           </span>
                           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                             <span style={{ fontSize: 10, color: "#888" }}>{lvl.label}</span>

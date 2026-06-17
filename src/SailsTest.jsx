@@ -43,57 +43,15 @@ function StartScreen({ onStart }) {
   );
 }
 
-function ResultScreen({ name, answers, scales, onBack }) {
-  const answered = Object.keys(answers).length;
-  const yesCount = Object.values(answers).filter(v => v === "yes").length;
-  const noCount = Object.values(answers).filter(v => v === "no").length;
-  const sometimesCount = Object.values(answers).filter(v => v === "sometimes").length;
-
+function ResultScreen({ name, onBack }) {
   return (
-    <div style={{ minHeight: "100vh", background: "linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)", padding: "24px 16px", overflowY: "auto" }}>
-      <div style={{ maxWidth: "600px", margin: "0 auto" }}>
-        <div style={{ background: "rgba(255,255,255,0.05)", backdropFilter: "blur(20px)", borderRadius: "24px", padding: "40px 32px", border: "1px solid rgba(255,255,255,0.1)", textAlign: "center", marginBottom: "16px" }}>
-          <div style={{ fontSize: "56px", marginBottom: "12px" }}>✅</div>
-          <h2 style={{ color: "#fff", fontSize: "24px", fontWeight: "700", marginBottom: "4px" }}>Тест завершён!</h2>
-          <p style={{ color: "rgba(255,255,255,0.6)", marginBottom: "24px" }}>{name}</p>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "10px", marginBottom: "16px" }}>
-            {[["Да", yesCount, "#4caf50"], ["Иногда", sometimesCount, "#ff9800"], ["Нет", noCount, "#f44336"]].map(([label, count, color]) => (
-              <div key={label} style={{ background: "rgba(255,255,255,0.05)", borderRadius: "12px", padding: "14px", border: `1px solid ${color}40` }}>
-                <div style={{ color, fontSize: "26px", fontWeight: "700" }}>{count}</div>
-                <div style={{ color: "rgba(255,255,255,0.6)", fontSize: "13px" }}>{label}</div>
-              </div>
-            ))}
-          </div>
-          <p style={{ color: "rgba(255,255,255,0.5)", fontSize: "13px", margin: "0 0 24px" }}>Отвечено: {answered} из {SAILS_QUESTIONS.length}</p>
-        </div>
-
-        {/* Scale scores */}
-        {scales && (
-          <div style={{ background: "rgba(255,255,255,0.05)", borderRadius: "20px", padding: "28px", border: "1px solid rgba(255,255,255,0.1)", marginBottom: "16px" }}>
-            <h3 style={{ color: "#fff", fontSize: "16px", fontWeight: "700", marginBottom: "20px", textAlign: "center" }}>Результаты по шкалам</h3>
-            {Object.entries(SAILS_SCALE_NAMES).map(([code, name]) => {
-              const score = scales[code] ?? 0;
-              const lvl = sailsLevel(score);
-              return (
-                <div key={code} style={{ marginBottom: "14px" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "5px" }}>
-                    <span style={{ color: "rgba(255,255,255,0.8)", fontSize: "13px" }}>
-                      <span style={{ color: "#e040fb", fontWeight: "700", marginRight: "6px" }}>{code}</span>{name}
-                    </span>
-                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                      <span style={{ color: "rgba(255,255,255,0.5)", fontSize: "11px" }}>{lvl.label}</span>
-                      <span style={{ color: "#fff", fontWeight: "700", fontSize: "14px", minWidth: "28px", textAlign: "right" }}>{score}</span>
-                    </div>
-                  </div>
-                  <div style={{ height: "6px", background: "rgba(255,255,255,0.1)", borderRadius: "3px", overflow: "hidden" }}>
-                    <div style={{ height: "100%", width: `${score}%`, background: lvl.color, borderRadius: "3px", transition: "width 0.6s ease" }} />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-
+    <div style={{ minHeight: "100vh", background: "linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}>
+      <div style={{ background: "rgba(255,255,255,0.05)", backdropFilter: "blur(20px)", borderRadius: "24px", padding: "48px", maxWidth: "480px", width: "100%", border: "1px solid rgba(255,255,255,0.1)", textAlign: "center" }}>
+        <div style={{ fontSize: "64px", marginBottom: "16px" }}>✅</div>
+        <h2 style={{ color: "#fff", fontSize: "26px", fontWeight: "700", marginBottom: "8px" }}>Тест завершён!</h2>
+        <p style={{ color: "rgba(255,255,255,0.6)", fontSize: "15px", marginBottom: "32px", lineHeight: "1.7" }}>
+          Спасибо, {name}!<br />Ваши ответы сохранены.
+        </p>
         <button onClick={onBack} style={{ width: "100%", padding: "14px", background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", borderRadius: "12px", color: "#fff", fontSize: "16px", cursor: "pointer" }}>
           На главную
         </button>
@@ -101,6 +59,7 @@ function ResultScreen({ name, answers, scales, onBack }) {
     </div>
   );
 }
+
 
 export default function SailsTest({ onBack }) {
   const [screen, setScreen] = useState("start");

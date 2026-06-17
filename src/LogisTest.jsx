@@ -379,38 +379,21 @@ function StartScreen({ name, setName, onStart }) {
 
 // ─── РЕЗУЛЬТАТ ──────────────────────────────────────────────
 
-function ResultScreen({ score, correct, name, onBack }) {
-  const level =
-    score >= 130 ? "Очень высокий" :
-    score >= 120 ? "Высокий" :
-    score >= 110 ? "Выше среднего" :
-    score >= 100 ? "Средний" :
-    score >= 90  ? "Ниже среднего" :
-                   "Низкий";
+function ResultScreen({ name, onBack }) {
   return (
-    <div style={S.page}>
-      <div style={{ ...S.header, justifyContent: "center" }}>
-        <span style={{ fontSize: 20, fontWeight: 700 }}>Результат — Логис</span>
-      </div>
-      <div style={S.wrap}>
-        <div style={S.resultCard}>
-          <div style={S.scoreCircle(score)}>
-            <span style={{ fontSize: 36, fontWeight: 800, color: "#333" }}>{score}</span>
-            <span style={{ fontSize: 12, color: "#666" }}>из 160</span>
-          </div>
-          <h2 style={{ margin: "0 0 6px" }}>{name}</h2>
-          <p style={{ color: "#888", marginBottom: 20 }}>Уровень: <strong>{level}</strong></p>
-          <p style={{ color: "#555", marginBottom: 24 }}>
-            Правильных ответов: <strong>{correct}</strong> из 80
-          </p>
-          <button style={S.btn("default")} onClick={onBack}>На главную</button>
-        </div>
+    <div style={{ ...S.page, alignItems: "center", justifyContent: "center", display: "flex" }}>
+      <div style={{ ...S.card, maxWidth: 420, textAlign: "center", padding: 48 }}>
+        <div style={{ fontSize: 64, marginBottom: 16 }}>✅</div>
+        <h2 style={{ fontSize: 24, fontWeight: 800, color: "#333", marginBottom: 8 }}>Тест завершён!</h2>
+        <p style={{ color: "#888", fontSize: 15, marginBottom: 32 }}>
+          Спасибо, {name}!<br />Ваши ответы сохранены.
+        </p>
+        <button style={S.btn("primary")} onClick={onBack}>На главную</button>
       </div>
     </div>
   );
 }
 
-// ─── ОСНОВНОЙ КОМПОНЕНТ ─────────────────────────────────────
 
 export default function LogisTest({ onBack }) {
   const [phase, setPhase] = useState("start"); // start | test | result
@@ -523,7 +506,12 @@ export default function LogisTest({ onBack }) {
                 <button
                   key={idx}
                   style={S.optionBtn(selected)}
-                  onClick={() => setAnswers((a) => ({ ...a, [q.id]: idx }))}
+                  onClick={() => {
+                    setAnswers((a) => ({ ...a, [q.id]: idx }));
+                    if (current < LOGIS_QUESTIONS.length - 1) {
+                      setTimeout(() => setCurrent((c) => c + 1), 400);
+                    }
+                  }}
                 >
                   <span style={{ color: "#888", marginRight: 10 }}>{idx}.</span> {opt}
                 </button>
