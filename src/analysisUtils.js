@@ -144,7 +144,7 @@ export function detectToolsSyndromes(scores) {
   if (I > H && _hi(I) && H < 0)
     found.push({ name:"Розовые очки", desc:"Наивное восприятие реальности. Зачастую не замечает негативных факторов своей деятельности.", severity:"warning" });
 
-  if (_hi(I) && I === maxVal && !_vhi(I))
+  if (_hi(I) && I === maxVal)
     found.push({ name:"Нет внутреннего стержня", desc:"Слишком мягкое сердце — ставит чужое мнение и желание превыше своего.", severity:"warning" });
 
   if (_lo(A) && _lo(J) && !_lo(D) && !_lo(F))
@@ -196,7 +196,7 @@ export function detectToolsSyndromes(scores) {
   if (_lo(E) && _lo(F) && !_lo(A) && !_lo(C))
     found.push({ name:"Вредные привычки", desc:"При удовлетворительных остальных показателях — возможна склонность к алкоголю или другим вредным привычкам. Апатичность, слабость.", severity:"danger" });
 
-  if (_vhi(D) && D === maxVal)
+  if (_hi(D) && D === maxVal)
     found.push({ name:"Обязан быть правым", desc:"Человек обязан быть правым. Если не получается — делает неправым других. Очень тяжело изменить.", severity:"danger" });
 
   if (_hi(D) && _hi(E) && _hi(F) && _lo(A) && _lo(B) && _lo(G) && _lo(H) && _lo(I) && _lo(J))
