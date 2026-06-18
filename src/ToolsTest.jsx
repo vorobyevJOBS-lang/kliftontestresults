@@ -183,7 +183,7 @@ export default function ToolsTest({ onBack }) {
 
         <div style={{ marginBottom: 28 }}>
           <div style={{ ...S.display, fontSize: 13, fontWeight: 700, letterSpacing: ".12em", textTransform: "uppercase", color: "#8A867E", marginBottom: 8 }}>
-            Тест Тулс
+            Тест Профиль
           </div>
           <h1 style={{ ...S.display, fontSize: 26, fontWeight: 700, margin: "0 0 10px" }}>Тест характера</h1>
           <p style={{ color: "#6B675F", fontSize: 15, lineHeight: 1.6, margin: 0 }}>

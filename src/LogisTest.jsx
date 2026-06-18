@@ -336,12 +336,12 @@ function StartScreen({ name, setName, onStart }) {
   return (
     <div style={S.page}>
       <div style={{ ...S.header, justifyContent: "center" }}>
-        <span style={{ fontSize: 20, fontWeight: 700 }}>Тест Логис</span>
+        <span style={{ fontSize: 20, fontWeight: 700 }}>Тест Логика</span>
       </div>
       <div style={S.wrap}>
         <div style={{ ...S.card, textAlign: "center", marginTop: 48 }}>
           <div style={{ fontSize: 48, marginBottom: 16 }}>🧠</div>
-          <h2 style={{ margin: "0 0 8px", fontSize: 24 }}>Тест IQ — Логис</h2>
+          <h2 style={{ margin: "0 0 8px", fontSize: 24 }}>Тест Логика</h2>
           <p style={{ color: "#666", marginBottom: 24, lineHeight: 1.6 }}>
             80 вопросов · 30 минут · Максимум 160 баллов
           </p>

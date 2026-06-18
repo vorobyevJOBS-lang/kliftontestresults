@@ -10,7 +10,7 @@ function StartScreen({ onStart }) {
     <div style={{ minHeight: "100vh", background: "linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}>
       <div style={{ background: "rgba(255,255,255,0.05)", backdropFilter: "blur(20px)", borderRadius: "24px", padding: "48px", maxWidth: "520px", width: "100%", border: "1px solid rgba(255,255,255,0.1)", textAlign: "center" }}>
         <div style={{ fontSize: "64px", marginBottom: "16px" }}>💎</div>
-        <h1 style={{ color: "#fff", fontSize: "28px", fontWeight: "700", marginBottom: "8px" }}>Тест Сэйлс</h1>
+        <h1 style={{ color: "#fff", fontSize: "28px", fontWeight: "700", marginBottom: "8px" }}>Тест Продажник</h1>
         <p style={{ color: "rgba(255,255,255,0.6)", fontSize: "15px", marginBottom: "32px", lineHeight: "1.6" }}>
           120 вопросов · 30 минут<br />
           Оцените своё отношение к работе в продажах
@@ -128,7 +128,7 @@ export default function SailsTest({ onBack }) {
       {/* Header */}
       <div style={{ padding: "16px 24px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid rgba(255,255,255,0.1)" }}>
         <button onClick={onBack} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.5)", cursor: "pointer", fontSize: "14px", padding: "4px 8px" }}>← Выход</button>
-        <span style={{ color: "rgba(255,255,255,0.8)", fontSize: "14px", fontWeight: "600" }}>💎 Тест Сэйлс</span>
+        <span style={{ color: "rgba(255,255,255,0.8)", fontSize: "14px", fontWeight: "600" }}>💎 Тест Продажник</span>
         <span style={{ color: isLowTime ? "#f44336" : "rgba(255,255,255,0.7)", fontSize: "16px", fontWeight: "700", fontFamily: "monospace" }}>{formatTime(timeLeft)}</span>
       </div>
 

@@ -468,7 +468,7 @@ export default function App() {
   }
 
   // ── ГЛАВНАЯ ──
-  // Route to Резалт test
+  // Route to Опыт test
   if (activeTest === "rezultat") return (
     <RezultTest onBack={() => setActiveTest(null)} />
   );
@@ -506,51 +506,51 @@ export default function App() {
           </div>
         </div>
 
-        {/* Резалт — активен */}
+        {/* Опыт — активен */}
         <div onClick={() => setActiveTest("rezultat")}
           style={{ background: "#fff", borderRadius: 16, padding: 20, border: "1.5px solid #EEECE7", cursor: "pointer" }}
           onMouseEnter={e => e.currentTarget.style.boxShadow = "0 4px 16px rgba(59,123,246,0.12)"}
           onMouseLeave={e => e.currentTarget.style.boxShadow = "none"}
         >
           <div style={{ fontSize: 20, marginBottom: 8 }}>📊</div>
-          <div style={{ ...S.display, fontWeight: 700, fontSize: 17, marginBottom: 6 }}>Резалт</div>
+          <div style={{ ...S.display, fontWeight: 700, fontSize: 17, marginBottom: 6 }}>Опыт</div>
           <div style={{ fontSize: 13, color: "#6B675F", lineHeight: 1.5, marginBottom: 14 }}>Продуктивность соискателя · 19 вопросов</div>
           <div style={{ fontSize: 11, fontWeight: 700, color: "#4CD080", background: "rgba(76,208,128,.15)", padding: "3px 10px", borderRadius: 99, display: "inline-block" }}>
             Доступен
           </div>
         </div>
 
-        {/* Тулс — активен */}
+        {/* Профиль — активен */}
         <div onClick={() => setActiveTest("tools")}
           style={{ background: "#fff", borderRadius: 16, padding: 20, border: "1.5px solid #EEECE7", cursor: "pointer" }}
           onMouseEnter={e => e.currentTarget.style.boxShadow = "0 4px 16px rgba(59,123,246,0.12)"}
           onMouseLeave={e => e.currentTarget.style.boxShadow = "none"}
         >
           <div style={{ fontSize: 20, marginBottom: 8 }}>🎯</div>
-          <div style={{ ...S.display, fontWeight: 700, fontSize: 17, marginBottom: 6 }}>Тулс</div>
+          <div style={{ ...S.display, fontWeight: 700, fontSize: 17, marginBottom: 6 }}>Профиль</div>
           <div style={{ fontSize: 13, color: "#6B675F", lineHeight: 1.5, marginBottom: 14 }}>Тест характера · 10 показателей · 200 вопросов</div>
           <div style={{ fontSize: 11, fontWeight: 700, color: "#4CD080", background: "rgba(76,208,128,.15)", padding: "3px 10px", borderRadius: 99, display: "inline-block" }}>
             Доступен
           </div>
         </div>
 
-        {/* Логис — активен */}
+        {/* Логика — активен */}
         <div onClick={() => setActiveTest("logis")}
           style={{ background: "#fff", borderRadius: 16, padding: 20, border: "1.5px solid #EEECE7", cursor: "pointer" }}>
           <div style={{ fontSize: 20, marginBottom: 8 }}>🧠</div>
-          <div style={{ ...S.display, fontWeight: 700, fontSize: 17, marginBottom: 6 }}>Логис</div>
+          <div style={{ ...S.display, fontWeight: 700, fontSize: 17, marginBottom: 6 }}>Логика</div>
           <div style={{ fontSize: 13, color: "#6B675F", lineHeight: 1.5, marginBottom: 14 }}>Тест на IQ · 80 вопросов · 30 мин</div>
           <div style={{ fontSize: 11, fontWeight: 700, color: "#fff", background: "#6c63ff", padding: "3px 10px", borderRadius: 99, display: "inline-block" }}>
             Доступен
           </div>
         </div>
 
-        {/* Сэйлс */}
+        {/* Продажник */}
         <div onClick={() => setActiveTest("sails")} style={{ background: "#fff", borderRadius: 16, padding: 20, border: "1.5px solid #EEECE7", cursor: "pointer", transition: "box-shadow .15s" }}
           onMouseEnter={e => e.currentTarget.style.boxShadow = "0 4px 16px rgba(224,64,251,.15)"}
           onMouseLeave={e => e.currentTarget.style.boxShadow = "none"}>
           <div style={{ fontSize: 20, marginBottom: 8 }}>💎</div>
-          <div style={{ ...S.display, fontWeight: 700, fontSize: 17, marginBottom: 6 }}>Сэйлс</div>
+          <div style={{ ...S.display, fontWeight: 700, fontSize: 17, marginBottom: 6 }}>Продажник</div>
           <div style={{ fontSize: 13, color: "#6B675F", lineHeight: 1.5, marginBottom: 14 }}>Способности в продажах · 120 вопросов</div>
           <div style={{ fontSize: 11, fontWeight: 700, color: "#9c27b0", background: "#f3e5f5", padding: "3px 10px", borderRadius: 99, display: "inline-block" }}>
             Доступен

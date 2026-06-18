@@ -30,7 +30,7 @@ export default function Admin() {
   const [testTab, setTestTab] = useState("clifton"); // clifton | tools
   const [toolsResults, setToolsResults] = useState([]);
   const [toolsLoading, setToolsLoading] = useState(false);
-  const [openTools, setOpenTools] = useState(null); // выбранная запись Тулс
+  const [openTools, setOpenTools] = useState(null); // выбранная запись Профиль
   const [rezultatResults, setRezultatResults] = useState([]);
   const [rezultatLoading, setRezultatLoading] = useState(false);
   const [openRezultat, setOpenRezultat] = useState(null);
@@ -685,7 +685,7 @@ export default function Admin() {
 
       {/* Переключатель теста */}
       <div style={{ display: "flex", gap: 8, marginBottom: 18 }}>
-        {[["clifton", "🏆 Клифтон"], ["tools", "🎯 Тулс"], ["rezultat", "📋 Резалт"], ["logis", "🧠 Логис"], ["sails", "💎 Сэйлс"]].map(([id, label]) => (
+        {[["clifton", "🏆 Клифтон"], ["tools", "🎯 Профиль"], ["rezultat", "📋 Опыт"], ["logis", "🧠 Логика"], ["sails", "💎 Продажник"]].map(([id, label]) => (
           <button key={id} onClick={() => setTestTab(id)}
             style={{ ...S.btn, padding: "10px 20px", fontSize: 14, background: testTab === id ? "#1C1B1A" : "#F1EFEA", color: testTab === id ? "#fff" : "#1C1B1A" }}>
             {label}
@@ -798,7 +798,7 @@ export default function Admin() {
       {/* ────────── ТУЛС ────────── */}
       {testTab === "tools" && (<>
         {openTools ? (
-          // Подробная карточка Тулс
+          // Подробная карточка Профиль
           <div>
             <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
               <button onClick={() => setOpenTools(null)}
@@ -823,12 +823,12 @@ export default function Admin() {
             </div>
           </div>
         ) : (
-          // Список результатов Тулс
+          // Список результатов Профиль
           <>
             {toolsLoading && <div style={{ ...S.card, color: "#6B675F" }}>Загрузка...</div>}
             {!toolsLoading && visibleTools.length === 0 && (
               <div style={{ ...S.card, color: "#6B675F" }}>
-                <div style={{ fontWeight: 700, marginBottom: 6 }}>Результатов Тулс пока нет</div>
+                <div style={{ fontWeight: 700, marginBottom: 6 }}>Результатов Профиль пока нет</div>
                 <p style={{ margin: 0, fontSize: 14, lineHeight: 1.6 }}>
                   Загрузите результаты через скрипт импорта (import_tools.py) из папки с PDF-файлами.
                 </p>
@@ -868,7 +868,7 @@ export default function Admin() {
             })}
           </>
         )}
-      </>)} {/* конец Тулс */}
+      </>)} {/* конец Профиль */}
 
       {testTab === "rezultat" && (<>
         {openRezultat ? (
@@ -894,8 +894,8 @@ export default function Admin() {
             {rezultatLoading && <div style={{ ...S.card, color: "#6B675F" }}>Загрузка...</div>}
             {!rezultatLoading && visibleRezultat.length === 0 && (
               <div style={{ ...S.card }}>
-                <div style={{ fontWeight: 700, marginBottom: 6 }}>Результатов Резалт пока нет</div>
-                <div style={{ color: "#6B675F", fontSize: 14 }}>Кандидаты смогут проходить тест Резалт через главную страницу.</div>
+                <div style={{ fontWeight: 700, marginBottom: 6 }}>Результатов Опыт пока нет</div>
+                <div style={{ color: "#6B675F", fontSize: 14 }}>Кандидаты смогут проходить тест Опыт через главную страницу.</div>
               </div>
             )}
             {visibleRezultat.map((item) => {
@@ -928,7 +928,7 @@ export default function Admin() {
             })}
           </>
         )}
-      </>)} {/* конец Резалт */}
+      </>)} {/* конец Опыт */}
 
       {testTab === "logis" && (<>
         {openLogis ? (
@@ -982,7 +982,7 @@ export default function Admin() {
             {logisLoading && <div style={{ ...S.card, color: "#6B675F" }}>Загрузка...</div>}
             {!logisLoading && visibleLogis.length === 0 && (
               <div style={{ ...S.card }}>
-                <div style={{ fontWeight: 700, marginBottom: 6 }}>Результатов Логис пока нет</div>
+                <div style={{ fontWeight: 700, marginBottom: 6 }}>Результатов Логика пока нет</div>
                 <div style={{ color: "#6B675F", fontSize: 14 }}>Кандидаты смогут проходить тест через главную страницу.</div>
               </div>
             )}
@@ -1020,14 +1020,14 @@ export default function Admin() {
             })}
           </>
         )}
-      </>)} {/* конец Логис */}
+      </>)} {/* конец Логика */}
 
       {testTab === "sails" && (<>
-        <h3 style={{ ...S.display, fontSize: 18, fontWeight: 700, marginBottom: 16 }}>💎 Результаты Сэйлс</h3>
+        <h3 style={{ ...S.display, fontSize: 18, fontWeight: 700, marginBottom: 16 }}>💎 Результаты Продажник</h3>
         {sailsLoading && <div style={{ ...S.card, color: "#6B675F" }}>Загрузка...</div>}
         {!sailsLoading && visibleSails.length === 0 && (
           <div style={{ ...S.card }}>
-            <div style={{ fontWeight: 700, marginBottom: 6 }}>Результатов Сэйлс пока нет</div>
+            <div style={{ fontWeight: 700, marginBottom: 6 }}>Результатов Продажник пока нет</div>
             <div style={{ color: "#6B675F", fontSize: 14 }}>Они появятся после прохождения теста.</div>
           </div>
         )}
@@ -1092,7 +1092,7 @@ export default function Admin() {
             </div>
           );
         })}
-      </>)} {/* конец Сэйлс */}
+      </>)} {/* конец Продажник */}
 
     </div></div>
   );

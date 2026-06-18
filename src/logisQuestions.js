@@ -1,4 +1,4 @@
-// logisQuestions.js — 80 вопросов теста Логис (IQ)
+// logisQuestions.js — 80 вопросов теста Логика (IQ)
 // score = 80 + correct_answers, максимум 160, время 30 минут
 // Вопросы Q18-Q23, Q25-Q29 — не попали в скриншоты, отмечены missing:true
 

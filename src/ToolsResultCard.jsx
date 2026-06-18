@@ -1,7 +1,7 @@
 import { TOOLS_INDICATORS, TOOLS_DESCRIPTIONS, LEVEL_STYLE, getToolsLevel } from "./toolsMeta";
 import { detectToolsSyndromes } from "./analysisUtils";
 
-// ─── Bar chart colors matching original HRScanner ───────────────────────────
+// ─── Bar chart colors matching original HR-Сканер ───────────────────────────
 const CHART_COLORS = {
   A: "#4A90D9", B: "#4A90D9", C: "#4A90D9",
   D: "#29CAD9",
@@ -306,7 +306,7 @@ export default function ToolsResultCard({ rec }) {
           fontSize: 20, fontWeight: 700, color: "#1C1B1A", lineHeight: 1.3,
           fontFamily: "'Unbounded','Golos Text',sans-serif",
         }}>
-          Результаты тестирования «Тулс» — {rec.candidate_name || rec.name}
+          Результаты тестирования «Профиль» — {rec.candidate_name || rec.name}
         </div>
         {rec.candidate_age && (
           <div style={{
