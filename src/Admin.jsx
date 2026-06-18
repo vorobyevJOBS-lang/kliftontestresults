@@ -174,37 +174,42 @@ export default function Admin() {
 
   async function removeRec(id) {
     if (!window.confirm("Удалить этот результат без возможности восстановления?")) return;
-    const { error } = await supabase.from("results").delete().eq("id", id);
-    if (error) { console.error(error); return; }
+    const { error, count } = await supabase.from("results").delete({ count: "exact" }).eq("id", id);
+    if (error) { console.error(error); alert("Ошибка: " + error.message); return; }
+    if (count === 0) { alert("Удаление заблокировано RLS. Запустите fix_delete_rls.sql в Supabase."); return; }
     setResults((prev) => prev.filter((r) => r.id !== id));
     if (open && open.id === id) setOpen(null);
   }
 
   async function removeTools(id) {
     if (!window.confirm("Удалить этот результат без возможности восстановления?")) return;
-    const { error } = await supabase.from("tools_results").delete().eq("id", id);
-    if (error) { console.error(error); return; }
+    const { error, count } = await supabase.from("tools_results").delete({ count: "exact" }).eq("id", id);
+    if (error) { console.error(error); alert("Ошибка: " + error.message); return; }
+    if (count === 0) { alert("Удаление заблокировано RLS. Запустите fix_delete_rls.sql в Supabase."); return; }
     setToolsResults((prev) => prev.filter((r) => r.id !== id));
     if (openTools && openTools.id === id) setOpenTools(null);
   }
   async function removeRezultat(id) {
     if (!window.confirm("Удалить этот результат без возможности восстановления?")) return;
-    const { error } = await supabase.from("rezultat_results").delete().eq("id", id);
-    if (error) { console.error(error); return; }
+    const { error, count } = await supabase.from("rezultat_results").delete({ count: "exact" }).eq("id", id);
+    if (error) { console.error(error); alert("Ошибка: " + error.message); return; }
+    if (count === 0) { alert("Удаление заблокировано RLS. Запустите fix_delete_rls.sql в Supabase."); return; }
     setRezultatResults((prev) => prev.filter((r) => r.id !== id));
     if (openRezultat && openRezultat.id === id) setOpenRezultat(null);
   }
   async function removeLogis(id) {
     if (!window.confirm("Удалить этот результат без возможности восстановления?")) return;
-    const { error } = await supabase.from("logis_results").delete().eq("id", id);
-    if (error) { console.error(error); return; }
+    const { error, count } = await supabase.from("logis_results").delete({ count: "exact" }).eq("id", id);
+    if (error) { console.error(error); alert("Ошибка: " + error.message); return; }
+    if (count === 0) { alert("Удаление заблокировано RLS. Запустите fix_delete_rls.sql в Supabase."); return; }
     setLogisResults((prev) => prev.filter((r) => r.id !== id));
     if (openLogis && openLogis.id === id) setOpenLogis(null);
   }
   async function removeSails(id) {
     if (!window.confirm("Удалить этот результат без возможности восстановления?")) return;
-    const { error } = await supabase.from("sails_results").delete().eq("id", id);
-    if (error) { console.error(error); return; }
+    const { error, count } = await supabase.from("sails_results").delete({ count: "exact" }).eq("id", id);
+    if (error) { console.error(error); alert("Ошибка: " + error.message); return; }
+    if (count === 0) { alert("Удаление заблокировано RLS. Запустите fix_delete_rls.sql в Supabase."); return; }
     setSailsResults((prev) => prev.filter((r) => r.id !== id));
   }
 
