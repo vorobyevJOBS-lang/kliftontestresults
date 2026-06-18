@@ -43,7 +43,7 @@ function JobBlock({ jobAnswers, jobNum }) {
       )}
       {REZULTAT_QUESTIONS.filter((q) => !q.isLast || jobNum === 0).map((q) => {
         if (q.isLast) return null;
-        if (jobNum > 0 && q.id < 3) return null; // skip Q1-Q2 for subsequent jobs
+        if (jobNum > 0 && q.id < 3) return null;
         const ans = jobAnswers?.[q.id];
         return (
           <div key={q.id} style={{
@@ -61,7 +61,6 @@ function JobBlock({ jobAnswers, jobNum }) {
           </div>
         );
       })}
-      <AnalysisBlock analysis={rezultatAnalysis(result)} />
     </div>
   );
 }
@@ -73,6 +72,14 @@ export default function RezultResultCard({ result, onClose }) {
 
   const date = created_at ? new Date(created_at).toLocaleDateString("ru-RU") : "—";
   const jobsList = jobs || [result.answers || {}];
+  const analysis = rezultatAnalysis(result);
+
+  const TYPE_COLORS = {
+    "Виннер": { bg: "#E8F5E9", border: "#4CAF50", text: "#2E7D32" },
+    "Дуер":   { bg: "#FFF8E1", border: "#FFA000", text: "#E65100" },
+    "Вэйтер": { bg: "#FFEBEE", border: "#F44336", text: "#C62828" },
+  };
+  const tc = TYPE_COLORS[analysis.primaryType] || TYPE_COLORS["Дуер"];
 
   return (
     <div style={{ background: "#F5F6FA", minHeight: "100%", padding: "24px 20px" }}>
@@ -88,6 +95,11 @@ export default function RezultResultCard({ result, onClose }) {
             {candidate_age ? `${candidate_age} лет · ` : ""}{date}
           </div>
         </div>
+      </div>
+
+      {/* Виннер/Дуер/Вэйтер badge */}
+      <div style={{ background: tc.bg, border: `2px solid ${tc.border}`, borderRadius: 14, padding: "16px 20px", marginBottom: 16 }}>
+        <div style={{ fontSize: 18, fontWeight: 800, color: tc.text }}>{analysis.verdict}</div>
       </div>
 
       {/* Анкета info */}
@@ -140,7 +152,7 @@ export default function RezultResultCard({ result, onClose }) {
           {expandedJob === i && <JobBlock jobAnswers={jobAnswers} jobNum={i} />}
         </div>
       ))}
-      <AnalysisBlock analysis={rezultatAnalysis(result)} />
+      <AnalysisBlock analysis={analysis} />
     </div>
   );
 }
