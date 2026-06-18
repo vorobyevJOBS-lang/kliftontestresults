@@ -162,6 +162,7 @@ export default function ToolsTest({ onBack }) {
       total_questions: TOTAL_QUESTIONS,
       answered_count: answeredCount,
       time_spent: timeSpent,
+      maybe_count: maybeCount,
     };
 
     const { error } = await supabase.from("tools_results").insert(record);
