@@ -1,12 +1,9 @@
-import { useState } from "react";
 import { TOOLS_INDICATORS, TOOLS_DESCRIPTIONS, LEVEL_STYLE, getToolsLevel, scoreToPercent } from "./toolsMeta";
-import { toolsAnalysis, detectToolsSyndromes } from "./analysisUtils";
+import { detectToolsSyndromes } from "./analysisUtils";
 
 // Горизонтальная шкала -100..+100 с маркером
 function ScaleBar({ score, color }) {
   const pct = scoreToPercent(score); // 0..100
-  const level = getToolsLevel(score);
-  const ls = LEVEL_STYLE[level];
   return (
     <div style={{ position: "relative", height: 10, background: "#EEECE7", borderRadius: 99, margin: "6px 0 2px" }}>
       {/* Центральная черта */}
@@ -40,23 +37,19 @@ function ScaleBar({ score, color }) {
   );
 }
 
-// Одна строка индикатора
-function IndicatorRow({ ind, score, expanded, onToggle }) {
+// Одна строка индикатора — описание всегда видно
+function IndicatorRow({ ind, score }) {
   const level = getToolsLevel(score);
   const ls = LEVEL_STYLE[level];
   const desc = TOOLS_DESCRIPTIONS[ind.name]?.[level] || "";
 
   return (
-    <div
-      onClick={onToggle}
-      style={{
-        padding: "14px 16px", borderRadius: 12, cursor: "pointer",
-        background: expanded ? ind.soft : "transparent",
-        border: `1.5px solid ${expanded ? ind.color + "50" : "transparent"}`,
-        transition: "background .2s, border .2s",
-        marginBottom: 6,
-      }}
-    >
+    <div style={{
+      padding: "14px 16px", borderRadius: 12,
+      background: ind.soft,
+      border: `1.5px solid ${ind.color}30`,
+      marginBottom: 10,
+    }}>
       {/* Заголовок строки */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -80,19 +73,14 @@ function IndicatorRow({ ind, score, expanded, onToggle }) {
       {/* Шкала */}
       <ScaleBar score={score} color={ind.color} />
 
-      {/* Описание (раскрывается) */}
-      {expanded && desc && (
-        <p style={{ margin: "12px 0 0", fontSize: 14, color: "#44413B", lineHeight: 1.6 }}>{desc}</p>
+      {/* Описание — всегда видно */}
+      {desc && (
+        <p style={{ margin: "10px 0 0", fontSize: 13, color: "#44413B", lineHeight: 1.6 }}>{desc}</p>
       )}
     </div>
   );
 }
 
-// ─────────────────────────────────────────────────────────────
-// Главный компонент карточки результата Тулс
-// Props:
-//   rec — объект из Supabase tools_results или распарсенный PDF
-// ─────────────────────────────────────────────────────────────
 // ─────────────────────────────────────────────────────────────
 // БЛОК СИНДРОМОВ — по официальной инструкции HRScanner
 // ─────────────────────────────────────────────────────────────
@@ -105,53 +93,52 @@ const SEVERITY_STYLES = {
 
 function SyndromesBlock({ scores }) {
   const syndromes = detectToolsSyndromes(scores);
-  if (!syndromes || syndromes.length === 0) return null;
-
-  const grouped = {
-    danger:   syndromes.filter(s => s.severity === "danger"),
-    warning:  syndromes.filter(s => s.severity === "warning"),
-    info:     syndromes.filter(s => s.severity === "info"),
-    positive: syndromes.filter(s => s.severity === "positive"),
-  };
 
   return (
-    <div style={{ marginTop: 24 }}>
+    <div style={{ marginTop: 28, paddingTop: 20, borderTop: "1.5px solid #EEECE7" }}>
       <div style={{ fontWeight: 700, fontSize: 14, letterSpacing: ".05em", textTransform: "uppercase", color: "#6B675F", marginBottom: 14 }}>
-        🧠 Синдромы по инструкции
+        🧠 Синдромы по инструкции HRScanner
       </div>
-      {["danger","warning","info","positive"].map(sev => {
-        const items = grouped[sev];
-        if (!items.length) return null;
-        const st = SEVERITY_STYLES[sev];
-        return (
-          <div key={sev} style={{ marginBottom: 12 }}>
-            {items.map((synd, i) => (
-              <div key={i} style={{
-                background: st.bg, border: `1.5px solid ${st.border}`,
-                borderRadius: 12, padding: "12px 16px", marginBottom: 8,
-              }}>
-                <div style={{ fontWeight: 700, fontSize: 14, color: st.text, marginBottom: 4 }}>
-                  {st.icon} {synd.name}
+
+      {(!syndromes || syndromes.length === 0) ? (
+        <div style={{
+          background: "#F6F5F2", borderRadius: 12, padding: "14px 18px",
+          fontSize: 14, color: "#6B675F", lineHeight: 1.5,
+        }}>
+          ✓ Явно выраженных синдромов не выявлено. Профиль находится в умеренном диапазоне — все показатели в зоне от -32 до +32.
+        </div>
+      ) : (
+        ["danger","warning","info","positive"].map(sev => {
+          const items = syndromes.filter(s => s.severity === sev);
+          if (!items.length) return null;
+          const st = SEVERITY_STYLES[sev];
+          return (
+            <div key={sev} style={{ marginBottom: 12 }}>
+              {items.map((synd, i) => (
+                <div key={i} style={{
+                  background: st.bg, border: `1.5px solid ${st.border}`,
+                  borderRadius: 12, padding: "12px 16px", marginBottom: 8,
+                }}>
+                  <div style={{ fontWeight: 700, fontSize: 14, color: st.text, marginBottom: 4 }}>
+                    {st.icon} {synd.name}
+                  </div>
+                  <div style={{ fontSize: 13, color: "#444", lineHeight: 1.5 }}>
+                    {synd.desc}
+                  </div>
                 </div>
-                <div style={{ fontSize: 13, color: "#444", lineHeight: 1.5 }}>
-                  {synd.desc}
-                </div>
-              </div>
-            ))}
-          </div>
-        );
-      })}
+              ))}
+            </div>
+          );
+        })
+      )}
     </div>
   );
 }
 
 
 export default function ToolsResultCard({ rec }) {
-  const [expandedId, setExpandedId] = useState(null);
-
   if (!rec) return null;
   const scores = rec.scores || {};
-  const syndromes = rec.syndromes || [];
   const answersCount = rec.answers_count ?? rec.answersCount ?? "?";
   const totalQ = rec.total_questions ?? 200;
   const completionPct = answersCount !== "?" ? Math.round((answersCount / totalQ) * 100) : null;
@@ -200,14 +187,12 @@ export default function ToolsResultCard({ rec }) {
         })}
       </div>
 
-      {/* 10 индикаторов */}
+      {/* 10 индикаторов — описания всегда открыты */}
       {TOOLS_INDICATORS.map(ind => (
         <IndicatorRow
           key={ind.id}
           ind={ind}
           score={scores[ind.name] ?? 0}
-          expanded={expandedId === ind.id}
-          onToggle={() => setExpandedId(expandedId === ind.id ? null : ind.id)}
         />
       ))}
 
