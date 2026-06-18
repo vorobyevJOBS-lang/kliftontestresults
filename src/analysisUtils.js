@@ -252,12 +252,18 @@ export function toolsAnalysis(scores) {
 
 
 export function sailsAnalysis(scales) {
+  const NAMES = {
+    A: "Организованность", B: "Стрессоустойчивость", C: "Экспертность",
+    D: "Преданность", E: "Деловая хватка", F: "Результативность",
+    G: "Настойчивость", H: "Перфекционизм", I: "Самоотдача",
+    J: "Командная игра", K: "Привлечение", L: "Удержание",
+  };
   const entries = Object.entries(scales).map(([k,v]) => [k, Number(v)]);
-  const pros = entries.filter(([,s]) => s >= 63).map(([k]) => SAILS_PROS_TEXT[k]).filter(Boolean);
-  const cons = entries.filter(([,s]) => s <= 41).map(([k]) => SAILS_CONS_TEXT[k]).filter(Boolean);
+  const pros = entries.filter(([,s]) => s >= 63).map(([k]) => `Высокая ${NAMES[k] || k}`).filter(Boolean);
+  const cons = entries.filter(([,s]) => s <= 41).map(([k]) => `Низкая ${NAMES[k] || k}`).filter(Boolean);
   const sorted = [...entries].sort((a,b) => b[1]-a[1]);
-  const top3 = sorted.slice(0,3).map(([k,v]) => `${SAILS_NAMES[k]} (${v})`).join(", ");
-  const bot3 = sorted.slice(-3).reverse().map(([k,v]) => `${SAILS_NAMES[k]} (${v})`).join(", ");
+  const top3 = sorted.slice(0,3).map(([k,v]) => `${NAMES[k] || k} (${v})`).join(", ");
+  const bot3 = sorted.slice(-3).reverse().map(([k,v]) => `${NAMES[k] || k} (${v})`).join(", ");
   const avg = Math.round(entries.reduce((a,[,v]) => a+v, 0) / entries.length);
   let verdict;
   if (avg >= 70) verdict = `Сильный профиль продавца (средний балл ${avg}). Топ-компетенции: ${top3}. Рекомендован.`;
