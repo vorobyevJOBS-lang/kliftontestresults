@@ -5,23 +5,30 @@ import { TOOLS_INDICATORS, getToolsLevel, TOOLS_DESCRIPTIONS, LEVEL_STYLE } from
 
 // ─────────────────────────────────────────────────────────────
 // СКОРИНГ
-// Round-robin: вопрос i (0-based) → TOOLS_INDICATORS[i % 10]
-// Да = +5, Может быть = 0, Нет = -5
+// Каждый вопрос имеет scale (A–J) и direction (+1 или -1)
+// Да  → +direction, Нет → -direction, Может быть → 0
+// score = (сумма вкладов / 20) * 100  →  диапазон -100..+100
 // ─────────────────────────────────────────────────────────────
-const SCORE_VALUES = { "Да": 5, "Может быть": 0, "Нет": -5 };
+const SCALE_TO_NAME = Object.fromEntries(TOOLS_INDICATORS.map(ind => [ind.id, ind.name]));
 
 function computeToolsScores(answers) {
   // answers[i] = "Да" | "Может быть" | "Нет" | null
-  const raw = {};
-  TOOLS_INDICATORS.forEach(ind => { raw[ind.name] = 0; });
+  const sums = {};
+  TOOLS_INDICATORS.forEach(ind => { sums[ind.name] = 0; });
 
   answers.forEach((ans, i) => {
     if (!ans) return;
-    const ind = TOOLS_INDICATORS[i % 10];
-    raw[ind.name] += SCORE_VALUES[ans];
+    const q = TOOLS_QUESTIONS[i];
+    const indName = SCALE_TO_NAME[q.scale];
+    const contribution = ans === "Да" ? q.direction : ans === "Нет" ? -q.direction : 0;
+    sums[indName] += contribution;
   });
 
-  return raw; // значения от -100 до +100
+  const scores = {};
+  TOOLS_INDICATORS.forEach(ind => {
+    scores[ind.name] = Math.round((sums[ind.name] / 20) * 100);
+  });
+  return scores; // значения от -100 до +100
 }
 
 function computeSyndromes(scores) {
@@ -230,7 +237,7 @@ export default function ToolsTest({ onBack }) {
   if (screen === "test") {
     const pct = Math.round((qi / TOTAL_QUESTIONS) * 100);
     const isLowTime = timeLeft < 5 * 60;
-    const ind = TOOLS_INDICATORS[qi % 10];
+    const ind = TOOLS_INDICATORS.find(i => i.id === TOOLS_QUESTIONS[qi].scale) || TOOLS_INDICATORS[0];
 
     return (
       <div style={S.page}><div style={{ ...S.wrap, maxWidth: 580 }}>
@@ -258,7 +265,7 @@ export default function ToolsTest({ onBack }) {
             Вопрос {qi + 1}
           </div>
           <p style={{ margin: 0, fontSize: 18, lineHeight: 1.5, fontWeight: 500 }}>
-            {TOOLS_QUESTIONS[qi]}
+            {TOOLS_QUESTIONS[qi].text}
           </p>
         </div>
 
