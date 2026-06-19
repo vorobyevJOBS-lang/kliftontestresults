@@ -9,6 +9,7 @@ import RezultTest from "./RezultTest";
 import ToolsTest from "./ToolsTest";
 import LogisTest from "./LogisTest";
 import SailsTest from "./SailsTest";
+import PrimTest from "./PrimTest";
 
 // ─────────────────────────────────────────────────────────────
 // ДОМЕНЫ — визуальная группировка талантов
@@ -478,6 +479,9 @@ export default function App() {
   if (activeTest === "sails") return (
     <SailsTest onBack={() => setActiveTest(null)} />
   );
+  if (activeTest === "prim") return (
+    <PrimTest onBack={() => setActiveTest(null)} />
+  );
   if (activeTest === "tools") return (
     <ToolsTest onBack={() => setActiveTest(null)} />
   );
@@ -553,6 +557,18 @@ export default function App() {
           <div style={{ ...S.display, fontWeight: 700, fontSize: 17, marginBottom: 6 }}>Продажник</div>
           <div style={{ fontSize: 13, color: "#6B675F", lineHeight: 1.5, marginBottom: 14 }}>Способности в продажах · 120 вопросов</div>
           <div style={{ fontSize: 11, fontWeight: 700, color: "#9c27b0", background: "#f3e5f5", padding: "3px 10px", borderRadius: 99, display: "inline-block" }}>
+            Доступен
+          </div>
+        </div>
+
+        {/* Первичный анализ */}
+        <div onClick={() => setActiveTest("prim")} style={{ background: "#fff", borderRadius: 16, padding: 20, border: "1.5px solid #EEECE7", cursor: "pointer", transition: "box-shadow .15s" }}
+          onMouseEnter={e => e.currentTarget.style.boxShadow = "0 4px 16px rgba(100,87,214,.15)"}
+          onMouseLeave={e => e.currentTarget.style.boxShadow = "none"}>
+          <div style={{ fontSize: 20, marginBottom: 8 }}>🧠</div>
+          <div style={{ fontFamily: "'Unbounded', 'Golos Text', sans-serif", fontWeight: 700, fontSize: 17, marginBottom: 6 }}>Первичный анализ</div>
+          <div style={{ fontSize: 13, color: "#6B675F", lineHeight: 1.5, marginBottom: 14 }}>Личностный профиль · 8 факторов · 160 вопросов</div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: "#4338ca", background: "#eef2ff", padding: "3px 10px", borderRadius: 99, display: "inline-block" }}>
             Доступен
           </div>
         </div>

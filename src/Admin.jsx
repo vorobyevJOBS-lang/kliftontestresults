@@ -8,6 +8,7 @@ import { SAILS_SCALE_NAMES, SAILS_SCALE_DESC, sailsLevel } from "./sailsQuestion
 import { logisAnalysis, sailsAnalysis } from "./analysisUtils";
 import AnalysisBlock from "./AnalysisBlock";
 import RezultResultCard from "./RezultResultCard";
+import PrimResultCard from "./PrimResultCard";
 
 export default function Admin() {
   const [login, setLogin] = useState("");
@@ -27,7 +28,7 @@ export default function Admin() {
   const [pdfLoading, setPdfLoading] = useState(false);
   const [compareMode, setCompareMode] = useState(false);
   const [compareIds, setCompareIds] = useState(new Set());
-  const [testTab, setTestTab] = useState("clifton"); // clifton | tools
+  const [testTab, setTestTab] = useState("clifton"); // clifton | tools | rezultat | logis | sails | prim
   const [toolsResults, setToolsResults] = useState([]);
   const [toolsLoading, setToolsLoading] = useState(false);
   const [openTools, setOpenTools] = useState(null); // выбранная запись Профиль
@@ -39,6 +40,9 @@ export default function Admin() {
   const [openLogis, setOpenLogis] = useState(null);
   const [sailsResults, setSailsResults] = useState([]);
   const [sailsLoading, setSailsLoading] = useState(false);
+  const [primResults, setPrimResults] = useState([]);
+  const [primLoading, setPrimLoading] = useState(false);
+  const [openPrim, setOpenPrim] = useState(null);
   const reportRef = useRef(null);
 
   const handleLogin = async () => {
@@ -60,6 +64,7 @@ export default function Admin() {
       loadRezultatResults();
       loadLogisResults();
       loadSailsResults();
+      loadPrimResults();
     } else {
       setLoginError(true);
     }
@@ -172,6 +177,18 @@ export default function Admin() {
     setSailsLoading(false);
   };
 
+  const loadPrimResults = async () => {
+    setPrimLoading(true);
+    const { data, error } = await supabase
+      .from("prim_results")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(200);
+    if (error) console.error("prim_results:", error);
+    if (data) setPrimResults(data);
+    setPrimLoading(false);
+  };
+
   async function removeRec(id) {
     if (!window.confirm("Удалить этот результат без возможности восстановления?")) return;
     const { error, count } = await supabase.from("results").delete({ count: "exact" }).eq("id", id);
@@ -211,6 +228,13 @@ export default function Admin() {
     if (error) { console.error(error); alert("Ошибка: " + error.message); return; }
     if (count === 0) { alert("Удаление заблокировано RLS. Запустите fix_delete_rls.sql в Supabase."); return; }
     setSailsResults((prev) => prev.filter((r) => r.id !== id));
+  }
+
+  async function removePrim(id) {
+    if (!window.confirm("Удалить этот результат?")) return;
+    const { error } = await supabase.from("prim_results").delete().eq("id", id);
+    if (error) { alert("Ошибка: " + error.message); return; }
+    setPrimResults((prev) => prev.filter((r) => r.id !== id));
   }
 
   async function loadAdmins() {
@@ -662,6 +686,7 @@ export default function Admin() {
   const visibleRezultat = filterByBranch(rezultatResults);
   const visibleLogis = logisResults;
   const visibleSails = sailsResults;
+  const visiblePrim = primResults;
 
   return (
     <div style={S.page}><div style={S.wrap}>
@@ -685,7 +710,7 @@ export default function Admin() {
 
       {/* Переключатель теста */}
       <div style={{ display: "flex", gap: 8, marginBottom: 18 }}>
-        {[["clifton", "🏆 Клифтон"], ["tools", "🎯 Профиль"], ["rezultat", "📋 Опыт"], ["logis", "🧠 Логика"], ["sails", "💎 Продажник"]].map(([id, label]) => (
+        {[["clifton", "🏆 Клифтон"], ["tools", "🎯 Профиль"], ["rezultat", "📋 Опыт"], ["logis", "🧠 Логика"], ["sails", "💎 Продажник"], ["prim", "🧠 Анализ"]].map(([id, label]) => (
           <button key={id} onClick={() => setTestTab(id)}
             style={{ ...S.btn, padding: "10px 20px", fontSize: 14, background: testTab === id ? "#1C1B1A" : "#F1EFEA", color: testTab === id ? "#fff" : "#1C1B1A" }}>
             {label}
@@ -1093,6 +1118,44 @@ export default function Admin() {
           );
         })}
       </>)} {/* конец Продажник */}
+
+      {testTab === "prim" && (<>
+        <h3 style={{ fontFamily: "'Unbounded', 'Golos Text', sans-serif", fontSize: 18, fontWeight: 700, marginBottom: 16 }}>🧠 Результаты Первичный анализ</h3>
+        {primLoading && <div style={{ background: "#fff", borderRadius: 16, padding: 20, boxShadow: "0 1px 3px rgba(28,27,26,.07)", color: "#6B675F" }}>Загрузка...</div>}
+        {!primLoading && visiblePrim.length === 0 && (
+          <div style={{ background: "#fff", borderRadius: 16, padding: 20, boxShadow: "0 1px 3px rgba(28,27,26,.07)" }}>
+            <div style={{ fontWeight: 700, marginBottom: 6 }}>Результатов Первичный анализ пока нет</div>
+            <div style={{ color: "#6B675F", fontSize: 14 }}>Они появятся после прохождения теста.</div>
+          </div>
+        )}
+        {visiblePrim.map((item) => (
+          <div key={item.id} style={{ background: "#fff", borderRadius: 16, padding: 20, boxShadow: "0 1px 3px rgba(28,27,26,.07)", marginBottom: 16 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: 16 }}>{item.candidate_name}</div>
+                <div style={{ color: "#6B675F", fontSize: 13, marginTop: 4 }}>
+                  {new Date(item.created_at).toLocaleString("ru")}
+                  {item.candidate_age ? ` · ${item.candidate_age} лет` : ""}
+                  {item.maybe_count != null ? ` · «Может быть»: ${item.maybe_count}` : ""}
+                </div>
+              </div>
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
+                <button onClick={() => setOpenPrim(openPrim?.id === item.id ? null : item)}
+                  style={{ border: "none", borderRadius: 12, fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", padding: "9px 16px", background: openPrim?.id === item.id ? "#1C1B1A" : "#F1EFEA", color: openPrim?.id === item.id ? "#fff" : "#1C1B1A" }}>
+                  {openPrim?.id === item.id ? "Закрыть" : "Подробнее"}
+                </button>
+                {isSuperAdmin && (
+                  <button onClick={() => removePrim(item.id)}
+                    style={{ border: "none", borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", padding: "4px 10px", background: "#FEE2E2", color: "#DC2626" }}>
+                    ✕ Удалить
+                  </button>
+                )}
+              </div>
+            </div>
+            {openPrim?.id === item.id && <PrimResultCard result={item} />}
+          </div>
+        ))}
+      </>)} {/* конец Первичный анализ */}
 
     </div></div>
   );
