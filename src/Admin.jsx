@@ -51,6 +51,27 @@ const ADMIN_RESPONSIVE_CSS = `
   }
 `;
 
+const TEST_META = {
+  clifton: { label: "Клифтон", icon: "🏆", bg: "#FBF1E2", color: "#D98E2B" },
+  tools: { label: "Профиль", icon: "🎯", bg: "#E4F4F0", color: "#0F766E" },
+  rezultat: { label: "Опыт", icon: "📊", bg: "#EEF3FF", color: "#2563EB" },
+  logis: { label: "Логика", icon: "🧠", bg: "#EEF2FF", color: "#6C63FF" },
+  sails: { label: "Продажник", icon: "💎", bg: "#F3E5F5", color: "#9C27B0" },
+  prim: { label: "Анализ", icon: "🧭", bg: "#F1EAFF", color: "#7C3AED" },
+};
+
+function personName(item) {
+  return item.candidate_name || item.name || "Без имени";
+}
+
+function normalizePersonName(name) {
+  return (name || "Без имени").trim().replace(/\s+/g, " ").toLowerCase();
+}
+
+function resultDate(item) {
+  return item.created_at || item.completed_at || item.date || null;
+}
+
 export default function Admin() {
   const [login, setLogin] = useState("");
   const [password, setPassword] = useState("");
@@ -70,7 +91,7 @@ export default function Admin() {
   const [pdfMode, setPdfMode] = useState(false);
   const [compareMode, setCompareMode] = useState(false);
   const [compareIds, setCompareIds] = useState(new Set());
-  const [testTab, setTestTab] = useState("clifton"); // clifton | tools | rezultat | logis | sails | prim
+  const [testTab, setTestTab] = useState("people"); // people | clifton | tools | rezultat | logis | sails | prim
   const [toolsResults, setToolsResults] = useState([]);
   const [toolsLoading, setToolsLoading] = useState(false);
   const [openTools, setOpenTools] = useState(null); // выбранная запись Профиль
@@ -87,6 +108,7 @@ export default function Admin() {
   const [openPrim, setOpenPrim] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [loadError, setLoadError] = useState("");
+  const [openPersonKey, setOpenPersonKey] = useState(null);
   const reportRef = useRef(null);
 
   const withLoadTimeout = (promise, label) =>
@@ -798,12 +820,58 @@ export default function Admin() {
   const filterByBranch = (items) => {
     return items.filter(matchesBranch).filter(matchesAudience).filter(matchesSearch);
   };
+  const filterByScope = (items) => {
+    return items.filter(matchesBranch).filter(matchesAudience);
+  };
   const visibleTools = filterByBranch(toolsResults);
   const visibleRezultat = filterByBranch(rezultatResults);
   const visibleLogis = filterByBranch(logisResults);
   const visibleSails = filterByBranch(sailsResults);
   const visiblePrim = filterByBranch(primResults);
+
+  const personEntries = [
+    ...filterByScope(results).map((item) => ({ type: "clifton", item })),
+    ...filterByScope(toolsResults).map((item) => ({ type: "tools", item })),
+    ...filterByScope(rezultatResults).map((item) => ({ type: "rezultat", item })),
+    ...filterByScope(logisResults).map((item) => ({ type: "logis", item })),
+    ...filterByScope(sailsResults).map((item) => ({ type: "sails", item })),
+    ...filterByScope(primResults).map((item) => ({ type: "prim", item })),
+  ];
+  const peopleMap = new Map();
+  personEntries.forEach((entry) => {
+    const name = personName(entry.item);
+    const key = normalizePersonName(name);
+    const date = resultDate(entry.item);
+    const group = peopleMap.get(key) || {
+      key,
+      name,
+      phone: "",
+      email: "",
+      branchId: entry.item.branch_id || "",
+      latestDate: date,
+      entries: [],
+    };
+    group.entries.push(entry);
+    group.phone = group.phone || entry.item.candidate_phone || "";
+    group.email = group.email || entry.item.candidate_email || "";
+    group.branchId = group.branchId || entry.item.branch_id || "";
+    if (date && (!group.latestDate || new Date(date) > new Date(group.latestDate))) group.latestDate = date;
+    peopleMap.set(key, group);
+  });
+  const visiblePeople = Array.from(peopleMap.values())
+    .filter((person) => {
+      if (!normalizedSearch) return true;
+      return [
+        person.name,
+        person.phone,
+        person.email,
+        ...person.entries.map((entry) => TEST_META[entry.type]?.label),
+      ].filter(Boolean).join(" ").toLowerCase().includes(normalizedSearch);
+    })
+    .sort((a, b) => new Date(b.latestDate || 0) - new Date(a.latestDate || 0));
+
   const archiveStats = [
+    ["people", "Люди", visiblePeople.length],
     ["clifton", "Клифтон", visibleResults.length],
     ["tools", "Профиль", visibleTools.length],
     ["rezultat", "Опыт", visibleRezultat.length],
@@ -813,6 +881,20 @@ export default function Admin() {
   ];
   const activeStat = archiveStats.find(([id]) => id === testTab);
   const totalVisible = archiveStats.reduce((sum, [, , count]) => sum + count, 0);
+
+  const openPersonTest = (entry) => {
+    setTestTab(entry.type);
+    setOpen(null);
+    setOpenTools(null);
+    setOpenRezultat(null);
+    setOpenLogis(null);
+    setOpenPrim(null);
+    if (entry.type === "clifton") setOpen(entry.item);
+    if (entry.type === "tools") setOpenTools(entry.item);
+    if (entry.type === "rezultat") setOpenRezultat(entry.item);
+    if (entry.type === "logis") setOpenLogis(entry.item);
+    if (entry.type === "prim") setOpenPrim(entry.item);
+  };
 
   return (
     <div style={S.page}><div style={S.wrap}>
@@ -837,7 +919,7 @@ export default function Admin() {
 
       {/* Переключатель теста */}
       <div style={{ display: "flex", gap: 8, marginBottom: 18, overflowX: "auto", paddingBottom: 4, WebkitOverflowScrolling: "touch" }}>
-        {[["clifton", "🏆 Клифтон"], ["tools", "🎯 Профиль"], ["rezultat", "📋 Опыт"], ["logis", "🧠 Логика"], ["sails", "💎 Продажник"], ["prim", "🧠 Анализ"]].map(([id, label]) => (
+        {[["people", "👥 Люди"], ["clifton", "🏆 Клифтон"], ["tools", "🎯 Профиль"], ["rezultat", "📋 Опыт"], ["logis", "🧠 Логика"], ["sails", "💎 Продажник"], ["prim", "🧠 Анализ"]].map(([id, label]) => (
           <button key={id} onClick={() => setTestTab(id)}
             style={{ ...S.btn, padding: "10px 20px", fontSize: 14, background: testTab === id ? "#1C1B1A" : "#F1EFEA", color: testTab === id ? "#fff" : "#1C1B1A", whiteSpace: "nowrap", flex: "0 0 auto" }}>
             {label}
@@ -923,6 +1005,132 @@ export default function Admin() {
           ))}
         </div>
       </div>
+
+      {/* ────────── ЛЮДИ ────────── */}
+      {testTab === "people" && (<>
+        {(loading || toolsLoading || rezultatLoading || logisLoading || sailsLoading || primLoading) && (
+          <div style={{ ...S.card, color: "#6B675F" }}>Загрузка...</div>
+        )}
+        {visiblePeople.length === 0 && (
+          <div style={{ ...S.card, color: "#6B675F" }}>
+            <div style={{ fontWeight: 700, marginBottom: 6 }}>Людей по этим фильтрам пока нет</div>
+            <div style={{ fontSize: 14 }}>Когда кандидат пройдёт один или несколько тестов, он появится здесь одной строкой.</div>
+          </div>
+        )}
+        {visiblePeople.map((person) => {
+          const isOpenPerson = openPersonKey === person.key;
+          const entriesByType = person.entries.reduce((acc, entry) => {
+            const date = resultDate(entry.item);
+            if (!acc[entry.type] || new Date(date || 0) > new Date(resultDate(acc[entry.type].item) || 0)) acc[entry.type] = entry;
+            return acc;
+          }, {});
+          const latestDate = person.latestDate ? new Date(person.latestDate).toLocaleString("ru-RU") : "—";
+          return (
+            <div key={person.key} style={{ ...S.card, padding: 0, overflow: "hidden" }}>
+              <button
+                onClick={() => setOpenPersonKey(isOpenPerson ? null : person.key)}
+                style={{
+                  width: "100%",
+                  border: "none",
+                  background: "#fff",
+                  padding: "18px 20px",
+                  cursor: "pointer",
+                  textAlign: "left",
+                  fontFamily: "inherit",
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
+                  gap: 14,
+                  alignItems: "center",
+                }}
+              >
+                <div>
+                  <div style={{ fontWeight: 800, fontSize: 16 }}>{person.name}</div>
+                  <div style={{ fontSize: 12, color: "#8A867E", marginTop: 4 }}>
+                    {person.branchId ? branchById(person.branchId).name : "Филиал не указан"}
+                  </div>
+                </div>
+                <div style={{ fontSize: 14, color: person.phone ? "#1C1B1A" : "#AAA49C" }}>{person.phone || "Телефон —"}</div>
+                <div style={{ fontSize: 14, color: person.email ? "#1C1B1A" : "#AAA49C", overflow: "hidden", textOverflow: "ellipsis" }}>{person.email || "Почта —"}</div>
+                <div>
+                  <div style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 14, fontWeight: 700, color: "#2E9E87" }}>
+                    ✓ Готово
+                  </div>
+                  <div style={{ fontSize: 12, color: "#8A867E", marginTop: 4 }}>{latestDate}</div>
+                </div>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
+                  {Object.entries(TEST_META).map(([type, meta]) => {
+                    const passed = Boolean(entriesByType[type]);
+                    return (
+                      <span key={type} title={meta.label} style={{
+                        width: 38,
+                        height: 38,
+                        borderRadius: 12,
+                        display: "inline-flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        background: passed ? meta.bg : "#F1EFEA",
+                        color: passed ? meta.color : "#B9B6AF",
+                        fontSize: 18,
+                        opacity: passed ? 1 : 0.45,
+                        border: `1px solid ${passed ? `${meta.color}22` : "#E5E3DE"}`,
+                      }}>
+                        {meta.icon}
+                      </span>
+                    );
+                  })}
+                </div>
+              </button>
+              {isOpenPerson && (
+                <div style={{ borderTop: "1px solid #EEECE7", padding: "16px 20px 20px", background: "#F8F7F4" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", marginBottom: 12 }}>
+                    <div>
+                      <div style={{ ...S.display, fontSize: 15, fontWeight: 800 }}>Карточка кандидата</div>
+                      <div style={{ fontSize: 13, color: "#6B675F", marginTop: 4 }}>
+                        Пройдено тестов: <b>{Object.keys(entriesByType).length}</b> из {Object.keys(TEST_META).length}
+                      </div>
+                    </div>
+                    <button onClick={() => setOpenPersonKey(null)} style={{ ...S.btn, ...S.ghost, padding: "8px 12px", fontSize: 13 }}>Свернуть</button>
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 10 }}>
+                    {Object.entries(TEST_META).map(([type, meta]) => {
+                      const entry = entriesByType[type];
+                      const date = entry ? resultDate(entry.item) : null;
+                      return (
+                        <div key={type} style={{
+                          background: "#fff",
+                          border: `1.5px solid ${entry ? `${meta.color}33` : "#EEECE7"}`,
+                          borderRadius: 14,
+                          padding: 14,
+                        }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+                            <span style={{ width: 34, height: 34, borderRadius: 10, display: "inline-flex", alignItems: "center", justifyContent: "center", background: meta.bg, color: meta.color, fontSize: 17 }}>
+                              {meta.icon}
+                            </span>
+                            <div>
+                              <div style={{ fontWeight: 800 }}>{meta.label}</div>
+                              <div style={{ fontSize: 12, color: entry ? "#2E9E87" : "#AAA49C" }}>{entry ? "Пройден" : "Нет результата"}</div>
+                            </div>
+                          </div>
+                          {entry && (
+                            <>
+                              <div style={{ fontSize: 12, color: "#8A867E", marginBottom: 10 }}>
+                                {date ? new Date(date).toLocaleString("ru-RU") : "Дата не указана"}
+                              </div>
+                              <button onClick={() => openPersonTest(entry)} style={{ ...S.btn, width: "100%", padding: "9px 12px", fontSize: 13, background: meta.bg, color: meta.color }}>
+                                Открыть тест
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </>)} {/* конец Люди */}
 
       {/* ────────── КЛИФТОН ────────── */}
       {testTab === "clifton" && (<>
