@@ -39,8 +39,9 @@ const AXIS_VALS = [-100, -68, -32, 32, 68, 100];
 
 // ─── Bar Chart ───────────────────────────────────────────────────────────────
 function BarChart({ scores }) {
-  const LEFT_PX = 186;
-  const SCORE_PX = 60;
+  const isNarrow = typeof window !== "undefined" && window.innerWidth <= 640;
+  const LEFT_PX = isNarrow ? 118 : 186;
+  const SCORE_PX = isNarrow ? 46 : 60;
 
   return (
     <div style={{
@@ -58,7 +59,7 @@ function BarChart({ scores }) {
               left: `${z.from}%`,
               width: `${z.to - z.from}%`,
               textAlign: "center",
-              fontSize: 11,
+              fontSize: isNarrow ? 9 : 11,
               color: "#9A9690",
               overflow: "hidden",
               whiteSpace: "nowrap",
@@ -80,10 +81,10 @@ function BarChart({ scores }) {
           <div key={ind.id} style={{ display: "flex", alignItems: "center", minHeight: 42 }}>
             {/* Indicator name + polarity */}
             <div style={{ width: LEFT_PX, flexShrink: 0, paddingRight: 8 }}>
-              <div style={{ fontWeight: 600, fontSize: 13.5, color: "#1C1B1A", lineHeight: 1.25 }}>
+              <div style={{ fontWeight: 600, fontSize: isNarrow ? 12 : 13.5, color: "#1C1B1A", lineHeight: 1.25 }}>
                 {ind.id}. {ind.name}
               </div>
-              <div style={{ fontSize: 11, color: "#AAA49C", lineHeight: 1.2 }}>
+              <div style={{ fontSize: isNarrow ? 9.5 : 11, color: "#AAA49C", lineHeight: 1.2 }}>
                 {ind.low} — {ind.high}
               </div>
             </div>
@@ -92,8 +93,8 @@ function BarChart({ scores }) {
             <div style={{
               width: SCORE_PX, flexShrink: 0,
               display: "flex", alignItems: "center", justifyContent: "flex-end",
-              paddingRight: 10, gap: 2,
-              fontSize: 18, fontWeight: 700, color: "#1C1B1A",
+              paddingRight: isNarrow ? 6 : 10, gap: 2,
+              fontSize: isNarrow ? 15 : 18, fontWeight: 700, color: "#1C1B1A",
             }}>
               {isExtreme && <span style={{ color: "#F5A623", fontSize: 13 }}>⚡</span>}
               <span>{score}</span>
@@ -151,7 +152,7 @@ function BarChart({ scores }) {
 // ─── Stats Row ───────────────────────────────────────────────────────────────
 function StatsRow({ maybeCount, totalQ, timeSpent }) {
   return (
-    <div style={{ display: "flex", gap: 14, marginBottom: 32 }}>
+    <div style={{ display: "flex", gap: 14, marginBottom: 32, flexWrap: "wrap" }}>
       <div style={{
         flex: 1, display: "flex", alignItems: "center", gap: 14,
         background: "#F8F7F4", borderRadius: 12, padding: "16px 20px",

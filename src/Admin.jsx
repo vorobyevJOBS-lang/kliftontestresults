@@ -10,6 +10,47 @@ import AnalysisBlock from "./AnalysisBlock";
 import RezultResultCard from "./RezultResultCard";
 import PrimResultCard from "./PrimResultCard";
 
+const ADMIN_RESPONSIVE_CSS = `
+  [data-admin-report], [data-pdf-card] {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    overflow-x: hidden;
+  }
+  [data-admin-report] *, [data-pdf-card] * {
+    box-sizing: border-box;
+    max-width: 100%;
+  }
+  body.pdf-exporting [data-pdf-actions] {
+    display: none !important;
+  }
+  body.pdf-exporting [data-admin-report],
+  body.pdf-exporting [data-pdf-card] {
+    overflow: visible !important;
+    background: #F6F5F2 !important;
+  }
+  @media (max-width: 640px) {
+    [data-admin-report],
+    [data-pdf-card] {
+      overflow-x: hidden !important;
+    }
+    [data-admin-report] [style*="grid-template-columns: 1fr 1fr"],
+    [data-admin-report] [style*="grid-template-columns: repeat(2"],
+    [data-pdf-card] [style*="grid-template-columns: 1fr 1fr"],
+    [data-pdf-card] [style*="grid-template-columns: repeat(2"] {
+      grid-template-columns: 1fr !important;
+    }
+    [data-admin-report] [style*="min-width"],
+    [data-pdf-card] [style*="min-width"] {
+      min-width: 0 !important;
+    }
+    [data-admin-report] [style*="display: flex"],
+    [data-pdf-card] [style*="display: flex"] {
+      flex-wrap: wrap !important;
+    }
+  }
+`;
+
 export default function Admin() {
   const [login, setLogin] = useState("");
   const [password, setPassword] = useState("");
@@ -94,40 +135,61 @@ export default function Admin() {
     } catch (e) { console.error(e); }
   }
 
-  async function downloadPdf(candidateName) {
-    if (!reportRef.current || pdfLoading) return;
+  async function downloadPdf(candidateName, sourceNode = reportRef.current) {
+    if (!sourceNode || pdfLoading) return;
     setPdfLoading(true);
     try {
-      const node = reportRef.current;
-      const canvas = await html2canvas(node, { scale: 2, useCORS: true, backgroundColor: "#F6F5F2" });
-      const imgData = canvas.toDataURL("image/jpeg", 0.92);
+      document.body.classList.add("pdf-exporting");
+      await new Promise((resolve) => requestAnimationFrame(resolve));
 
-      const pdf = new jsPDF({ unit: "px", format: [canvas.width, canvas.height] });
+      const canvas = await html2canvas(sourceNode, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: "#F6F5F2",
+        windowWidth: Math.max(sourceNode.scrollWidth, 794),
+        scrollX: 0,
+        scrollY: 0,
+      });
+
+      const pdf = new jsPDF({ unit: "px", format: "a4", orientation: "portrait" });
       const pageWidth = pdf.internal.pageSize.getWidth();
       const pageHeight = pdf.internal.pageSize.getHeight();
-      const ratio = pageWidth / canvas.width;
-      const imgHeight = canvas.height * ratio;
+      const margin = 24;
+      const printableWidth = pageWidth - margin * 2;
+      const printableHeight = pageHeight - margin * 2;
+      const renderScale = printableWidth / canvas.width;
+      const sourcePageHeight = Math.floor(printableHeight / renderScale);
 
-      // если контент длиннее одной страницы — разбиваем на несколько A4-страниц
-      const a4Width = 794; // px при 96dpi для A4
-      const a4Height = 1123;
-      const scaleToA4 = a4Width / canvas.width;
-      const totalHeightOnA4 = canvas.height * scaleToA4;
-      const pageCount = Math.ceil(totalHeightOnA4 / a4Height);
+      let sourceY = 0;
+      let pageIndex = 0;
+      while (sourceY < canvas.height) {
+        const sliceHeight = Math.min(sourcePageHeight, canvas.height - sourceY);
+        const pageCanvas = document.createElement("canvas");
+        pageCanvas.width = canvas.width;
+        pageCanvas.height = sliceHeight;
+        const ctx = pageCanvas.getContext("2d");
+        ctx.drawImage(canvas, 0, sourceY, canvas.width, sliceHeight, 0, 0, canvas.width, sliceHeight);
 
-      const finalPdf = new jsPDF({ unit: "px", format: [a4Width, a4Height] });
-      for (let i = 0; i < pageCount; i++) {
-        if (i > 0) finalPdf.addPage([a4Width, a4Height]);
-        const yOffset = -i * a4Height;
-        finalPdf.addImage(imgData, "JPEG", 0, yOffset, a4Width, totalHeightOnA4);
+        if (pageIndex > 0) pdf.addPage();
+        pdf.addImage(
+          pageCanvas.toDataURL("image/jpeg", 0.92),
+          "JPEG",
+          margin,
+          margin,
+          printableWidth,
+          sliceHeight * renderScale
+        );
+        sourceY += sliceHeight;
+        pageIndex += 1;
       }
 
       const safeName = (candidateName || "report").replace(/[^\p{L}\p{N}_-]+/gu, "_");
-      finalPdf.save(`${safeName}_отчёт.pdf`);
+      pdf.save(`${safeName}_отчёт.pdf`);
     } catch (e) {
       console.error(e);
       window.alert("Не удалось сформировать PDF. Попробуйте ещё раз.");
     } finally {
+      document.body.classList.remove("pdf-exporting");
       setPdfLoading(false);
     }
   }
@@ -282,9 +344,10 @@ export default function Admin() {
     const posName = POSITIONS.find((p) => p.id === open.position_id)?.name || open.position_name;
     return (
       <div style={S.page}><div style={S.wrap}>
+        <style>{ADMIN_RESPONSIVE_CSS}</style>
         <button onClick={() => setOpen(null)} style={{ ...S.btn, ...S.ghost, padding: "8px 14px", fontSize: 14, marginBottom: 18 }}>← К архиву</button>
 
-        <div ref={reportRef} style={{ background: "#F6F5F2", padding: "1px" }}>
+        <div ref={reportRef} data-admin-report style={{ background: "#F6F5F2", padding: "1px" }}>
         <h1 style={{ ...S.display, fontSize: 26, fontWeight: 700, margin: 0 }}>{open.candidate_name}</h1>
         <div style={{ color: "#8A867E", fontSize: 14, marginTop: 6 }}>
           Должность: {posName}{open.branch_id ? ` · ${branchById(open.branch_id).name}` : ""} · {open.applicant_type === "employee" ? "Действующий сотрудник" : "Кандидат на собеседование"} · {new Date(open.created_at).toLocaleDateString("ru-RU")}
@@ -463,7 +526,7 @@ export default function Admin() {
         )}
         </div>
 
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+        <div data-pdf-actions style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
           <button onClick={() => downloadPdf(open.candidate_name)} disabled={pdfLoading} style={{ ...S.btn, ...S.primary, flex: 1, minWidth: 160, opacity: pdfLoading ? 0.6 : 1 }}>
             {pdfLoading ? "Формирование PDF..." : "Скачать PDF"}
           </button>
@@ -720,6 +783,7 @@ export default function Admin() {
 
   return (
     <div style={S.page}><div style={S.wrap}>
+      <style>{ADMIN_RESPONSIVE_CSS}</style>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18, flexWrap: "wrap", gap: 8 }}>
         <h1 style={{ ...S.display, fontSize: 24, fontWeight: 700, margin: 0 }}>Архив результатов</h1>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -919,25 +983,23 @@ export default function Admin() {
         {openTools ? (
           // Подробная карточка Профиль
           <div>
-            <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
+            <div data-pdf-actions style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
               <button onClick={() => setOpenTools(null)}
                 style={{ ...S.btn, ...S.ghost, padding: "8px 14px", fontSize: 14 }}>
                 ← Назад к списку
               </button>
+              <button onClick={() => downloadPdf(openTools.candidate_name)}
+                style={{ ...S.btn, padding: "8px 14px", fontSize: 13, background: "#EEF3FF", color: "#3B7BF6" }}>
+                {pdfLoading ? "Создаём PDF..." : "⬇ Скачать PDF"}
+              </button>
               {isSuperAdmin && (
-                <>
-                  <button onClick={() => downloadPdf(openTools.candidate_name)}
-                    style={{ ...S.btn, padding: "8px 14px", fontSize: 13, background: "#EEF3FF", color: "#3B7BF6" }}>
-                    {pdfLoading ? "Создаём PDF..." : "⬇ Скачать PDF"}
-                  </button>
-                  <button onClick={() => removeTools(openTools.id)}
-                    style={{ ...S.btn, padding: "8px 14px", fontSize: 13, background: "#FEE2E2", color: "#DC2626" }}>
-                    🗑 Удалить
-                  </button>
-                </>
+                <button onClick={() => removeTools(openTools.id)}
+                  style={{ ...S.btn, padding: "8px 14px", fontSize: 13, background: "#FEE2E2", color: "#DC2626" }}>
+                  🗑 Удалить
+                </button>
               )}
             </div>
-            <div ref={reportRef} style={S.card}>
+            <div ref={reportRef} data-admin-report style={S.card}>
               <ToolsResultCard rec={openTools} />
             </div>
           </div>
@@ -992,19 +1054,19 @@ export default function Admin() {
       {testTab === "rezultat" && (<>
         {openRezultat ? (
           <div>
-            {isSuperAdmin && (
-              <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
-                <button onClick={() => downloadPdf(openRezultat.candidate_name)}
-                  style={{ ...S.btn, padding: "8px 14px", fontSize: 13, background: "#EEF3FF", color: "#3B7BF6" }}>
-                  {pdfLoading ? "Создаём PDF..." : "⬇ Скачать PDF"}
-                </button>
+            <div data-pdf-actions style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
+              <button onClick={() => downloadPdf(openRezultat.candidate_name)}
+                style={{ ...S.btn, padding: "8px 14px", fontSize: 13, background: "#EEF3FF", color: "#3B7BF6" }}>
+                {pdfLoading ? "Создаём PDF..." : "⬇ Скачать PDF"}
+              </button>
+              {isSuperAdmin && (
                 <button onClick={() => removeRezultat(openRezultat.id)}
                   style={{ ...S.btn, padding: "8px 14px", fontSize: 13, background: "#FEE2E2", color: "#DC2626" }}>
                   🗑 Удалить
                 </button>
-              </div>
-            )}
-            <div ref={reportRef}>
+              )}
+            </div>
+            <div ref={reportRef} data-admin-report>
               <RezultResultCard result={openRezultat} onClose={() => setOpenRezultat(null)} />
             </div>
           </div>
@@ -1051,22 +1113,20 @@ export default function Admin() {
 
       {testTab === "logis" && (<>
         {openLogis ? (
-          <div ref={reportRef} style={S.card}>
-            <div style={{ display: "flex", gap: 8, marginBottom: 18, flexWrap: "wrap" }}>
+          <div ref={reportRef} data-admin-report style={S.card}>
+            <div data-pdf-actions style={{ display: "flex", gap: 8, marginBottom: 18, flexWrap: "wrap" }}>
               <button onClick={() => setOpenLogis(null)} style={{ ...S.btn, ...S.ghost, padding: "8px 14px", fontSize: 14 }}>
                 ← К списку
               </button>
+              <button onClick={() => downloadPdf(openLogis.name)}
+                style={{ ...S.btn, padding: "8px 14px", fontSize: 13, background: "#EEF3FF", color: "#3B7BF6" }}>
+                {pdfLoading ? "Создаём PDF..." : "⬇ Скачать PDF"}
+              </button>
               {isSuperAdmin && (
-                <>
-                  <button onClick={() => downloadPdf(openLogis.name)}
-                    style={{ ...S.btn, padding: "8px 14px", fontSize: 13, background: "#EEF3FF", color: "#3B7BF6" }}>
-                    {pdfLoading ? "Создаём PDF..." : "⬇ Скачать PDF"}
-                  </button>
-                  <button onClick={() => removeLogis(openLogis.id)}
-                    style={{ ...S.btn, padding: "8px 14px", fontSize: 13, background: "#FEE2E2", color: "#DC2626" }}>
-                    🗑 Удалить
-                  </button>
-                </>
+                <button onClick={() => removeLogis(openLogis.id)}
+                  style={{ ...S.btn, padding: "8px 14px", fontSize: 13, background: "#FEE2E2", color: "#DC2626" }}>
+                  🗑 Удалить
+                </button>
               )}
             </div>
             <h2 style={{ margin: "0 0 6px" }}>{openLogis.name}</h2>
@@ -1158,7 +1218,7 @@ export default function Admin() {
           const total = Object.keys(ans).length;
           const sc = item.scales || {};
           return (
-            <div key={item.id} style={{ ...S.card, marginBottom: 16 }}>
+            <div key={item.id} data-admin-report data-pdf-card style={{ ...S.card, marginBottom: 16 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
                 <div>
                   <div style={{ fontWeight: 700, fontSize: 16 }}>{item.name}</div>
@@ -1166,11 +1226,15 @@ export default function Admin() {
                     {new Date(item.completed_at).toLocaleString("ru")}
                   </div>
                 </div>
-                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
+                <div data-pdf-actions style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
                   <span style={{ fontSize: 12, fontWeight: 700, color: "#4caf50", background: "#e8f5e9", padding: "3px 10px", borderRadius: 99 }}>Да: {yesCount}</span>
                   <span style={{ fontSize: 12, fontWeight: 700, color: "#ff9800", background: "#fff3e0", padding: "3px 10px", borderRadius: 99 }}>Иногда: {sometimesCount}</span>
                   <span style={{ fontSize: 12, fontWeight: 700, color: "#f44336", background: "#ffebee", padding: "3px 10px", borderRadius: 99 }}>Нет: {noCount}</span>
                   <span style={{ fontSize: 12, color: "#6B675F", background: "#f5f5f5", padding: "3px 10px", borderRadius: 99 }}>{total}/120</span>
+                  <button onClick={(e) => downloadPdf(item.name, e.currentTarget.closest("[data-pdf-card]"))}
+                    style={{ ...S.btn, padding: "4px 10px", fontSize: 12, background: "#EEF3FF", color: "#3B7BF6", borderRadius: 8 }}>
+                    {pdfLoading ? "PDF..." : "⬇ PDF"}
+                  </button>
                   {isSuperAdmin && (
                     <button onClick={() => removeSails(item.id)}
                       style={{ ...S.btn, padding: "4px 10px", fontSize: 12, background: "#FEE2E2", color: "#DC2626", borderRadius: 8 }}>
@@ -1223,7 +1287,7 @@ export default function Admin() {
           </div>
         )}
         {visiblePrim.map((item) => (
-          <div key={item.id} style={{ background: "#fff", borderRadius: 16, padding: 20, boxShadow: "0 1px 3px rgba(28,27,26,.07)", marginBottom: 16 }}>
+          <div key={item.id} data-admin-report data-pdf-card style={{ background: "#fff", borderRadius: 16, padding: 20, boxShadow: "0 1px 3px rgba(28,27,26,.07)", marginBottom: 16 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
               <div>
                 <div style={{ fontWeight: 700, fontSize: 16 }}>{item.candidate_name}</div>
@@ -1233,11 +1297,17 @@ export default function Admin() {
                   {item.maybe_count != null ? ` · «Может быть»: ${item.maybe_count}` : ""}
                 </div>
               </div>
-              <div style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
+              <div data-pdf-actions style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
                 <button onClick={() => setOpenPrim(openPrim?.id === item.id ? null : item)}
                   style={{ border: "none", borderRadius: 12, fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", padding: "9px 16px", background: openPrim?.id === item.id ? "#1C1B1A" : "#F1EFEA", color: openPrim?.id === item.id ? "#fff" : "#1C1B1A" }}>
                   {openPrim?.id === item.id ? "Закрыть" : "Подробнее"}
                 </button>
+                {openPrim?.id === item.id && (
+                  <button onClick={(e) => downloadPdf(item.candidate_name, e.currentTarget.closest("[data-pdf-card]"))}
+                    style={{ border: "none", borderRadius: 12, fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", padding: "9px 14px", background: "#EEF3FF", color: "#3B7BF6" }}>
+                    {pdfLoading ? "PDF..." : "⬇ PDF"}
+                  </button>
+                )}
                 {isSuperAdmin && (
                   <button onClick={() => removePrim(item.id)}
                     style={{ border: "none", borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", padding: "4px 10px", background: "#FEE2E2", color: "#DC2626" }}>
