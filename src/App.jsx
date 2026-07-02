@@ -34,7 +34,7 @@ const MAX_BY_TALENT = (() => {
 const ALL_POSITIONS = Object.entries(ROLE_PROFILES).map(([id, r]) => ({ id, name: r.name }));
 
 const TEST_CARDS = [
-  { id: "clifton", icon: "🏆", title: "Клифтон", desc: "Сильные стороны", meta: `${QUESTIONS.length} пар · 45-50 мин`, accent: "#1C1B1A", muted: "#F1EFEA" },
+  { id: "clifton", icon: "🏆", title: "Клифтон", desc: "Сильные стороны", meta: `${QUESTIONS.length} пар · 45-50 мин`, accent: "#D98E2B", muted: "#FBF1E2" },
   { id: "rezultat", icon: "📊", title: "Опыт", desc: "Продуктивность и трудовой путь", meta: "19 вопросов · 8-12 мин", accent: "#2563EB", muted: "#EEF3FF" },
   { id: "tools", icon: "🎯", title: "Профиль", desc: "Характер и рабочий стиль", meta: "200 вопросов · 35 мин", accent: "#0F766E", muted: "#E4F4F0" },
   { id: "logis", icon: "🧠", title: "Логика", desc: "Логическое мышление", meta: "80 вопросов · 30 мин", accent: "#6C63FF", muted: "#EEF2FF" },
@@ -81,10 +81,22 @@ function HomeTestCard({ item, active, onClick }) {
   return (
     <button
       onClick={onClick}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.borderColor = item.accent;
+        e.currentTarget.style.background = item.muted;
+        e.currentTarget.style.transform = "translateY(-2px)";
+        e.currentTarget.style.boxShadow = `0 10px 24px ${item.accent}22`;
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.borderColor = active ? item.accent : "#EEECE7";
+        e.currentTarget.style.background = active ? item.muted : "#fff";
+        e.currentTarget.style.transform = "translateY(0)";
+        e.currentTarget.style.boxShadow = active ? `0 8px 20px ${item.accent}1F` : "0 1px 3px rgba(28,27,26,.07)";
+      }}
       style={{
-        border: active ? "1.5px solid #1C1B1A" : "1.5px solid #EEECE7",
-        background: active ? "#1C1B1A" : "#fff",
-        color: active ? "#fff" : "#1C1B1A",
+        border: active ? `1.5px solid ${item.accent}` : "1.5px solid #EEECE7",
+        background: active ? item.muted : "#fff",
+        color: "#1C1B1A",
         borderRadius: 14,
         padding: 18,
         cursor: "pointer",
@@ -94,7 +106,8 @@ function HomeTestCard({ item, active, onClick }) {
         display: "flex",
         flexDirection: "column",
         justifyContent: "space-between",
-        boxShadow: active ? "0 10px 24px rgba(28,27,26,.16)" : "0 1px 3px rgba(28,27,26,.07)",
+        boxShadow: active ? `0 8px 20px ${item.accent}1F` : "0 1px 3px rgba(28,27,26,.07)",
+        transition: "background .16s ease, border-color .16s ease, box-shadow .16s ease, transform .16s ease",
       }}
     >
       <div>
@@ -109,13 +122,13 @@ function HomeTestCard({ item, active, onClick }) {
             borderRadius: 99,
             whiteSpace: "nowrap",
           }}>
-            {active ? "Выбран" : "Открыть"}
+            {active ? "Сейчас выбран" : "Открыть"}
           </span>
         </div>
         <div style={{ ...S.display, fontWeight: 700, fontSize: 17, lineHeight: 1.25, marginBottom: 6 }}>{item.title}</div>
-        <div style={{ fontSize: 13, color: active ? "#D8D5CF" : "#44413B", lineHeight: 1.45 }}>{item.desc}</div>
+        <div style={{ fontSize: 13, color: "#44413B", lineHeight: 1.45 }}>{item.desc}</div>
       </div>
-      <div style={{ fontSize: 12, color: active ? "#A8A49C" : "#8A867E", lineHeight: 1.35, marginTop: 14 }}>{item.meta}</div>
+      <div style={{ fontSize: 12, color: "#8A867E", lineHeight: 1.35, marginTop: 14 }}>{item.meta}</div>
     </button>
   );
 }
