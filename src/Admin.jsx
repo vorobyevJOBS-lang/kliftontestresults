@@ -67,6 +67,7 @@ export default function Admin() {
   const [view, setView] = useState("archive"); // archive | branches (управление филиалами для суперадмина)
   const [admins, setAdmins] = useState([]);
   const [pdfLoading, setPdfLoading] = useState(false);
+  const [pdfMode, setPdfMode] = useState(false);
   const [compareMode, setCompareMode] = useState(false);
   const [compareIds, setCompareIds] = useState(new Set());
   const [testTab, setTestTab] = useState("clifton"); // clifton | tools | rezultat | logis | sails | prim
@@ -157,9 +158,10 @@ export default function Admin() {
   async function downloadPdf(candidateName, sourceNode = reportRef.current) {
     if (!sourceNode || pdfLoading) return;
     setPdfLoading(true);
+    setPdfMode(true);
     try {
       document.body.classList.add("pdf-exporting");
-      await new Promise((resolve) => requestAnimationFrame(resolve));
+      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
 
       const canvas = await html2canvas(sourceNode, {
         scale: 2,
@@ -209,6 +211,7 @@ export default function Admin() {
       window.alert("Не удалось сформировать PDF. Попробуйте ещё раз.");
     } finally {
       document.body.classList.remove("pdf-exporting");
+      setPdfMode(false);
       setPdfLoading(false);
     }
   }
@@ -1104,7 +1107,7 @@ export default function Admin() {
               )}
             </div>
             <div ref={reportRef} data-admin-report>
-              <RezultResultCard result={openRezultat} onClose={() => setOpenRezultat(null)} />
+              <RezultResultCard result={openRezultat} onClose={() => setOpenRezultat(null)} forceExpanded={pdfMode} />
             </div>
           </div>
         ) : (
@@ -1353,7 +1356,7 @@ export default function Admin() {
                 )}
               </div>
             </div>
-            {openPrim?.id === item.id && <PrimResultCard result={item} />}
+            {openPrim?.id === item.id && <PrimResultCard result={item} forceExpanded={pdfMode} />}
           </div>
         ))}
       </>)} {/* конец Первичный анализ */}

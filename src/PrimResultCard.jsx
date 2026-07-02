@@ -101,7 +101,7 @@ function JobProfileBlock({ scores }) {
   );
 }
 
-export default function PrimResultCard({ result }) {
+export default function PrimResultCard({ result, forceExpanded = false }) {
   const [expandedFactor, setExpandedFactor] = useState(null);
   const [showJobProfiles, setShowJobProfiles] = useState(true);
 
@@ -147,9 +147,9 @@ export default function PrimResultCard({ result }) {
           onClick={() => setShowJobProfiles(v => !v)}
           style={{ border: "none", background: "transparent", cursor: "pointer", fontSize: 13, fontWeight: 600, color: "#6457D6", padding: "4px 0", marginBottom: 8 }}
         >
-          {showJobProfiles ? "▼" : "▶"} Соответствие должностям
+          {(showJobProfiles || forceExpanded) ? "▼" : "▶"} Соответствие должностям
         </button>
-        {showJobProfiles && <JobProfileBlock scores={scores} />}
+        {(showJobProfiles || forceExpanded) && <JobProfileBlock scores={scores} />}
       </div>
 
       {/* Все 8 факторов */}
@@ -159,7 +159,7 @@ export default function PrimResultCard({ result }) {
           key={factor.id}
           factor={factor}
           score={scores[factor.name] ?? 0}
-          expanded={expandedFactor === factor.id}
+          expanded={forceExpanded || expandedFactor === factor.id}
           onToggle={() => setExpandedFactor(expandedFactor === factor.id ? null : factor.id)}
         />
       ))}

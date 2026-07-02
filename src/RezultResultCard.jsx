@@ -65,7 +65,7 @@ function JobBlock({ jobAnswers, jobNum }) {
   );
 }
 
-export default function RezultResultCard({ result, onClose }) {
+export default function RezultResultCard({ result, onClose, forceExpanded = false }) {
   const [expandedJob, setExpandedJob] = useState(0);
   const { candidate_name, candidate_age, candidate_phone, candidate_city,
     candidate_gender, previous_test, jobs, created_at } = result;
@@ -135,7 +135,7 @@ export default function RezultResultCard({ result, onClose }) {
             onClick={() => setExpandedJob(expandedJob === i ? null : i)}
             style={{
               width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center",
-              border: "none", background: "none", cursor: "pointer", padding: 0, marginBottom: expandedJob === i ? 16 : 0
+              border: "none", background: "none", cursor: "pointer", padding: 0, marginBottom: (forceExpanded || expandedJob === i) ? 16 : 0
             }}
           >
             <div style={{ fontSize: 14, fontWeight: 700, color: "#111" }}>
@@ -146,10 +146,10 @@ export default function RezultResultCard({ result, onClose }) {
                 </span>
               )}
             </div>
-            <span style={{ fontSize: 18, color: "#888" }}>{expandedJob === i ? "▲" : "▼"}</span>
+            <span style={{ fontSize: 18, color: "#888" }}>{(forceExpanded || expandedJob === i) ? "▲" : "▼"}</span>
           </button>
 
-          {expandedJob === i && <JobBlock jobAnswers={jobAnswers} jobNum={i} />}
+          {(forceExpanded || expandedJob === i) && <JobBlock jobAnswers={jobAnswers} jobNum={i} />}
         </div>
       ))}
       <AnalysisBlock analysis={analysis} />
