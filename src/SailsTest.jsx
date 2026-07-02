@@ -4,10 +4,13 @@ import { SAILS_QUESTIONS, SAILS_OPTIONS, SAILS_SCALE_NAMES, calcSailsScales, sai
 
 const TOTAL_TIME = 30 * 60;
 
-function StartScreen({ onStart }) {
+function StartScreen({ onStart, onBack }) {
   const [name, setName] = useState("");
   return (
-    <div style={{ minHeight: "100vh", background: "linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}>
+    <div style={{ minHeight: "100vh", background: "linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px", position: "relative" }}>
+      <button onClick={onBack} style={{ position: "absolute", top: 18, left: 18, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.14)", borderRadius: 10, color: "rgba(255,255,255,0.78)", fontSize: 14, cursor: "pointer", padding: "9px 12px", fontFamily: "inherit" }}>
+        ← Главная
+      </button>
       <div style={{ background: "rgba(255,255,255,0.05)", backdropFilter: "blur(20px)", borderRadius: "24px", padding: "48px", maxWidth: "520px", width: "100%", border: "1px solid rgba(255,255,255,0.1)", textAlign: "center" }}>
         <div style={{ fontSize: "64px", marginBottom: "16px" }}>💎</div>
         <h1 style={{ color: "#fff", fontSize: "28px", fontWeight: "700", marginBottom: "8px" }}>Тест Продажник</h1>
@@ -115,7 +118,7 @@ export default function SailsTest({ onBack }) {
 
   const formatTime = (s) => `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
 
-  if (screen === "start") return <StartScreen onStart={handleStart} />;
+  if (screen === "start") return <StartScreen onStart={handleStart} onBack={onBack} />;
   if (screen === "result") return <ResultScreen name={name} answers={answers} scales={scales} onBack={onBack} />;
 
   const q = SAILS_QUESTIONS[current];

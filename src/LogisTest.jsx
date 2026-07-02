@@ -332,11 +332,15 @@ const S = {
 
 // ─── НАЧАЛЬНЫЙ ЭКРАН ────────────────────────────────────────
 
-function StartScreen({ name, setName, onStart }) {
+function StartScreen({ name, setName, onStart, onBack }) {
   return (
     <div style={S.page}>
-      <div style={{ ...S.header, justifyContent: "center" }}>
+      <div style={{ ...S.header, justifyContent: "space-between" }}>
+        <button onClick={onBack} style={{ background: "transparent", border: "none", color: "#666", fontSize: 14, cursor: "pointer", padding: "6px 8px" }}>
+          ← Главная
+        </button>
         <span style={{ fontSize: 20, fontWeight: 700 }}>Тест Логика</span>
+        <span style={{ width: 76 }} />
       </div>
       <div style={S.wrap}>
         <div style={{ ...S.card, textAlign: "center", marginTop: 48 }}>
@@ -457,7 +461,7 @@ export default function LogisTest({ onBack }) {
   }, [phase, submit]);
 
   if (phase === "start") {
-    return <StartScreen name={name} setName={setName} onStart={handleStart} />;
+    return <StartScreen name={name} setName={setName} onStart={handleStart} onBack={onBack} />;
   }
 
   if (phase === "result" && result) {

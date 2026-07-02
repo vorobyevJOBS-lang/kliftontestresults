@@ -703,6 +703,16 @@ export default function Admin() {
   const visibleLogis = filterByBranch(logisResults);
   const visibleSails = filterByBranch(sailsResults);
   const visiblePrim = filterByBranch(primResults);
+  const archiveStats = [
+    ["clifton", "Клифтон", visibleResults.length],
+    ["tools", "Профиль", visibleTools.length],
+    ["rezultat", "Опыт", visibleRezultat.length],
+    ["logis", "Логика", visibleLogis.length],
+    ["sails", "Продажник", visibleSails.length],
+    ["prim", "Анализ", visiblePrim.length],
+  ];
+  const activeStat = archiveStats.find(([id]) => id === testTab);
+  const totalVisible = archiveStats.reduce((sum, [, , count]) => sum + count, 0);
 
   return (
     <div style={S.page}><div style={S.wrap}>
@@ -760,6 +770,43 @@ export default function Admin() {
         />
       </div>
 
+      <div style={{ ...S.card, padding: 18, marginBottom: 18 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap", marginBottom: 14 }}>
+          <div>
+            <div style={{ ...S.display, fontSize: 16, fontWeight: 700 }}>Рабочая сводка</div>
+            <div style={{ color: "#6B675F", fontSize: 13, marginTop: 4 }}>
+              Сейчас показано: <b>{activeStat?.[2] ?? 0}</b> · всего по фильтрам: <b>{totalVisible}</b>
+            </div>
+          </div>
+          {searchQuery.trim() && (
+            <button onClick={() => setSearchQuery("")} style={{ ...S.btn, ...S.ghost, padding: "8px 12px", fontSize: 13 }}>
+              Сбросить поиск
+            </button>
+          )}
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(96px,1fr))", gap: 8 }}>
+          {archiveStats.map(([id, label, count]) => (
+            <button
+              key={id}
+              onClick={() => setTestTab(id)}
+              style={{
+                border: "1.5px solid #EEECE7",
+                borderRadius: 12,
+                background: testTab === id ? "#1C1B1A" : "#F8F7F4",
+                color: testTab === id ? "#fff" : "#1C1B1A",
+                padding: "10px 12px",
+                cursor: "pointer",
+                textAlign: "left",
+                fontFamily: "inherit",
+              }}
+            >
+              <div style={{ fontSize: 20, fontWeight: 800 }}>{count}</div>
+              <div style={{ fontSize: 12, color: testTab === id ? "#D8D5CF" : "#6B675F" }}>{label}</div>
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* ────────── КЛИФТОН ────────── */}
       {testTab === "clifton" && (<>
 
@@ -793,16 +840,20 @@ export default function Admin() {
       )}
       {visibleResults.map((item) => {
         let top3 = [];
+        let parsed = null;
         try {
-          const r = JSON.parse(item.report_json);
-          top3 = r.top5.slice(0, 3).map((t) => TALENTS[t.id]?.name).filter(Boolean);
+          parsed = JSON.parse(item.report_json);
+          top3 = parsed.top5.slice(0, 3).map((t) => TALENTS[t.id]?.name).filter(Boolean);
         } catch {}
         const posName = POSITIONS.find((p) => p.id === item.position_id)?.name || item.position_name;
         const branchName = item.branch_id ? branchById(item.branch_id).name : null;
         const isSelected = compareIds.has(item.id);
+        const consistency = parsed?.consistencyScore;
+        const riskCount = parsed?.pitfalls?.length || 0;
+        const fitColor = item.fit >= 75 ? "#2E9E87" : item.fit >= 55 ? "#D98E2B" : "#E25C44";
         return (
           <div key={item.id} style={{ ...S.card, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap", outline: isSelected ? "2.5px solid #1C1B1A" : "none" }}>
-            <div>
+            <div style={{ flex: "1 1 320px" }}>
               <div style={{ fontWeight: 700 }}>{item.candidate_name}</div>
               <div style={{ fontSize: 13, color: "#8A867E", marginTop: 2 }}>
                 {item.position_recommended ? `Рекомендуется: ${posName}` : posName}{branchName ? ` · ${branchName}` : ""} · {new Date(item.created_at).toLocaleDateString("ru-RU")} · {item.fit}%
@@ -810,6 +861,21 @@ export default function Admin() {
               {top3.length > 0 && (
                 <div style={{ fontSize: 13, color: "#44413B", marginTop: 4 }}>Топ-3: {top3.join(", ")}</div>
               )}
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 10 }}>
+                <span style={{ fontSize: 12, fontWeight: 700, color: fitColor, background: "#F8F7F4", border: `1px solid ${fitColor}33`, padding: "4px 9px", borderRadius: 99 }}>
+                  Fit {item.fit}%
+                </span>
+                {consistency != null && (
+                  <span style={{ fontSize: 12, fontWeight: 700, color: consistency >= 70 ? "#2E9E87" : consistency >= 50 ? "#D98E2B" : "#E25C44", background: "#F8F7F4", padding: "4px 9px", borderRadius: 99 }}>
+                    Надёжность {consistency}%
+                  </span>
+                )}
+                {riskCount > 0 && (
+                  <span style={{ fontSize: 12, fontWeight: 700, color: "#E25C44", background: "#FCEAE6", padding: "4px 9px", borderRadius: 99 }}>
+                    {riskCount} подводн. камня
+                  </span>
+                )}
+              </div>
             </div>
             <div style={{ display: "flex", gap: 8 }}>
               {compareMode ? (

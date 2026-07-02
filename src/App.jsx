@@ -31,6 +31,15 @@ const MAX_BY_TALENT = (() => {
 
 const ALL_POSITIONS = Object.entries(ROLE_PROFILES).map(([id, r]) => ({ id, name: r.name }));
 
+const TEST_CARDS = [
+  { id: "clifton", icon: "🏆", title: "Клифтон", desc: "Сильные стороны", meta: `${QUESTIONS.length} пар · 45-50 мин`, accent: "#1C1B1A", muted: "#F1EFEA" },
+  { id: "rezultat", icon: "📊", title: "Опыт", desc: "Продуктивность и трудовой путь", meta: "19 вопросов · 8-12 мин", accent: "#2563EB", muted: "#EEF3FF" },
+  { id: "tools", icon: "🎯", title: "Профиль", desc: "Характер и рабочий стиль", meta: "200 вопросов · 35 мин", accent: "#0F766E", muted: "#E4F4F0" },
+  { id: "logis", icon: "🧠", title: "Логика", desc: "Логическое мышление", meta: "80 вопросов · 30 мин", accent: "#6C63FF", muted: "#EEF2FF" },
+  { id: "sails", icon: "💎", title: "Продажник", desc: "Потенциал в продажах", meta: "120 вопросов · 30 мин", accent: "#9C27B0", muted: "#F3E5F5" },
+  { id: "prim", icon: "🧭", title: "Первичный анализ", desc: "Личностный профиль", meta: "160 вопросов · 30-36 мин", accent: "#7C3AED", muted: "#F1EAFF" },
+];
+
 // Филиалы: каждый имеет уникальный id (используется для фильтрации архива и привязки логинов admins),
 // принадлежность к "школе" (klyachka/jobs) определяет набор доступных должностей.
 const BRANCHES = [
@@ -75,6 +84,49 @@ function DomainTag({ domain }) {
     <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: ".04em", textTransform: "uppercase", color: dm.color, background: dm.soft, padding: "3px 10px", borderRadius: 99 }}>
       {domain}
     </span>
+  );
+}
+
+function HomeTestCard({ item, active, onClick }) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        border: active ? "1.5px solid #1C1B1A" : "1.5px solid #EEECE7",
+        background: active ? "#1C1B1A" : "#fff",
+        color: active ? "#fff" : "#1C1B1A",
+        borderRadius: 14,
+        padding: 18,
+        cursor: "pointer",
+        textAlign: "left",
+        fontFamily: "inherit",
+        minHeight: 156,
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "space-between",
+        boxShadow: active ? "0 10px 24px rgba(28,27,26,.16)" : "0 1px 3px rgba(28,27,26,.07)",
+      }}
+    >
+      <div>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10, marginBottom: 14 }}>
+          <div style={{ fontSize: 22 }}>{item.icon}</div>
+          <span style={{
+            fontSize: 11,
+            fontWeight: 700,
+            color: active ? "#B6F2C8" : item.accent,
+            background: active ? "rgba(76,208,128,.15)" : item.muted,
+            padding: "4px 9px",
+            borderRadius: 99,
+            whiteSpace: "nowrap",
+          }}>
+            {active ? "Выбран" : "Открыть"}
+          </span>
+        </div>
+        <div style={{ ...S.display, fontWeight: 700, fontSize: 17, lineHeight: 1.25, marginBottom: 6 }}>{item.title}</div>
+        <div style={{ fontSize: 13, color: active ? "#D8D5CF" : "#44413B", lineHeight: 1.45 }}>{item.desc}</div>
+      </div>
+      <div style={{ fontSize: 12, color: active ? "#A8A49C" : "#8A867E", lineHeight: 1.35, marginTop: 14 }}>{item.meta}</div>
+    </button>
   );
 }
 
@@ -489,93 +541,39 @@ export default function App() {
   if (screen === "home") return (
     <div style={S.page}><div style={S.wrap}>
       <div style={{ marginBottom: 28 }}>
-        <div style={{ ...S.display, fontSize: 13, fontWeight: 700, letterSpacing: ".12em", textTransform: "uppercase", color: "#8A867E", marginBottom: 12 }}>Оценка кандидатов</div>
+        <div style={{ ...S.display, fontSize: 13, fontWeight: 700, textTransform: "uppercase", color: "#8A867E", marginBottom: 12 }}>Оценка кандидатов</div>
         <h1 style={{ ...S.display, fontSize: 30, lineHeight: 1.15, margin: 0, fontWeight: 700 }}>Выберите тест</h1>
         <p style={{ color: "#6B675F", fontSize: 16, lineHeight: 1.55, marginTop: 12 }}>
-          Выберите тест для кандидата или сотрудника.
+          Единая точка входа для оценки сильных сторон, опыта, логики, продаж и личностного профиля.
         </p>
       </div>
 
-      {/* Карточки тестов */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px,1fr))", gap: 12, marginBottom: 28 }}>
-        {/* Клифтон — активен */}
-        <div style={{ background: "#1C1B1A", color: "#fff", borderRadius: 16, padding: 20, cursor: "default" }}>
-          <div style={{ fontSize: 20, marginBottom: 8 }}>🏆</div>
-          <div style={{ ...S.display, fontWeight: 700, fontSize: 17, marginBottom: 6 }}>Клифтон</div>
-          <div style={{ fontSize: 13, color: "#A8A49C", lineHeight: 1.5, marginBottom: 14 }}>
-            Тест сильных сторон — {QUESTIONS.length} пар · ≈ 45 мин
-          </div>
-          <div style={{ fontSize: 11, fontWeight: 700, color: "#4CD080", background: "rgba(76,208,128,.15)", padding: "3px 10px", borderRadius: 99, display: "inline-block" }}>
-            Доступен
-          </div>
-        </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(210px,1fr))", gap: 12, marginBottom: 24 }}>
+        {TEST_CARDS.map((item) => (
+          <HomeTestCard
+            key={item.id}
+            item={item}
+            active={item.id === "clifton"}
+            onClick={() => item.id === "clifton" ? null : setActiveTest(item.id)}
+          />
+        ))}
+      </div>
 
-        {/* Опыт — активен */}
-        <div onClick={() => setActiveTest("rezultat")}
-          style={{ background: "#fff", borderRadius: 16, padding: 20, border: "1.5px solid #EEECE7", cursor: "pointer" }}
-          onMouseEnter={e => e.currentTarget.style.boxShadow = "0 4px 16px rgba(59,123,246,0.12)"}
-          onMouseLeave={e => e.currentTarget.style.boxShadow = "none"}
-        >
-          <div style={{ fontSize: 20, marginBottom: 8 }}>📊</div>
-          <div style={{ ...S.display, fontWeight: 700, fontSize: 17, marginBottom: 6 }}>Опыт</div>
-          <div style={{ fontSize: 13, color: "#6B675F", lineHeight: 1.5, marginBottom: 14 }}>Продуктивность соискателя · 19 вопросов</div>
-          <div style={{ fontSize: 11, fontWeight: 700, color: "#4CD080", background: "rgba(76,208,128,.15)", padding: "3px 10px", borderRadius: 99, display: "inline-block" }}>
-            Доступен
+      <div style={{ ...S.card, background: "#F1EFEA", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px,1fr))", gap: 12, padding: 18 }}>
+        {[
+          ["Для кандидата", "Понятные шаги, крупные поля, результат сохраняется автоматически."],
+          ["Для руководителя", "В архиве видны сильные стороны, риски, соответствие роли и вопросы для проверки."],
+          ["Для HR", "Фильтры по филиалам, поиск по ФИО и быстрый доступ ко всем тестам."],
+        ].map(([title, text]) => (
+          <div key={title}>
+            <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 4 }}>{title}</div>
+            <div style={{ color: "#6B675F", fontSize: 13, lineHeight: 1.45 }}>{text}</div>
           </div>
-        </div>
-
-        {/* Профиль — активен */}
-        <div onClick={() => setActiveTest("tools")}
-          style={{ background: "#fff", borderRadius: 16, padding: 20, border: "1.5px solid #EEECE7", cursor: "pointer" }}
-          onMouseEnter={e => e.currentTarget.style.boxShadow = "0 4px 16px rgba(59,123,246,0.12)"}
-          onMouseLeave={e => e.currentTarget.style.boxShadow = "none"}
-        >
-          <div style={{ fontSize: 20, marginBottom: 8 }}>🎯</div>
-          <div style={{ ...S.display, fontWeight: 700, fontSize: 17, marginBottom: 6 }}>Профиль</div>
-          <div style={{ fontSize: 13, color: "#6B675F", lineHeight: 1.5, marginBottom: 14 }}>Тест характера · 10 показателей · 200 вопросов</div>
-          <div style={{ fontSize: 11, fontWeight: 700, color: "#4CD080", background: "rgba(76,208,128,.15)", padding: "3px 10px", borderRadius: 99, display: "inline-block" }}>
-            Доступен
-          </div>
-        </div>
-
-        {/* Логика — активен */}
-        <div onClick={() => setActiveTest("logis")}
-          style={{ background: "#fff", borderRadius: 16, padding: 20, border: "1.5px solid #EEECE7", cursor: "pointer" }}>
-          <div style={{ fontSize: 20, marginBottom: 8 }}>🧠</div>
-          <div style={{ ...S.display, fontWeight: 700, fontSize: 17, marginBottom: 6 }}>Логика</div>
-          <div style={{ fontSize: 13, color: "#6B675F", lineHeight: 1.5, marginBottom: 14 }}>Тест на IQ · 80 вопросов · 30 мин</div>
-          <div style={{ fontSize: 11, fontWeight: 700, color: "#fff", background: "#6c63ff", padding: "3px 10px", borderRadius: 99, display: "inline-block" }}>
-            Доступен
-          </div>
-        </div>
-
-        {/* Продажник */}
-        <div onClick={() => setActiveTest("sails")} style={{ background: "#fff", borderRadius: 16, padding: 20, border: "1.5px solid #EEECE7", cursor: "pointer", transition: "box-shadow .15s" }}
-          onMouseEnter={e => e.currentTarget.style.boxShadow = "0 4px 16px rgba(224,64,251,.15)"}
-          onMouseLeave={e => e.currentTarget.style.boxShadow = "none"}>
-          <div style={{ fontSize: 20, marginBottom: 8 }}>💎</div>
-          <div style={{ ...S.display, fontWeight: 700, fontSize: 17, marginBottom: 6 }}>Продажник</div>
-          <div style={{ fontSize: 13, color: "#6B675F", lineHeight: 1.5, marginBottom: 14 }}>Способности в продажах · 120 вопросов</div>
-          <div style={{ fontSize: 11, fontWeight: 700, color: "#9c27b0", background: "#f3e5f5", padding: "3px 10px", borderRadius: 99, display: "inline-block" }}>
-            Доступен
-          </div>
-        </div>
-
-        {/* Первичный анализ */}
-        <div onClick={() => setActiveTest("prim")} style={{ background: "#fff", borderRadius: 16, padding: 20, border: "1.5px solid #EEECE7", cursor: "pointer", transition: "box-shadow .15s" }}
-          onMouseEnter={e => e.currentTarget.style.boxShadow = "0 4px 16px rgba(100,87,214,.15)"}
-          onMouseLeave={e => e.currentTarget.style.boxShadow = "none"}>
-          <div style={{ fontSize: 20, marginBottom: 8 }}>🧠</div>
-          <div style={{ fontFamily: "'Unbounded', 'Golos Text', sans-serif", fontWeight: 700, fontSize: 17, marginBottom: 6 }}>Первичный анализ</div>
-          <div style={{ fontSize: 13, color: "#6B675F", lineHeight: 1.5, marginBottom: 14 }}>Личностный профиль · 8 факторов · 160 вопросов</div>
-          <div style={{ fontSize: 11, fontWeight: 700, color: "#4338ca", background: "#eef2ff", padding: "3px 10px", borderRadius: 99, display: "inline-block" }}>
-            Доступен
-          </div>
-        </div>
+        ))}
       </div>
 
       {/* Форма Клифтон */}
-      <div style={{ ...S.display, fontSize: 13, fontWeight: 700, letterSpacing: ".12em", textTransform: "uppercase", color: "#8A867E", marginBottom: 12 }}>
+      <div style={{ ...S.display, fontSize: 13, fontWeight: 700, textTransform: "uppercase", color: "#8A867E", marginBottom: 12 }}>
         Тест Клифтон
       </div>
       <p style={{ color: "#6B675F", fontSize: 15, lineHeight: 1.55, marginTop: 0, marginBottom: 20 }}>
