@@ -61,6 +61,7 @@ export default function PrimTest({ onBack }) {
   const [answers, setAnswers] = useState(Array(PRIM_TOTAL).fill(null));
   const [timeLeft, setTimeLeft] = useState(36 * 60);
   const [savedScores, setSavedScores] = useState(null);
+  const [saveError, setSaveError] = useState("");
   const [branchId, setBranchId] = useState(BRANCHES[0].id);
   const [applicantType, setApplicantType] = useState("candidate");
   const timerRef = useRef(null);
@@ -120,7 +121,12 @@ export default function PrimTest({ onBack }) {
     };
 
     const { error } = await insertWithOptionalOrg(supabase, "prim_results", record);
-    if (error) console.error("Supabase error:", error);
+    if (error) {
+      console.error("Supabase error:", error);
+      setSaveError(error.message || "Не удалось сохранить результат.");
+      setScreen("save_error");
+      return;
+    }
 
     setSavedScores(scores);
     setScreen("done");
@@ -214,6 +220,24 @@ export default function PrimTest({ onBack }) {
         <div style={{ fontSize: 40, marginBottom: 16 }}>⏳</div>
         <div style={{ ...S.display, fontSize: 22, fontWeight: 700, marginBottom: 10 }}>Обрабатываем результаты...</div>
         <div style={{ color: "#6B675F", fontSize: 15 }}>Секунду, сохраняем ваш профиль.</div>
+      </div></div>
+    );
+  }
+
+  if (screen === "save_error") {
+    return (
+      <div style={S.page}><div style={{ ...S.wrap, maxWidth: 460, textAlign: "center", paddingTop: 80 }}>
+        <div style={{ fontSize: 40, marginBottom: 16 }}>!</div>
+        <div style={{ ...S.display, fontSize: 22, fontWeight: 700, marginBottom: 10 }}>Результат не сохранился</div>
+        <p style={{ color: "#6B675F", fontSize: 15, lineHeight: 1.6, margin: "0 0 20px" }}>
+          Проверьте интернет и попробуйте отправить ещё раз. Ошибка: {saveError}
+        </p>
+        <button
+          onClick={() => finishTest(answers)}
+          style={{ ...S.btn, background: "#1C1B1A", color: "#fff", width: "100%", padding: "14px 20px" }}
+        >
+          Повторить сохранение
+        </button>
       </div></div>
     );
   }
