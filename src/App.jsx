@@ -10,6 +10,8 @@ import ToolsTest from "./ToolsTest";
 import LogisTest from "./LogisTest";
 import SailsTest from "./SailsTest";
 import PrimTest from "./PrimTest";
+import AudienceFields from "./AudienceFields";
+import { BRANCHES, branchById } from "./org";
 
 // ─────────────────────────────────────────────────────────────
 // ДОМЕНЫ — визуальная группировка талантов
@@ -40,21 +42,9 @@ const TEST_CARDS = [
   { id: "prim", icon: "🧭", title: "Первичный анализ", desc: "Личностный профиль", meta: "160 вопросов · 30-36 мин", accent: "#7C3AED", muted: "#F1EAFF" },
 ];
 
-// Филиалы: каждый имеет уникальный id (используется для фильтрации архива и привязки логинов admins),
-// принадлежность к "школе" (klyachka/jobs) определяет набор доступных должностей.
-const BRANCHES = [
-  { id: "klyachka_nvkz", school: "klyachka", name: "Клячка — Новокузнецк" },
-  { id: "klyachka_krsk_center", school: "klyachka", name: "Клячка — Красноярск Центр" },
-  { id: "klyachka_krsk_vzlet", school: "klyachka", name: "Клячка — Красноярск Взлётка" },
-  { id: "jobs_main", school: "jobs", name: "Jobs" },
-];
-
 function positionsForSchool(school) {
   if (school === "klyachka") return ALL_POSITIONS.filter((p) => p.id !== "tutor");
   return ALL_POSITIONS;
-}
-function branchById(id) {
-  return BRANCHES.find((b) => b.id === id) || BRANCHES[0];
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -559,19 +549,6 @@ export default function App() {
         ))}
       </div>
 
-      <div style={{ ...S.card, background: "#F1EFEA", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px,1fr))", gap: 12, padding: 18 }}>
-        {[
-          ["Для кандидата", "Понятные шаги, крупные поля, результат сохраняется автоматически."],
-          ["Для руководителя", "В архиве видны сильные стороны, риски, соответствие роли и вопросы для проверки."],
-          ["Для HR", "Фильтры по филиалам, поиск по ФИО и быстрый доступ ко всем тестам."],
-        ].map(([title, text]) => (
-          <div key={title}>
-            <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 4 }}>{title}</div>
-            <div style={{ color: "#6B675F", fontSize: 13, lineHeight: 1.45 }}>{text}</div>
-          </div>
-        ))}
-      </div>
-
       {/* Форма Клифтон */}
       <div style={{ ...S.display, fontSize: 13, fontWeight: 700, textTransform: "uppercase", color: "#8A867E", marginBottom: 12 }}>
         Тест Клифтон
@@ -585,21 +562,12 @@ export default function App() {
         <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Например: Анна Петрова"
           style={{ width: "100%", boxSizing: "border-box", padding: "13px 14px", fontSize: 16, borderRadius: 12, border: "1.5px solid #D8D5CF", fontFamily: "inherit", outline: "none" }} />
 
-        <label style={{ fontSize: 14, fontWeight: 600, display: "block", margin: "18px 0 8px" }}>Филиал</label>
-        <select value={branchId} onChange={(e) => setBranchId(e.target.value)}
-          style={{ width: "100%", boxSizing: "border-box", padding: "13px 14px", fontSize: 16, borderRadius: 12, border: "1.5px solid #D8D5CF", fontFamily: "inherit", outline: "none", background: "#fff" }}>
-          {BRANCHES.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
-        </select>
-
-        <label style={{ fontSize: 14, fontWeight: 600, display: "block", margin: "18px 0 8px" }}>Кто проходит тест</label>
-        <div style={{ display: "flex", gap: 10 }}>
-          {[["candidate", "Кандидат на собеседование"], ["employee", "Действующий сотрудник"]].map(([id, label]) => (
-            <button key={id} onClick={() => setApplicantType(id)}
-              style={{ ...S.btn, flex: 1, padding: "13px 0", fontSize: 14, background: applicantType === id ? "#1C1B1A" : "#F1EFEA", color: applicantType === id ? "#fff" : "#1C1B1A" }}>
-              {label}
-            </button>
-          ))}
-        </div>
+        <AudienceFields
+          branchId={branchId}
+          setBranchId={setBranchId}
+          applicantType={applicantType}
+          setApplicantType={setApplicantType}
+        />
 
         {applicantType === "employee" && (
           <>

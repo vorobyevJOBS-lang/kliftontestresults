@@ -2,6 +2,9 @@ import { useState, useEffect, useRef } from "react";
 import { supabase } from "./supabase";
 import { TOOLS_QUESTIONS, TOTAL_QUESTIONS } from "./toolsQuestions";
 import { TOOLS_INDICATORS, getToolsLevel, TOOLS_DESCRIPTIONS, LEVEL_STYLE } from "./toolsMeta";
+import AudienceFields from "./AudienceFields";
+import { BRANCHES } from "./org";
+import { insertWithOptionalOrg } from "./supabaseHelpers";
 
 // ─────────────────────────────────────────────────────────────
 // СКОРИНГ
@@ -106,6 +109,8 @@ export default function ToolsTest({ onBack }) {
   const [timeLeft, setTimeLeft] = useState(35 * 60); // 35 мин в секундах
   const [saving, setSaving] = useState(false);
   const [savedScores, setSavedScores] = useState(null);
+  const [branchId, setBranchId] = useState(BRANCHES[0].id);
+  const [applicantType, setApplicantType] = useState("candidate");
   const timerRef = useRef(null);
 
   // Таймер (запускается когда screen === "test")
@@ -170,9 +175,11 @@ export default function ToolsTest({ onBack }) {
       answered_count: answeredCount,
       time_spent: timeSpent,
       maybe_count: maybeCount,
+      branch_id: branchId,
+      applicant_type: applicantType,
     };
 
-    const { error } = await supabase.from("tools_results").insert(record);
+    const { error } = await insertWithOptionalOrg(supabase, "tools_results", record);
     if (error) console.error("Supabase error:", error);
 
     setSavedScores(scores);
@@ -215,6 +222,13 @@ export default function ToolsTest({ onBack }) {
             placeholder="25"
             maxLength={3}
             style={{ width: "100%", boxSizing: "border-box", padding: "13px 14px", fontSize: 16, borderRadius: 12, border: "1.5px solid #D8D5CF", fontFamily: "inherit", outline: "none" }}
+          />
+
+          <AudienceFields
+            branchId={branchId}
+            setBranchId={setBranchId}
+            applicantType={applicantType}
+            setApplicantType={setApplicantType}
           />
 
           <div style={{ marginTop: 18, background: "#F6F5F2", borderRadius: 12, padding: "12px 14px", fontSize: 13, color: "#6B675F", lineHeight: 1.5 }}>

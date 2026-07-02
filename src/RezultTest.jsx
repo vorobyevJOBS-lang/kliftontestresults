@@ -1,6 +1,9 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "./supabase";
 import { REZULTAT_QUESTIONS, TOTAL_QUESTIONS } from "./rezultMeta";
+import AudienceFields from "./AudienceFields";
+import { BRANCHES } from "./org";
+import { insertWithOptionalOrg } from "./supabaseHelpers";
 
 // ────────── helpers ──────────
 function formatTime(sec) {
@@ -186,6 +189,8 @@ export default function RezultTest({ onBack }) {
     firstName: "", lastName: "", age: "", phone: "", city: "",
     gender: "", previousTest: "", gdpr: false,
   });
+  const [branchId, setBranchId] = useState(BRANCHES[0].id);
+  const [applicantType, setApplicantType] = useState("candidate");
   const [jobIndex, setJobIndex] = useState(0); // which job position (0 = first, 1 = second)
   const [allJobs, setAllJobs] = useState([{}]); // array of answer objects per job
   const [currentQ, setCurrentQ] = useState(0); // index in REZULTAT_QUESTIONS
@@ -265,8 +270,10 @@ export default function RezultTest({ onBack }) {
         jobs: allJobs,
         answers_count: REZULTAT_QUESTIONS.length,
         completed: true,
+        branch_id: branchId,
+        applicant_type: applicantType,
       };
-      const { error: dbErr } = await supabase.from("rezultat_results").insert([payload]);
+      const { error: dbErr } = await insertWithOptionalOrg(supabase, "rezultat_results", payload);
       if (dbErr) throw dbErr;
       setStage("done");
     } catch (e) {
@@ -317,6 +324,13 @@ export default function RezultTest({ onBack }) {
             <input style={inputStyle} placeholder="Красноярск" value={anketa.city}
               onChange={(e) => setAnketa({ ...anketa, city: e.target.value })} />
           </div>
+
+          <AudienceFields
+            branchId={branchId}
+            setBranchId={setBranchId}
+            applicantType={applicantType}
+            setApplicantType={setApplicantType}
+          />
 
           <div style={{ marginBottom: 14 }}>
             <label style={labelStyle}>Пол</label>

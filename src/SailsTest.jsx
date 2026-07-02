@@ -1,11 +1,17 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "./supabase";
 import { SAILS_QUESTIONS, SAILS_OPTIONS, SAILS_SCALE_NAMES, calcSailsScales, sailsLevel } from "./sailsQuestions";
+import AudienceFields from "./AudienceFields";
+import { BRANCHES } from "./org";
+import { insertWithOptionalOrg } from "./supabaseHelpers";
 
 const TOTAL_TIME = 30 * 60;
 
 function StartScreen({ onStart, onBack }) {
   const [name, setName] = useState("");
+  const [branchId, setBranchId] = useState(BRANCHES[0].id);
+  const [applicantType, setApplicantType] = useState("candidate");
+  const start = () => name.trim() && onStart(name.trim(), branchId, applicantType);
   return (
     <div style={{ minHeight: "100vh", background: "linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px", position: "relative" }}>
       <button onClick={onBack} style={{ position: "absolute", top: 18, left: 18, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.14)", borderRadius: 10, color: "rgba(255,255,255,0.78)", fontSize: 14, cursor: "pointer", padding: "9px 12px", fontFamily: "inherit" }}>
@@ -25,7 +31,14 @@ function StartScreen({ onStart, onBack }) {
             onChange={e => setName(e.target.value)}
             placeholder="Введите имя..."
             style={{ width: "100%", padding: "12px 16px", background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", borderRadius: "12px", color: "#fff", fontSize: "16px", outline: "none", boxSizing: "border-box" }}
-            onKeyDown={e => e.key === "Enter" && name.trim() && onStart(name.trim())}
+            onKeyDown={e => e.key === "Enter" && start()}
+          />
+          <AudienceFields
+            branchId={branchId}
+            setBranchId={setBranchId}
+            applicantType={applicantType}
+            setApplicantType={setApplicantType}
+            dark
           />
         </div>
         <div style={{ background: "rgba(255,255,255,0.05)", borderRadius: "12px", padding: "16px", marginBottom: "24px", textAlign: "left" }}>
@@ -35,7 +48,7 @@ function StartScreen({ onStart, onBack }) {
           </p>
         </div>
         <button
-          onClick={() => name.trim() && onStart(name.trim())}
+          onClick={start}
           disabled={!name.trim()}
           style={{ width: "100%", padding: "14px", background: name.trim() ? "linear-gradient(135deg, #e040fb, #9c27b0)" : "rgba(255,255,255,0.1)", border: "none", borderRadius: "12px", color: "#fff", fontSize: "16px", fontWeight: "600", cursor: name.trim() ? "pointer" : "not-allowed", transition: "all 0.2s" }}
         >
@@ -72,6 +85,8 @@ export default function SailsTest({ onBack }) {
   const [current, setCurrent] = useState(0);
   const [timeLeft, setTimeLeft] = useState(TOTAL_TIME);
   const [submitted, setSubmitted] = useState(false);
+  const [branchId, setBranchId] = useState(BRANCHES[0].id);
+  const [applicantType, setApplicantType] = useState("candidate");
   const timerRef = useRef(null);
 
   useEffect(() => {
@@ -86,7 +101,12 @@ export default function SailsTest({ onBack }) {
     return () => clearInterval(timerRef.current);
   }, [screen]);
 
-  const handleStart = (n) => { setName(n); setScreen("test"); };
+  const handleStart = (n, selectedBranchId, selectedApplicantType) => {
+    setName(n);
+    setBranchId(selectedBranchId);
+    setApplicantType(selectedApplicantType);
+    setScreen("test");
+  };
 
   const handleAnswer = (val) => {
     const qId = SAILS_QUESTIONS[current].id;
@@ -106,12 +126,14 @@ export default function SailsTest({ onBack }) {
     const scaleScores = calcSailsScales(finalAnswers);
     setScales(scaleScores);
     try {
-      await supabase.from("sails_results").insert([{
+      await insertWithOptionalOrg(supabase, "sails_results", {
         name,
         answers: finalAnswers,
         scales: scaleScores,
         completed_at: new Date().toISOString(),
-      }]);
+        branch_id: branchId,
+        applicant_type: applicantType,
+      });
     } catch (e) { console.error(e); }
     setScreen("result");
   };

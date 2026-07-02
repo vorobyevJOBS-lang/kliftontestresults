@@ -2,6 +2,9 @@ import { useState, useEffect, useRef } from "react";
 import { supabase } from "./supabase";
 import { PRIM_QUESTIONS, PRIM_TOTAL } from "./primQuestions";
 import { PRIM_FACTORS, PRIM_SCALE_TO_NAME, getPrimLevel, PRIM_LEVEL_STYLE, PRIM_DESCRIPTIONS } from "./primMeta";
+import AudienceFields from "./AudienceFields";
+import { BRANCHES } from "./org";
+import { insertWithOptionalOrg } from "./supabaseHelpers";
 
 // ─────────────────────────────────────────────────────────────
 // СКОРИНГ
@@ -58,6 +61,8 @@ export default function PrimTest({ onBack }) {
   const [answers, setAnswers] = useState(Array(PRIM_TOTAL).fill(null));
   const [timeLeft, setTimeLeft] = useState(36 * 60);
   const [savedScores, setSavedScores] = useState(null);
+  const [branchId, setBranchId] = useState(BRANCHES[0].id);
+  const [applicantType, setApplicantType] = useState("candidate");
   const timerRef = useRef(null);
 
   useEffect(() => {
@@ -110,9 +115,11 @@ export default function PrimTest({ onBack }) {
       total_questions: PRIM_TOTAL,
       time_spent: timeSpent,
       maybe_count: maybeCount,
+      branch_id: branchId,
+      applicant_type: applicantType,
     };
 
-    const { error } = await supabase.from("prim_results").insert(record);
+    const { error } = await insertWithOptionalOrg(supabase, "prim_results", record);
     if (error) console.error("Supabase error:", error);
 
     setSavedScores(scores);
@@ -142,6 +149,12 @@ export default function PrimTest({ onBack }) {
           <input
             value={age} onChange={e => setAge(e.target.value.replace(/\D/g, ""))} placeholder="25" maxLength={3}
             style={{ width: "100%", boxSizing: "border-box", padding: "13px 14px", fontSize: 16, borderRadius: 12, border: "1.5px solid #D8D5CF", fontFamily: "inherit", outline: "none" }}
+          />
+          <AudienceFields
+            branchId={branchId}
+            setBranchId={setBranchId}
+            applicantType={applicantType}
+            setApplicantType={setApplicantType}
           />
           <div style={{ marginTop: 18, background: "#F6F5F2", borderRadius: 12, padding: "12px 14px", fontSize: 13, color: "#6B675F", lineHeight: 1.5 }}>
             ⏱ У вас 30 минут. Отвечайте первым импульсом — не думайте слишком долго.

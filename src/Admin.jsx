@@ -689,14 +689,18 @@ export default function Admin() {
     if (branchFilter === "all") return true;
     return item.branch_id === branchFilter;
   };
+  const matchesAudience = (item) => {
+    const value = item.applicant_type || "employee";
+    return value === typeTab;
+  };
 
   const visibleResults = results
     .filter(matchesBranch)
-    .filter((item) => item.applicant_type === typeTab || (!item.applicant_type && typeTab === "employee"))
+    .filter(matchesAudience)
     .filter(matchesSearch);
 
   const filterByBranch = (items) => {
-    return items.filter(matchesBranch).filter(matchesSearch);
+    return items.filter(matchesBranch).filter(matchesAudience).filter(matchesSearch);
   };
   const visibleTools = filterByBranch(toolsResults);
   const visibleRezultat = filterByBranch(rezultatResults);
@@ -770,6 +774,15 @@ export default function Admin() {
         />
       </div>
 
+      <div style={{ display: "flex", gap: 10, marginBottom: 18 }}>
+        {[["candidate", "Кандидаты"], ["employee", "Действующие сотрудники"]].map(([id, label]) => (
+          <button key={id} onClick={() => setTypeTab(id)}
+            style={{ ...S.btn, flex: 1, padding: "12px 10px", background: typeTab === id ? "#1C1B1A" : "#F1EFEA", color: typeTab === id ? "#fff" : "#1C1B1A", fontSize: 14 }}>
+            {label}
+          </button>
+        ))}
+      </div>
+
       <div style={{ ...S.card, padding: 18, marginBottom: 18 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap", marginBottom: 14 }}>
           <div>
@@ -809,16 +822,6 @@ export default function Admin() {
 
       {/* ────────── КЛИФТОН ────────── */}
       {testTab === "clifton" && (<>
-
-      {/* Таб Сотрудники / Кандидаты */}
-      <div style={{ display: "flex", gap: 10, marginBottom: 18 }}>
-        {[["employee", "Сотрудники"], ["candidate", "Кандидаты"]].map(([id, label]) => (
-          <button key={id} onClick={() => setTypeTab(id)}
-            style={{ ...S.btn, flex: 1, padding: "12px 0", background: typeTab === id ? "#1C1B1A" : "#F1EFEA", color: typeTab === id ? "#fff" : "#1C1B1A" }}>
-            {label}
-          </button>
-        ))}
-      </div>
 
       {/* Плавающая панель сравнения */}
       {compareMode && compareIds.size > 0 && (

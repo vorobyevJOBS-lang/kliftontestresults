@@ -1,6 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { LOGIS_QUESTIONS, GEOM_SVG } from "./logisQuestions";
 import { supabase } from "./supabase";
+import AudienceFields from "./AudienceFields";
+import { BRANCHES } from "./org";
+import { insertWithOptionalOrg } from "./supabaseHelpers";
 
 // ─── SVG для паттерновых вопросов ────────────────────────────
 
@@ -332,7 +335,7 @@ const S = {
 
 // ─── НАЧАЛЬНЫЙ ЭКРАН ────────────────────────────────────────
 
-function StartScreen({ name, setName, onStart, onBack }) {
+function StartScreen({ name, setName, onStart, onBack, branchId, setBranchId, applicantType, setApplicantType }) {
   return (
     <div style={S.page}>
       <div style={{ ...S.header, justifyContent: "space-between" }}>
@@ -365,8 +368,16 @@ function StartScreen({ name, setName, onStart, onBack }) {
               boxSizing: "border-box",
             }}
           />
+          <div style={{ textAlign: "left" }}>
+            <AudienceFields
+              branchId={branchId}
+              setBranchId={setBranchId}
+              applicantType={applicantType}
+              setApplicantType={setApplicantType}
+            />
+          </div>
           <button
-            style={{ ...S.btn("primary"), padding: "14px 36px", fontSize: 16 }}
+            style={{ ...S.btn("primary"), padding: "14px 36px", fontSize: 16, marginTop: 18 }}
             onClick={onStart}
             disabled={!name.trim()}
           >
@@ -407,6 +418,8 @@ export default function LogisTest({ onBack }) {
   const [timeLeft, setTimeLeft] = useState(TOTAL_TIME);
   const [result, setResult] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [branchId, setBranchId] = useState(BRANCHES[0].id);
+  const [applicantType, setApplicantType] = useState("candidate");
   const timerRef = useRef(null);
 
   const q = LOGIS_QUESTIONS[current];
@@ -428,21 +441,21 @@ export default function LogisTest({ onBack }) {
 
     setSaving(true);
     try {
-      await supabase.from("logis_results").insert([
-        {
-          name: name.trim(),
-          score,
-          correct_answers: correct,
-          answers: JSON.stringify(answers),
-          completed_at: new Date().toISOString(),
-        },
-      ]);
+      await insertWithOptionalOrg(supabase, "logis_results", {
+        name: name.trim(),
+        score,
+        correct_answers: correct,
+        answers: JSON.stringify(answers),
+        completed_at: new Date().toISOString(),
+        branch_id: branchId,
+        applicant_type: applicantType,
+      });
     } catch (e) {
       console.error("Supabase save error:", e);
     }
     setSaving(false);
     setPhase("result");
-  }, [answers, name]);
+  }, [answers, name, branchId, applicantType]);
 
   // Таймер
   useEffect(() => {
@@ -461,7 +474,7 @@ export default function LogisTest({ onBack }) {
   }, [phase, submit]);
 
   if (phase === "start") {
-    return <StartScreen name={name} setName={setName} onStart={handleStart} onBack={onBack} />;
+    return <StartScreen name={name} setName={setName} onStart={handleStart} onBack={onBack} branchId={branchId} setBranchId={setBranchId} applicantType={applicantType} setApplicantType={setApplicantType} />;
   }
 
   if (phase === "result" && result) {
