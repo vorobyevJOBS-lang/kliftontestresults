@@ -58,6 +58,7 @@ export default function PrimTest({ onBack }) {
   const [screen, setScreen] = useState("form");
   const [name, setName] = useState("");
   const [age, setAge] = useState("");
+  const [email, setEmail] = useState("");
   const [qi, setQi] = useState(0);
   const [answers, setAnswers] = useState(Array(PRIM_TOTAL).fill(null));
   const [timeLeft, setTimeLeft] = useState(36 * 60);
@@ -112,6 +113,7 @@ export default function PrimTest({ onBack }) {
     const record = {
       candidate_name: name.trim(),
       candidate_age: age.trim() ? parseInt(age) : null,
+      candidate_email: email.trim() || null,
       scores,
       answers_count: answeredCount,
       total_questions: PRIM_TOTAL,
@@ -157,6 +159,14 @@ export default function PrimTest({ onBack }) {
           <label style={{ ...startLabelStyle, margin: "18px 0 8px" }}>Возраст <span style={{ fontWeight: 400, color: "#8A867E" }}>(необязательно)</span></label>
           <input
             value={age} onChange={e => setAge(e.target.value.replace(/\D/g, ""))} placeholder="25" maxLength={3}
+            style={startInputStyle}
+          />
+          <label style={{ ...startLabelStyle, margin: "18px 0 8px" }}>Email <span style={{ fontWeight: 400, color: "#8A867E" }}>(для объединения тестов)</span></label>
+          <input
+            value={email}
+            onChange={e => setEmail(e.target.value)}
+            placeholder="name@example.com"
+            type="email"
             style={startInputStyle}
           />
           <AudienceFields

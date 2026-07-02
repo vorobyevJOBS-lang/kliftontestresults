@@ -336,7 +336,7 @@ const S = {
 
 // ─── НАЧАЛЬНЫЙ ЭКРАН ────────────────────────────────────────
 
-function StartScreen({ name, setName, onStart, onBack, branchId, setBranchId, applicantType, setApplicantType }) {
+function StartScreen({ name, setName, email, setEmail, onStart, onBack, branchId, setBranchId, applicantType, setApplicantType }) {
   return (
     <TestStartLayout
       icon="🧠"
@@ -357,6 +357,14 @@ function StartScreen({ name, setName, onStart, onBack, branchId, setBranchId, ap
             placeholder="Например: Анна Петрова"
             value={name}
             onChange={(e) => setName(e.target.value)}
+            style={startInputStyle}
+          />
+          <label style={{ ...startLabelStyle, margin: "18px 0 8px" }}>Email <span style={{ fontWeight: 400, color: "#8A867E" }}>(для объединения тестов)</span></label>
+          <input
+            type="email"
+            placeholder="name@example.com"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
             style={startInputStyle}
           />
             <AudienceFields
@@ -394,6 +402,7 @@ function ResultScreen({ name, onBack }) {
 export default function LogisTest({ onBack }) {
   const [phase, setPhase] = useState("start"); // start | test | result
   const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
   const [answers, setAnswers] = useState({});
   const [current, setCurrent] = useState(0);
   const [timeLeft, setTimeLeft] = useState(TOTAL_TIME);
@@ -424,6 +433,7 @@ export default function LogisTest({ onBack }) {
     try {
       await insertWithOptionalOrg(supabase, "logis_results", {
         name: name.trim(),
+        candidate_email: email.trim() || null,
         score,
         correct_answers: correct,
         answers: JSON.stringify(answers),
@@ -455,7 +465,7 @@ export default function LogisTest({ onBack }) {
   }, [phase, submit]);
 
   if (phase === "start") {
-    return <StartScreen name={name} setName={setName} onStart={handleStart} onBack={onBack} branchId={branchId} setBranchId={setBranchId} applicantType={applicantType} setApplicantType={setApplicantType} />;
+    return <StartScreen name={name} setName={setName} email={email} setEmail={setEmail} onStart={handleStart} onBack={onBack} branchId={branchId} setBranchId={setBranchId} applicantType={applicantType} setApplicantType={setApplicantType} />;
   }
 
   if (phase === "result" && result) {

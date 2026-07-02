@@ -105,6 +105,7 @@ export default function ToolsTest({ onBack }) {
   const [screen, setScreen] = useState("form"); // form | test | saving | done
   const [name, setName] = useState("");
   const [age, setAge] = useState("");
+  const [email, setEmail] = useState("");
   const [qi, setQi] = useState(0);
   const [answers, setAnswers] = useState(Array(TOTAL_QUESTIONS).fill(null));
   const [timeLeft, setTimeLeft] = useState(35 * 60); // 35 мин в секундах
@@ -169,6 +170,7 @@ export default function ToolsTest({ onBack }) {
     const record = {
       candidate_name: name.trim(),
       candidate_age: age.trim() ? parseInt(age) : null,
+      candidate_email: email.trim() || null,
       scores,
       syndromes,
       answers_count: answeredCount,
@@ -218,6 +220,15 @@ export default function ToolsTest({ onBack }) {
             onChange={e => setAge(e.target.value.replace(/\D/g, ""))}
             placeholder="25"
             maxLength={3}
+            style={startInputStyle}
+          />
+
+          <label style={{ ...startLabelStyle, margin: "18px 0 8px" }}>Email <span style={{ fontWeight: 400, color: "#8A867E" }}>(для объединения тестов)</span></label>
+          <input
+            value={email}
+            onChange={e => setEmail(e.target.value)}
+            placeholder="name@example.com"
+            type="email"
             style={startInputStyle}
           />
 

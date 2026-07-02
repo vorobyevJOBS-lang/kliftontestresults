@@ -187,7 +187,7 @@ function TextQuestion({ q, answer, onChange }) {
 export default function RezultTest({ onBack }) {
   const [stage, setStage] = useState("anketa"); // anketa | test | done
   const [anketa, setAnketa] = useState({
-    firstName: "", lastName: "", age: "", phone: "", city: "",
+    firstName: "", lastName: "", age: "", phone: "", email: "", city: "",
     gender: "", previousTest: "", gdpr: false,
   });
   const [branchId, setBranchId] = useState(BRANCHES[0].id);
@@ -265,6 +265,7 @@ export default function RezultTest({ onBack }) {
         candidate_name: `${anketa.firstName.trim()} ${anketa.lastName.trim()}`,
         candidate_age: parseInt(anketa.age) || null,
         candidate_phone: anketa.phone.trim() || null,
+        candidate_email: anketa.email.trim() || null,
         candidate_city: anketa.city.trim() || null,
         candidate_gender: anketa.gender || null,
         previous_test: anketa.previousTest === "Да",
@@ -328,6 +329,12 @@ export default function RezultTest({ onBack }) {
               <input style={inputStyle} placeholder="+7..." value={anketa.phone}
                 onChange={(e) => setAnketa({ ...anketa, phone: e.target.value })} />
             </div>
+          </div>
+
+          <div style={{ marginBottom: 14 }}>
+            <label style={labelStyle}>Email <span style={{ fontWeight: 400, color: "#8A867E" }}>(для объединения тестов)</span></label>
+            <input style={inputStyle} type="email" placeholder="name@example.com" value={anketa.email}
+              onChange={(e) => setAnketa({ ...anketa, email: e.target.value })} />
           </div>
 
           <div style={{ marginBottom: 14 }}>

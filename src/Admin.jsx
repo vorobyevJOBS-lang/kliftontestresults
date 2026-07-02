@@ -68,6 +68,10 @@ function normalizePersonName(name) {
   return (name || "Без имени").trim().replace(/\s+/g, " ").toLowerCase();
 }
 
+function normalizeEmail(email) {
+  return (email || "").trim().toLowerCase();
+}
+
 function resultDate(item) {
   return item.created_at || item.completed_at || item.date || null;
 }
@@ -840,7 +844,8 @@ export default function Admin() {
   const peopleMap = new Map();
   personEntries.forEach((entry) => {
     const name = personName(entry.item);
-    const key = normalizePersonName(name);
+    const email = normalizeEmail(entry.item.candidate_email);
+    const key = email ? `email:${email}` : `name:${normalizePersonName(name)}`;
     const date = resultDate(entry.item);
     const group = peopleMap.get(key) || {
       key,

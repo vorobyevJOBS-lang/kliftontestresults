@@ -10,9 +10,10 @@ const TOTAL_TIME = 30 * 60;
 
 function StartScreen({ onStart, onBack }) {
   const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
   const [branchId, setBranchId] = useState(BRANCHES[0].id);
   const [applicantType, setApplicantType] = useState("candidate");
-  const start = () => name.trim() && onStart(name.trim(), branchId, applicantType);
+  const start = () => name.trim() && onStart(name.trim(), email.trim(), branchId, applicantType);
   return (
     <TestStartLayout
       icon="💎"
@@ -32,6 +33,15 @@ function StartScreen({ onStart, onBack }) {
             value={name}
             onChange={e => setName(e.target.value)}
             placeholder="Например: Анна Петрова"
+            style={startInputStyle}
+            onKeyDown={e => e.key === "Enter" && start()}
+          />
+          <label style={{ ...startLabelStyle, margin: "18px 0 8px" }}>Email <span style={{ fontWeight: 400, color: "#8A867E" }}>(для объединения тестов)</span></label>
+          <input
+            value={email}
+            onChange={e => setEmail(e.target.value)}
+            placeholder="name@example.com"
+            type="email"
             style={startInputStyle}
             onKeyDown={e => e.key === "Enter" && start()}
           />
@@ -73,6 +83,7 @@ function ResultScreen({ name, onBack }) {
 export default function SailsTest({ onBack }) {
   const [screen, setScreen] = useState("start");
   const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
   const [answers, setAnswers] = useState({});
   const [scales, setScales] = useState(null);
   const [current, setCurrent] = useState(0);
@@ -94,8 +105,9 @@ export default function SailsTest({ onBack }) {
     return () => clearInterval(timerRef.current);
   }, [screen]);
 
-  const handleStart = (n, selectedBranchId, selectedApplicantType) => {
+  const handleStart = (n, selectedEmail, selectedBranchId, selectedApplicantType) => {
     setName(n);
+    setEmail(selectedEmail);
     setBranchId(selectedBranchId);
     setApplicantType(selectedApplicantType);
     setScreen("test");
@@ -121,6 +133,7 @@ export default function SailsTest({ onBack }) {
     try {
       await insertWithOptionalOrg(supabase, "sails_results", {
         name,
+        candidate_email: email || null,
         answers: finalAnswers,
         scales: scaleScores,
         completed_at: new Date().toISOString(),
