@@ -127,6 +127,7 @@ export default function Admin() {
   const [loadError, setLoadError] = useState("");
   const [openPersonKey, setOpenPersonKey] = useState(null);
   const [crmStatusFilter, setCrmStatusFilter] = useState("all");
+  const [crmQuickFilter, setCrmQuickFilter] = useState("all");
   const [candidateProfiles, setCandidateProfiles] = useState({});
   const [profilesSaving, setProfilesSaving] = useState({});
   const reportRef = useRef(null);
@@ -1017,7 +1018,15 @@ export default function Admin() {
     return { ...person, entriesByType, profile, statusId, insight, roleId, roleName, routeProgress, passedCount, latestDateMs, focusScore };
   });
 
-  const filteredCrmPeople = crmPeople.filter((person) => crmStatusFilter === "all" || person.statusId === crmStatusFilter);
+  const matchesCrmQuickFilter = (person) => {
+    if (crmQuickFilter === "active") return !["hired", "rejected"].includes(person.statusId);
+    if (crmQuickFilter === "risk") return person.insight.risks.length > 0;
+    if (crmQuickFilter === "ready") return person.passedCount >= 3;
+    return true;
+  };
+  const filteredCrmPeople = crmPeople
+    .filter((person) => crmStatusFilter === "all" || person.statusId === crmStatusFilter)
+    .filter(matchesCrmQuickFilter);
   const crmCounts = STATUS_OPTIONS.map(([id, label, color]) => ({
     id,
     label,
@@ -1034,6 +1043,10 @@ export default function Admin() {
     risk: crmPeople.filter((person) => person.insight.risks.length > 0).length,
     ready: crmPeople.filter((person) => person.passedCount >= 3).length,
   };
+  const activeCrmFilterLabel =
+    crmQuickFilter === "active" ? "В работе" :
+    crmQuickFilter === "risk" ? "С рисками" :
+    crmQuickFilter === "ready" ? "3+ теста" : "";
 
   const openPersonTest = (entry) => {
     setTestTab(entry.type);
@@ -1049,8 +1062,14 @@ export default function Admin() {
     if (entry.type === "prim") setOpenPrim(entry.item);
   };
 
+  const adminWrap = {
+    ...S.wrap,
+    maxWidth: testTab === "people" ? 1440 : 1180,
+    padding: "32px clamp(18px, 4vw, 56px) 80px",
+  };
+
   return (
-    <div style={S.page}><div style={S.wrap}>
+    <div style={S.page}><div style={adminWrap}>
       <style>{ADMIN_RESPONSIVE_CSS}</style>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18, flexWrap: "wrap", gap: 8 }}>
         <h1 style={{ ...S.display, fontSize: 24, fontWeight: 700, margin: 0 }}>{testTab === "people" ? "HR CRM" : "Архив результатов"}</h1>
@@ -1169,30 +1188,43 @@ export default function Admin() {
                 Воронка, приоритеты и быстрый доступ к тестам по каждому человеку.
               </div>
             </div>
-            {crmStatusFilter !== "all" && (
-              <button onClick={() => setCrmStatusFilter("all")} style={{ ...S.btn, ...S.ghost, padding: "8px 12px", fontSize: 13 }}>
-                Все статусы
+            {(crmStatusFilter !== "all" || crmQuickFilter !== "all") && (
+              <button onClick={() => { setCrmStatusFilter("all"); setCrmQuickFilter("all"); }} style={{ ...S.btn, ...S.ghost, padding: "8px 12px", fontSize: 13 }}>
+                Сбросить CRM-фильтр
               </button>
             )}
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(138px, 1fr))", gap: 10, marginBottom: 14 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 10, marginBottom: 14 }}>
             {[
-              ["Всего людей", crmStats.total, "#1C1B1A"],
-              ["В работе", crmStats.active, "#2563EB"],
-              ["С рисками", crmStats.risk, "#E25C44"],
-              ["3+ теста", crmStats.ready, "#2E9E87"],
-            ].map(([label, value, color]) => (
-              <div key={label} style={{ background: "#F8F7F4", border: "1.5px solid #EEECE7", borderRadius: 14, padding: "12px 14px" }}>
-                <div style={{ fontSize: 24, fontWeight: 900, color }}>{value}</div>
+              ["all", "Всего людей", crmStats.total, "#1C1B1A"],
+              ["active", "В работе", crmStats.active, "#2563EB"],
+              ["risk", "С рисками", crmStats.risk, "#E25C44"],
+              ["ready", "3+ теста", crmStats.ready, "#2E9E87"],
+            ].map(([id, label, value, color]) => (
+              <button
+                key={id}
+                onClick={() => setCrmQuickFilter(id)}
+                style={{
+                  background: crmQuickFilter === id ? `${color}12` : "#F8F7F4",
+                  border: `1.5px solid ${crmQuickFilter === id ? `${color}66` : "#EEECE7"}`,
+                  borderRadius: 14,
+                  padding: "12px 14px",
+                  textAlign: "left",
+                  cursor: "pointer",
+                  fontFamily: "inherit",
+                  boxShadow: crmQuickFilter === id ? `0 8px 20px ${color}14` : "none",
+                }}
+              >
+                <div style={{ fontSize: 26, fontWeight: 900, color }}>{value}</div>
                 <div style={{ fontSize: 12, color: "#6B675F", marginTop: 2 }}>{label}</div>
-              </div>
+              </button>
             ))}
           </div>
 
           <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 4, WebkitOverflowScrolling: "touch", marginBottom: crmFocusPeople.length ? 14 : 0 }}>
             <button
-              onClick={() => setCrmStatusFilter("all")}
+              onClick={() => { setCrmStatusFilter("all"); setCrmQuickFilter("all"); }}
               style={{ ...S.btn, padding: "10px 14px", fontSize: 13, whiteSpace: "nowrap", flex: "0 0 auto", background: crmStatusFilter === "all" ? "#1C1B1A" : "#F1EFEA", color: crmStatusFilter === "all" ? "#fff" : "#1C1B1A" }}
             >
               Все · {crmPeople.length}
@@ -1200,7 +1232,7 @@ export default function Admin() {
             {crmCounts.map((stage) => (
               <button
                 key={stage.id}
-                onClick={() => setCrmStatusFilter(stage.id)}
+                onClick={() => { setCrmStatusFilter(stage.id); setCrmQuickFilter("all"); }}
                 style={{ ...S.btn, padding: "10px 14px", fontSize: 13, whiteSpace: "nowrap", flex: "0 0 auto", background: crmStatusFilter === stage.id ? stage.color : "#F8F7F4", color: crmStatusFilter === stage.id ? "#fff" : stage.color, border: `1.5px solid ${stage.color}33` }}
               >
                 {stage.label} · {stage.count}
@@ -1239,6 +1271,13 @@ export default function Admin() {
           <div style={{ ...S.card, color: "#6B675F" }}>
             <div style={{ fontWeight: 700, marginBottom: 6 }}>Людей по этим фильтрам пока нет</div>
             <div style={{ fontSize: 14 }}>Измените статус, поиск или фильтр филиала, чтобы увидеть людей.</div>
+          </div>
+        )}
+        {filteredCrmPeople.length > 0 && (crmQuickFilter !== "all" || crmStatusFilter !== "all") && (
+          <div style={{ fontSize: 13, color: "#6B675F", margin: "-4px 0 12px" }}>
+            Показано: <b>{filteredCrmPeople.length}</b>
+            {activeCrmFilterLabel ? ` · фильтр: ${activeCrmFilterLabel}` : ""}
+            {crmStatusFilter !== "all" ? ` · статус: ${STATUS_META[crmStatusFilter]?.label || crmStatusFilter}` : ""}
           </div>
         )}
         {filteredCrmPeople.map((person) => {
