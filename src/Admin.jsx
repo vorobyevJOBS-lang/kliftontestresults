@@ -9,6 +9,7 @@ import { logisAnalysis, sailsAnalysis } from "./analysisUtils";
 import AnalysisBlock from "./AnalysisBlock";
 import RezultResultCard from "./RezultResultCard";
 import PrimResultCard from "./PrimResultCard";
+import { getCandidateKey } from "./candidateIdentity";
 
 const ADMIN_RESPONSIVE_CSS = `
   [data-admin-report], [data-pdf-card] {
@@ -60,16 +61,27 @@ const TEST_META = {
   prim: { label: "Анализ", icon: "🧭", bg: "#F1EAFF", color: "#7C3AED" },
 };
 
+const STATUS_OPTIONS = [
+  ["new", "Новый", "#6B7280"],
+  ["testing", "Проходит тесты", "#7C3AED"],
+  ["review", "На проверке", "#D98E2B"],
+  ["interview", "Интервью", "#2563EB"],
+  ["offer", "Оффер", "#0F766E"],
+  ["hired", "Принят", "#2E9E87"],
+  ["rejected", "Отказ", "#E25C44"],
+];
+
+const STATUS_META = Object.fromEntries(STATUS_OPTIONS.map(([id, label, color]) => [id, { label, color }]));
+
+async function sha256(text) {
+  if (!window.crypto?.subtle) return "";
+  const bytes = new TextEncoder().encode(text);
+  const hash = await window.crypto.subtle.digest("SHA-256", bytes);
+  return Array.from(new Uint8Array(hash)).map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
 function personName(item) {
   return item.candidate_name || item.name || "Без имени";
-}
-
-function normalizePersonName(name) {
-  return (name || "Без имени").trim().replace(/\s+/g, " ").toLowerCase();
-}
-
-function normalizeEmail(email) {
-  return (email || "").trim().toLowerCase();
 }
 
 function resultDate(item) {
@@ -113,6 +125,8 @@ export default function Admin() {
   const [searchQuery, setSearchQuery] = useState("");
   const [loadError, setLoadError] = useState("");
   const [openPersonKey, setOpenPersonKey] = useState(null);
+  const [candidateProfiles, setCandidateProfiles] = useState({});
+  const [profilesSaving, setProfilesSaving] = useState({});
   const reportRef = useRef(null);
 
   const withLoadTimeout = (promise, label) =>
@@ -130,17 +144,58 @@ export default function Admin() {
     setLoadError("Не удалось загрузить часть результатов. Если без VPN висит загрузка, вероятно провайдер блокирует доступ к Supabase; включите VPN или попробуйте другую сеть.");
   };
 
+  const loadCandidateProfiles = async () => {
+    const { data, error } = await withLoadTimeout(
+      supabase.from("candidate_profiles").select("*"),
+      "candidate_profiles"
+    );
+    if (error) {
+      console.warn("candidate_profiles", error);
+      return;
+    }
+    setCandidateProfiles(Object.fromEntries((data || []).map((profile) => [profile.candidate_key, profile])));
+  };
+
+  const saveCandidateProfile = async (person, patch) => {
+    const current = candidateProfiles[person.key] || {};
+    const next = {
+      ...current,
+      ...patch,
+      candidate_key: person.key,
+      candidate_name: current.candidate_name || person.name,
+      candidate_email: current.candidate_email || person.email || null,
+      candidate_phone: current.candidate_phone || person.phone || null,
+      branch_id: current.branch_id || person.branchId || null,
+      updated_at: new Date().toISOString(),
+    };
+
+    setCandidateProfiles((prev) => ({ ...prev, [person.key]: next }));
+    setProfilesSaving((prev) => ({ ...prev, [person.key]: true }));
+    const { error } = await supabase.from("candidate_profiles").upsert(next, { onConflict: "candidate_key" });
+    setProfilesSaving((prev) => ({ ...prev, [person.key]: false }));
+    if (error) {
+      console.error("candidate_profiles upsert", error);
+      window.alert("Не удалось сохранить статус/комментарий. Проверьте, что SQL для candidate_profiles выполнен в Supabase.");
+    }
+  };
+
   const handleLogin = async () => {
     const cleanLogin = login.trim();
     const cleanPassword = password.trim();
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("admins")
       .select("*")
       .eq("login", cleanLogin)
-      .eq("password", cleanPassword)
       .maybeSingle();
 
-    if (data) {
+    if (error) console.error("admins login", error);
+    const cleanPasswordHash = await sha256(cleanPassword);
+    const passwordOk = data && (
+      data.password_hash === cleanPasswordHash ||
+      data.password === cleanPassword
+    );
+
+    if (passwordOk) {
       setLoginError(false);
       setAuthorized(true);
       setLoadError("");
@@ -153,6 +208,7 @@ export default function Admin() {
       loadLogisResults();
       loadSailsResults();
       loadPrimResults();
+      loadCandidateProfiles();
     } else {
       setLoginError(true);
     }
@@ -844,8 +900,11 @@ export default function Admin() {
   const peopleMap = new Map();
   personEntries.forEach((entry) => {
     const name = personName(entry.item);
-    const email = normalizeEmail(entry.item.candidate_email);
-    const key = email ? `email:${email}` : `name:${normalizePersonName(name)}`;
+    const key = entry.item.candidate_key || getCandidateKey({
+      email: entry.item.candidate_email,
+      phone: entry.item.candidate_phone,
+      name,
+    });
     const date = resultDate(entry.item);
     const group = peopleMap.get(key) || {
       key,
@@ -887,6 +946,37 @@ export default function Admin() {
   const activeStat = archiveStats.find(([id]) => id === testTab);
   const totalVisible = archiveStats.reduce((sum, [, , count]) => sum + count, 0);
 
+  const buildPersonInsight = (person, entriesByType) => {
+    const cliftonEntry = entriesByType.clifton?.item;
+    const primEntry = entriesByType.prim?.item;
+    const toolsEntry = entriesByType.tools?.item;
+    const signals = [];
+    const risks = [];
+
+    if (cliftonEntry?.fit != null) {
+      const fit = Number(cliftonEntry.fit);
+      signals.push(`Клифтон: ${fit}% соответствия${cliftonEntry.position_name ? `, ${cliftonEntry.position_name}` : ""}.`);
+      if (fit < 55) risks.push("По Клифтону низкое соответствие роли, стоит перепроверить мотивацию и реальные задачи.");
+    }
+
+    if (primEntry?.scores) {
+      const lowPrim = Object.entries(primEntry.scores).filter(([, value]) => Number(value) <= -25).length;
+      if (lowPrim > 0) risks.push(`Анализ: ${lowPrim} факторов в зоне риска.`);
+      else signals.push("Анализ: критичных провалов по факторам не видно.");
+    }
+
+    if (toolsEntry?.maybe_count != null && toolsEntry.total_questions) {
+      const maybeRate = Math.round((toolsEntry.maybe_count / toolsEntry.total_questions) * 100);
+      if (maybeRate >= 30) risks.push(`Профиль: много ответов «может быть» (${maybeRate}%), возможна неопределенность.`);
+    }
+
+    if (Object.keys(entriesByType).length >= 3) signals.push("Есть несколько тестов, можно смотреть динамику не по одному срезу.");
+    return {
+      summary: signals[0] || "Пока мало данных: откройте отдельные тесты и сравните выводы.",
+      risks: risks.slice(0, 3),
+    };
+  };
+
   const openPersonTest = (entry) => {
     setTestTab(entry.type);
     setOpen(null);
@@ -917,7 +1007,7 @@ export default function Admin() {
               {compareMode ? "Отмена сравнения" : "Сравнить"}
             </button>
           )}
-          <button onClick={() => { setLoadError(""); loadResults(); loadToolsResults(); loadRezultatResults(); loadLogisResults(); loadSailsResults(); loadPrimResults(); }} style={{ ...S.btn, ...S.ghost, padding: "8px 14px", fontSize: 14 }}>Обновить</button>
+          <button onClick={() => { setLoadError(""); loadResults(); loadToolsResults(); loadRezultatResults(); loadLogisResults(); loadSailsResults(); loadPrimResults(); loadCandidateProfiles(); }} style={{ ...S.btn, ...S.ghost, padding: "8px 14px", fontSize: 14 }}>Обновить</button>
           <button onClick={() => { setAuthorized(false); setIsSuperAdmin(false); }} style={{ ...S.btn, ...S.ghost, padding: "8px 14px", fontSize: 14 }}>Выйти</button>
         </div>
       </div>
@@ -1030,6 +1120,10 @@ export default function Admin() {
             return acc;
           }, {});
           const latestDate = person.latestDate ? new Date(person.latestDate).toLocaleString("ru-RU") : "—";
+          const profile = candidateProfiles[person.key] || {};
+          const statusId = profile.status || "testing";
+          const status = STATUS_META[statusId] || STATUS_META.testing;
+          const insight = buildPersonInsight(person, entriesByType);
           return (
             <div key={person.key} style={{ ...S.card, padding: 0, overflow: "hidden" }}>
               <button
@@ -1057,8 +1151,8 @@ export default function Admin() {
                 <div style={{ fontSize: 14, color: person.phone ? "#1C1B1A" : "#AAA49C" }}>{person.phone || "Телефон —"}</div>
                 <div style={{ fontSize: 14, color: person.email ? "#1C1B1A" : "#AAA49C", overflow: "hidden", textOverflow: "ellipsis" }}>{person.email || "Почта —"}</div>
                 <div>
-                  <div style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 14, fontWeight: 700, color: "#2E9E87" }}>
-                    ✓ Готово
+                  <div style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 14, fontWeight: 800, color: status.color, background: `${status.color}12`, border: `1px solid ${status.color}24`, borderRadius: 99, padding: "5px 10px" }}>
+                    {status.label}
                   </div>
                   <div style={{ fontSize: 12, color: "#8A867E", marginTop: 4 }}>{latestDate}</div>
                 </div>
@@ -1087,14 +1181,52 @@ export default function Admin() {
               </button>
               {isOpenPerson && (
                 <div style={{ borderTop: "1px solid #EEECE7", padding: "16px 20px 20px", background: "#F8F7F4" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", marginBottom: 12 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", marginBottom: 14 }}>
                     <div>
-                      <div style={{ ...S.display, fontSize: 15, fontWeight: 800 }}>Карточка кандидата</div>
+                      <div style={{ ...S.display, fontSize: 16, fontWeight: 800 }}>360° карточка</div>
                       <div style={{ fontSize: 13, color: "#6B675F", marginTop: 4 }}>
-                        Пройдено тестов: <b>{Object.keys(entriesByType).length}</b> из {Object.keys(TEST_META).length}
+                        Пройдено тестов: <b>{Object.keys(entriesByType).length}</b> из {Object.keys(TEST_META).length} · {person.email || "email не указан"}
                       </div>
                     </div>
                     <button onClick={() => setOpenPersonKey(null)} style={{ ...S.btn, ...S.ghost, padding: "8px 12px", fontSize: 13 }}>Свернуть</button>
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12, alignItems: "start", marginBottom: 12 }}>
+                    <div style={{ background: "#fff", border: "1.5px solid #EEECE7", borderRadius: 14, padding: 14 }}>
+                      <label style={{ display: "block", fontSize: 12, fontWeight: 800, color: "#8A867E", marginBottom: 6 }}>Статус</label>
+                      <select
+                        value={statusId}
+                        onChange={(e) => saveCandidateProfile(person, { status: e.target.value })}
+                        style={{ width: "100%", padding: "10px 11px", fontSize: 14, borderRadius: 10, border: "1.5px solid #D8D5CF", fontFamily: "inherit", outline: "none", background: "#fff" }}
+                      >
+                        {STATUS_OPTIONS.map(([id, label]) => <option key={id} value={id}>{label}</option>)}
+                      </select>
+                      <div style={{ marginTop: 10, fontSize: 12, color: profilesSaving[person.key] ? "#D98E2B" : "#8A867E" }}>
+                        {profilesSaving[person.key] ? "Сохраняю..." : "Статус видят руководители"}
+                      </div>
+                    </div>
+                    <div style={{ background: "#fff", border: "1.5px solid #EEECE7", borderRadius: 14, padding: 14 }}>
+                      <div style={{ fontSize: 12, fontWeight: 800, color: "#8A867E", marginBottom: 6 }}>Комментарий руководителя / HR</div>
+                      <textarea
+                        value={profile.manager_comment || ""}
+                        onChange={(e) => setCandidateProfiles((prev) => ({ ...prev, [person.key]: { ...profile, manager_comment: e.target.value } }))}
+                        onBlur={(e) => saveCandidateProfile(person, { manager_comment: e.target.value })}
+                        placeholder="Например: пригласить на второе интервью, проверить стрессоустойчивость, уточнить мотивацию..."
+                        rows={3}
+                        style={{ width: "100%", boxSizing: "border-box", resize: "vertical", padding: "11px 12px", fontSize: 14, lineHeight: 1.5, borderRadius: 10, border: "1.5px solid #D8D5CF", fontFamily: "inherit", outline: "none", background: "#fff" }}
+                      />
+                    </div>
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 10, marginBottom: 12 }}>
+                    <div style={{ background: "#fff", border: "1.5px solid #EEECE7", borderRadius: 14, padding: 14 }}>
+                      <div style={{ fontSize: 12, fontWeight: 800, color: "#8A867E", marginBottom: 6 }}>Короткий вывод</div>
+                      <div style={{ fontSize: 14, lineHeight: 1.55, color: "#1C1B1A" }}>{insight.summary}</div>
+                    </div>
+                    <div style={{ background: insight.risks.length ? "#FFF4F0" : "#E4F4F0", border: `1.5px solid ${insight.risks.length ? "#F3C7BA" : "#BFE2D8"}`, borderRadius: 14, padding: 14 }}>
+                      <div style={{ fontSize: 12, fontWeight: 800, color: insight.risks.length ? "#E25C44" : "#2E9E87", marginBottom: 6 }}>Подводные камни</div>
+                      <div style={{ fontSize: 14, lineHeight: 1.55, color: "#1C1B1A" }}>
+                        {insight.risks.length ? insight.risks.join(" ") : "Явных красных флагов по текущим тестам не найдено."}
+                      </div>
+                    </div>
                   </div>
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 10 }}>
                     {Object.entries(TEST_META).map(([type, meta]) => {

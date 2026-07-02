@@ -5,6 +5,7 @@ import { PRIM_FACTORS, PRIM_SCALE_TO_NAME, getPrimLevel, PRIM_LEVEL_STYLE, PRIM_
 import AudienceFields from "./AudienceFields";
 import { BRANCHES } from "./org";
 import { insertWithOptionalOrg } from "./supabaseHelpers";
+import { getCandidateKey } from "./candidateIdentity";
 import TestStartLayout, { StartButton, StartNote, startInputStyle, startLabelStyle } from "./TestStartLayout";
 
 // ─────────────────────────────────────────────────────────────
@@ -114,6 +115,7 @@ export default function PrimTest({ onBack }) {
       candidate_name: name.trim(),
       candidate_age: age.trim() ? parseInt(age) : null,
       candidate_email: email.trim() || null,
+      candidate_key: getCandidateKey({ email, name }),
       scores,
       answers_count: answeredCount,
       total_questions: PRIM_TOTAL,

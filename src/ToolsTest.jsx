@@ -5,6 +5,7 @@ import { TOOLS_INDICATORS, getToolsLevel, TOOLS_DESCRIPTIONS, LEVEL_STYLE } from
 import AudienceFields from "./AudienceFields";
 import { BRANCHES } from "./org";
 import { insertWithOptionalOrg } from "./supabaseHelpers";
+import { getCandidateKey } from "./candidateIdentity";
 import TestStartLayout, { StartButton, StartNote, startInputStyle, startLabelStyle } from "./TestStartLayout";
 
 // ─────────────────────────────────────────────────────────────
@@ -171,6 +172,7 @@ export default function ToolsTest({ onBack }) {
       candidate_name: name.trim(),
       candidate_age: age.trim() ? parseInt(age) : null,
       candidate_email: email.trim() || null,
+      candidate_key: getCandidateKey({ email, name }),
       scores,
       syndromes,
       answers_count: answeredCount,

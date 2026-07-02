@@ -1,5 +1,5 @@
 export async function insertWithOptionalOrg(supabase, table, record) {
-  const optionalFields = ["branch_id", "applicant_type", "candidate_email", "candidate_phone"];
+  const optionalFields = ["branch_id", "applicant_type", "candidate_email", "candidate_phone", "candidate_key"];
   const currentRecord = { ...record };
 
   for (let attempt = 0; attempt <= optionalFields.length; attempt++) {

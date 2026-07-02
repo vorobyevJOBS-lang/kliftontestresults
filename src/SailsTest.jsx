@@ -4,6 +4,7 @@ import { SAILS_QUESTIONS, SAILS_OPTIONS, SAILS_SCALE_NAMES, calcSailsScales, sai
 import AudienceFields from "./AudienceFields";
 import { BRANCHES } from "./org";
 import { insertWithOptionalOrg } from "./supabaseHelpers";
+import { getCandidateKey } from "./candidateIdentity";
 import TestStartLayout, { StartButton, StartNote, startInputStyle, startLabelStyle } from "./TestStartLayout";
 
 const TOTAL_TIME = 30 * 60;
@@ -134,6 +135,7 @@ export default function SailsTest({ onBack }) {
       await insertWithOptionalOrg(supabase, "sails_results", {
         name,
         candidate_email: email || null,
+        candidate_key: getCandidateKey({ email, name }),
         answers: finalAnswers,
         scales: scaleScores,
         completed_at: new Date().toISOString(),

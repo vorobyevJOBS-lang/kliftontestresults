@@ -13,6 +13,7 @@ import PrimTest from "./PrimTest";
 import AudienceFields from "./AudienceFields";
 import { BRANCHES, branchById } from "./org";
 import TestStartLayout, { StartButton, startInputStyle, startLabelStyle } from "./TestStartLayout";
+import { getCandidateKey } from "./candidateIdentity";
 
 // ─────────────────────────────────────────────────────────────
 // ДОМЕНЫ — визуальная группировка талантов
@@ -493,6 +494,7 @@ export default function App() {
         supabase.from("results").insert({
           candidate_name: rec.name,
           candidate_email: rec.candidateEmail,
+          candidate_key: getCandidateKey({ email: rec.candidateEmail, name: rec.name }),
           position_id: rec.positionId || rec.result.thisRoleFit.roleId,
           position_name: rec.result.role.name,
           position_recommended: rec.result.isRecommended,

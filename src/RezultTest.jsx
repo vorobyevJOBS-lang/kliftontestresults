@@ -4,6 +4,7 @@ import { REZULTAT_QUESTIONS, TOTAL_QUESTIONS } from "./rezultMeta";
 import AudienceFields from "./AudienceFields";
 import { BRANCHES } from "./org";
 import { insertWithOptionalOrg } from "./supabaseHelpers";
+import { getCandidateKey } from "./candidateIdentity";
 import TestStartLayout from "./TestStartLayout";
 
 // ────────── helpers ──────────
@@ -266,6 +267,11 @@ export default function RezultTest({ onBack }) {
         candidate_age: parseInt(anketa.age) || null,
         candidate_phone: anketa.phone.trim() || null,
         candidate_email: anketa.email.trim() || null,
+        candidate_key: getCandidateKey({
+          email: anketa.email,
+          phone: anketa.phone,
+          name: `${anketa.firstName} ${anketa.lastName}`,
+        }),
         candidate_city: anketa.city.trim() || null,
         candidate_gender: anketa.gender || null,
         previous_test: anketa.previousTest === "Да",

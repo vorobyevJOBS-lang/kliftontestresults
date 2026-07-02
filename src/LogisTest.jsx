@@ -4,6 +4,7 @@ import { supabase } from "./supabase";
 import AudienceFields from "./AudienceFields";
 import { BRANCHES } from "./org";
 import { insertWithOptionalOrg } from "./supabaseHelpers";
+import { getCandidateKey } from "./candidateIdentity";
 import TestStartLayout, { StartButton, StartNote, startInputStyle, startLabelStyle } from "./TestStartLayout";
 
 // ─── SVG для паттерновых вопросов ────────────────────────────
@@ -434,6 +435,7 @@ export default function LogisTest({ onBack }) {
       await insertWithOptionalOrg(supabase, "logis_results", {
         name: name.trim(),
         candidate_email: email.trim() || null,
+        candidate_key: getCandidateKey({ email, name }),
         score,
         correct_answers: correct,
         answers: JSON.stringify(answers),
@@ -446,7 +448,7 @@ export default function LogisTest({ onBack }) {
     }
     setSaving(false);
     setPhase("result");
-  }, [answers, name, branchId, applicantType]);
+  }, [answers, name, email, branchId, applicantType]);
 
   // Таймер
   useEffect(() => {
