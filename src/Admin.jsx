@@ -125,6 +125,7 @@ export default function Admin() {
   const [searchQuery, setSearchQuery] = useState("");
   const [loadError, setLoadError] = useState("");
   const [openPersonKey, setOpenPersonKey] = useState(null);
+  const [crmStatusFilter, setCrmStatusFilter] = useState("all");
   const [candidateProfiles, setCandidateProfiles] = useState({});
   const [profilesSaving, setProfilesSaving] = useState({});
   const reportRef = useRef(null);
@@ -946,6 +947,12 @@ export default function Admin() {
   const activeStat = archiveStats.find(([id]) => id === testTab);
   const totalVisible = archiveStats.reduce((sum, [, , count]) => sum + count, 0);
 
+  const getEntriesByType = (person) => person.entries.reduce((acc, entry) => {
+    const date = resultDate(entry.item);
+    if (!acc[entry.type] || new Date(date || 0) > new Date(resultDate(acc[entry.type].item) || 0)) acc[entry.type] = entry;
+    return acc;
+  }, {});
+
   const buildPersonInsight = (person, entriesByType) => {
     const cliftonEntry = entriesByType.clifton?.item;
     const primEntry = entriesByType.prim?.item;
@@ -977,6 +984,35 @@ export default function Admin() {
     };
   };
 
+  const crmPeople = visiblePeople.map((person) => {
+    const entriesByType = getEntriesByType(person);
+    const profile = candidateProfiles[person.key] || {};
+    const statusId = profile.status || "testing";
+    const insight = buildPersonInsight(person, entriesByType);
+    const passedCount = Object.keys(entriesByType).length;
+    const latestDateMs = person.latestDate ? new Date(person.latestDate).getTime() : 0;
+    const focusScore = insight.risks.length * 10 + (profile.manager_comment ? 0 : 2) + Math.min(passedCount, 3);
+    return { ...person, entriesByType, profile, statusId, insight, passedCount, latestDateMs, focusScore };
+  });
+
+  const filteredCrmPeople = crmPeople.filter((person) => crmStatusFilter === "all" || person.statusId === crmStatusFilter);
+  const crmCounts = STATUS_OPTIONS.map(([id, label, color]) => ({
+    id,
+    label,
+    color,
+    count: crmPeople.filter((person) => person.statusId === id).length,
+  }));
+  const crmFocusPeople = [...crmPeople]
+    .filter((person) => person.insight.risks.length > 0 || !person.profile.manager_comment)
+    .sort((a, b) => b.focusScore - a.focusScore || b.latestDateMs - a.latestDateMs)
+    .slice(0, 3);
+  const crmStats = {
+    total: crmPeople.length,
+    active: crmPeople.filter((person) => !["hired", "rejected"].includes(person.statusId)).length,
+    risk: crmPeople.filter((person) => person.insight.risks.length > 0).length,
+    ready: crmPeople.filter((person) => person.passedCount >= 3).length,
+  };
+
   const openPersonTest = (entry) => {
     setTestTab(entry.type);
     setOpen(null);
@@ -995,7 +1031,7 @@ export default function Admin() {
     <div style={S.page}><div style={S.wrap}>
       <style>{ADMIN_RESPONSIVE_CSS}</style>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18, flexWrap: "wrap", gap: 8 }}>
-        <h1 style={{ ...S.display, fontSize: 24, fontWeight: 700, margin: 0 }}>Архив результатов</h1>
+        <h1 style={{ ...S.display, fontSize: 24, fontWeight: 700, margin: 0 }}>{testTab === "people" ? "HR CRM" : "Архив результатов"}</h1>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           {isSuperAdmin && (
             <button onClick={() => { loadAdmins(); setView("branches"); }} style={{ ...S.btn, ...S.ghost, padding: "8px 14px", fontSize: 14 }}>Филиалы</button>
@@ -1103,16 +1139,87 @@ export default function Admin() {
 
       {/* ────────── ЛЮДИ ────────── */}
       {testTab === "people" && (<>
+        <div style={{ ...S.card, padding: 18, marginBottom: 18, background: "#fff" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap", marginBottom: 14 }}>
+            <div>
+              <div style={{ ...S.display, fontSize: 18, fontWeight: 800 }}>Рабочий стол подбора</div>
+              <div style={{ color: "#6B675F", fontSize: 13, marginTop: 4 }}>
+                Воронка, приоритеты и быстрый доступ к тестам по каждому человеку.
+              </div>
+            </div>
+            {crmStatusFilter !== "all" && (
+              <button onClick={() => setCrmStatusFilter("all")} style={{ ...S.btn, ...S.ghost, padding: "8px 12px", fontSize: 13 }}>
+                Все статусы
+              </button>
+            )}
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(138px, 1fr))", gap: 10, marginBottom: 14 }}>
+            {[
+              ["Всего людей", crmStats.total, "#1C1B1A"],
+              ["В работе", crmStats.active, "#2563EB"],
+              ["С рисками", crmStats.risk, "#E25C44"],
+              ["3+ теста", crmStats.ready, "#2E9E87"],
+            ].map(([label, value, color]) => (
+              <div key={label} style={{ background: "#F8F7F4", border: "1.5px solid #EEECE7", borderRadius: 14, padding: "12px 14px" }}>
+                <div style={{ fontSize: 24, fontWeight: 900, color }}>{value}</div>
+                <div style={{ fontSize: 12, color: "#6B675F", marginTop: 2 }}>{label}</div>
+              </div>
+            ))}
+          </div>
+
+          <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 4, WebkitOverflowScrolling: "touch", marginBottom: crmFocusPeople.length ? 14 : 0 }}>
+            <button
+              onClick={() => setCrmStatusFilter("all")}
+              style={{ ...S.btn, padding: "10px 14px", fontSize: 13, whiteSpace: "nowrap", flex: "0 0 auto", background: crmStatusFilter === "all" ? "#1C1B1A" : "#F1EFEA", color: crmStatusFilter === "all" ? "#fff" : "#1C1B1A" }}
+            >
+              Все · {crmPeople.length}
+            </button>
+            {crmCounts.map((stage) => (
+              <button
+                key={stage.id}
+                onClick={() => setCrmStatusFilter(stage.id)}
+                style={{ ...S.btn, padding: "10px 14px", fontSize: 13, whiteSpace: "nowrap", flex: "0 0 auto", background: crmStatusFilter === stage.id ? stage.color : "#F8F7F4", color: crmStatusFilter === stage.id ? "#fff" : stage.color, border: `1.5px solid ${stage.color}33` }}
+              >
+                {stage.label} · {stage.count}
+              </button>
+            ))}
+          </div>
+
+          {crmFocusPeople.length > 0 && (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 10 }}>
+              {crmFocusPeople.map((person) => {
+                const status = STATUS_META[person.statusId] || STATUS_META.testing;
+                return (
+                  <button
+                    key={person.key}
+                    onClick={() => setOpenPersonKey(person.key)}
+                    style={{ border: "1.5px solid #F3C7BA", background: "#FFF8F5", borderRadius: 14, padding: 14, textAlign: "left", cursor: "pointer", fontFamily: "inherit" }}
+                  >
+                    <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "flex-start" }}>
+                      <div style={{ fontWeight: 900, color: "#1C1B1A" }}>{person.name}</div>
+                      <span style={{ fontSize: 11, fontWeight: 800, color: status.color, background: `${status.color}12`, borderRadius: 99, padding: "4px 8px", whiteSpace: "nowrap" }}>{status.label}</span>
+                    </div>
+                    <div style={{ fontSize: 13, color: "#6B675F", lineHeight: 1.45, marginTop: 8 }}>
+                      {person.insight.risks[0] || "Нет комментария руководителя, стоит зафиксировать решение."}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
         {(loading || toolsLoading || rezultatLoading || logisLoading || sailsLoading || primLoading) && (
           <div style={{ ...S.card, color: "#6B675F" }}>Загрузка...</div>
         )}
-        {visiblePeople.length === 0 && (
+        {filteredCrmPeople.length === 0 && (
           <div style={{ ...S.card, color: "#6B675F" }}>
             <div style={{ fontWeight: 700, marginBottom: 6 }}>Людей по этим фильтрам пока нет</div>
-            <div style={{ fontSize: 14 }}>Когда кандидат пройдёт один или несколько тестов, он появится здесь одной строкой.</div>
+            <div style={{ fontSize: 14 }}>Измените статус, поиск или фильтр филиала, чтобы увидеть людей.</div>
           </div>
         )}
-        {visiblePeople.map((person) => {
+        {filteredCrmPeople.map((person) => {
           const isOpenPerson = openPersonKey === person.key;
           const entriesByType = person.entries.reduce((acc, entry) => {
             const date = resultDate(entry.item);
@@ -1146,6 +1253,21 @@ export default function Admin() {
                   <div style={{ fontWeight: 800, fontSize: 16 }}>{person.name}</div>
                   <div style={{ fontSize: 12, color: "#8A867E", marginTop: 4 }}>
                     {person.branchId ? branchById(person.branchId).name : "Филиал не указан"}
+                  </div>
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 8 }}>
+                    <span style={{ fontSize: 11, fontWeight: 800, color: "#2563EB", background: "#EEF3FF", borderRadius: 99, padding: "4px 8px" }}>
+                      {Object.keys(entriesByType).length}/{Object.keys(TEST_META).length} тестов
+                    </span>
+                    {insight.risks.length > 0 && (
+                      <span style={{ fontSize: 11, fontWeight: 800, color: "#E25C44", background: "#FCEAE6", borderRadius: 99, padding: "4px 8px" }}>
+                        {insight.risks.length} риск
+                      </span>
+                    )}
+                    {!profile.manager_comment && (
+                      <span style={{ fontSize: 11, fontWeight: 800, color: "#D98E2B", background: "#FBF1E2", borderRadius: 99, padding: "4px 8px" }}>
+                        нужна заметка
+                      </span>
+                    )}
                   </div>
                 </div>
                 <div style={{ fontSize: 14, color: person.phone ? "#1C1B1A" : "#AAA49C" }}>{person.phone || "Телефон —"}</div>
@@ -1202,6 +1324,20 @@ export default function Admin() {
                       </select>
                       <div style={{ marginTop: 10, fontSize: 12, color: profilesSaving[person.key] ? "#D98E2B" : "#8A867E" }}>
                         {profilesSaving[person.key] ? "Сохраняю..." : "Статус видят руководители"}
+                      </div>
+                      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 12 }}>
+                        {["review", "interview", "offer", "hired", "rejected"].map((nextStatusId) => {
+                          const nextStatus = STATUS_META[nextStatusId];
+                          return (
+                            <button
+                              key={nextStatusId}
+                              onClick={() => saveCandidateProfile(person, { status: nextStatusId })}
+                              style={{ border: "none", borderRadius: 99, padding: "6px 9px", fontSize: 11, fontWeight: 800, cursor: "pointer", fontFamily: "inherit", background: statusId === nextStatusId ? nextStatus.color : `${nextStatus.color}12`, color: statusId === nextStatusId ? "#fff" : nextStatus.color }}
+                            >
+                              {nextStatus.label}
+                            </button>
+                          );
+                        })}
                       </div>
                     </div>
                     <div style={{ background: "#fff", border: "1.5px solid #EEECE7", borderRadius: 14, padding: 14 }}>
