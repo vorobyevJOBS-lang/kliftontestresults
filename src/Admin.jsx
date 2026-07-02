@@ -43,20 +43,23 @@ export default function Admin() {
   const [primResults, setPrimResults] = useState([]);
   const [primLoading, setPrimLoading] = useState(false);
   const [openPrim, setOpenPrim] = useState(null);
+  const [searchQuery, setSearchQuery] = useState("");
   const reportRef = useRef(null);
 
   const handleLogin = async () => {
+    const cleanLogin = login.trim();
+    const cleanPassword = password.trim();
     const { data } = await supabase
       .from("admins")
       .select("*")
-      .eq("login", login.trim())
-      .eq("password", password)
+      .eq("login", cleanLogin)
+      .eq("password", cleanPassword)
       .maybeSingle();
 
     if (data) {
       setLoginError(false);
       setAuthorized(true);
-      const superAdmin = login.trim() === "vvvorobyev1991";
+      const superAdmin = data.login === "vvvorobyev1991";
       setIsSuperAdmin(superAdmin);
       setMyBranchId(superAdmin ? null : data.branch_id || null);
       loadResults();
@@ -665,28 +668,41 @@ export default function Admin() {
 
   // ── АРХИВ ──
   // Доступные филиалы: суперадмин видит всё (с фильтром), обычный админ — только свой
-  const visibleResults = results.filter((item) => {
+  const normalizedSearch = searchQuery.trim().toLowerCase();
+  const matchesSearch = (item) => {
+    if (!normalizedSearch) return true;
+    return [
+      item.candidate_name,
+      item.name,
+      item.candidate_email,
+      item.candidate_phone,
+      item.candidate_city,
+      item.position_name,
+    ].filter(Boolean).join(" ").toLowerCase().includes(normalizedSearch);
+  };
+
+  const matchesBranch = (item) => {
     if (!isSuperAdmin) {
       if (!myBranchId) return true;
-      return item.branch_id === myBranchId;
+      return !item.branch_id || item.branch_id === myBranchId;
     }
     if (branchFilter === "all") return true;
     return item.branch_id === branchFilter;
-  }).filter((item) => item.applicant_type === typeTab || (!item.applicant_type && typeTab === "employee"));
+  };
+
+  const visibleResults = results
+    .filter(matchesBranch)
+    .filter((item) => item.applicant_type === typeTab || (!item.applicant_type && typeTab === "employee"))
+    .filter(matchesSearch);
 
   const filterByBranch = (items) => {
-    if (isSuperAdmin) {
-      if (branchFilter === "all") return items;
-      return items.filter(item => item.branch_id === branchFilter);
-    }
-    if (!myBranchId) return items;
-    return items.filter(item => item.branch_id === myBranchId);
+    return items.filter(matchesBranch).filter(matchesSearch);
   };
   const visibleTools = filterByBranch(toolsResults);
   const visibleRezultat = filterByBranch(rezultatResults);
-  const visibleLogis = logisResults;
-  const visibleSails = sailsResults;
-  const visiblePrim = primResults;
+  const visibleLogis = filterByBranch(logisResults);
+  const visibleSails = filterByBranch(sailsResults);
+  const visiblePrim = filterByBranch(primResults);
 
   return (
     <div style={S.page}><div style={S.wrap}>
@@ -703,16 +719,16 @@ export default function Admin() {
               {compareMode ? "Отмена сравнения" : "Сравнить"}
             </button>
           )}
-          <button onClick={() => { loadResults(); loadToolsResults(); loadRezultatResults(); }} style={{ ...S.btn, ...S.ghost, padding: "8px 14px", fontSize: 14 }}>Обновить</button>
+          <button onClick={() => { loadResults(); loadToolsResults(); loadRezultatResults(); loadLogisResults(); loadSailsResults(); loadPrimResults(); }} style={{ ...S.btn, ...S.ghost, padding: "8px 14px", fontSize: 14 }}>Обновить</button>
           <button onClick={() => { setAuthorized(false); setIsSuperAdmin(false); }} style={{ ...S.btn, ...S.ghost, padding: "8px 14px", fontSize: 14 }}>Выйти</button>
         </div>
       </div>
 
       {/* Переключатель теста */}
-      <div style={{ display: "flex", gap: 8, marginBottom: 18 }}>
+      <div style={{ display: "flex", gap: 8, marginBottom: 18, overflowX: "auto", paddingBottom: 4, WebkitOverflowScrolling: "touch" }}>
         {[["clifton", "🏆 Клифтон"], ["tools", "🎯 Профиль"], ["rezultat", "📋 Опыт"], ["logis", "🧠 Логика"], ["sails", "💎 Продажник"], ["prim", "🧠 Анализ"]].map(([id, label]) => (
           <button key={id} onClick={() => setTestTab(id)}
-            style={{ ...S.btn, padding: "10px 20px", fontSize: 14, background: testTab === id ? "#1C1B1A" : "#F1EFEA", color: testTab === id ? "#fff" : "#1C1B1A" }}>
+            style={{ ...S.btn, padding: "10px 20px", fontSize: 14, background: testTab === id ? "#1C1B1A" : "#F1EFEA", color: testTab === id ? "#fff" : "#1C1B1A", whiteSpace: "nowrap", flex: "0 0 auto" }}>
             {label}
           </button>
         ))}
@@ -734,6 +750,15 @@ export default function Admin() {
           </select>
         </div>
       )}
+
+      <div style={{ marginBottom: 18 }}>
+        <input
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Поиск по имени, фамилии, телефону или email"
+          style={{ width: "100%", boxSizing: "border-box", padding: "12px 14px", fontSize: 15, borderRadius: 12, border: "1.5px solid #D8D5CF", fontFamily: "inherit", outline: "none", background: "#fff" }}
+        />
+      </div>
 
       {/* ────────── КЛИФТОН ────────── */}
       {testTab === "clifton" && (<>
