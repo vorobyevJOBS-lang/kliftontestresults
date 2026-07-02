@@ -408,7 +408,7 @@ function buildPlainText(rec) {
 // ─────────────────────────────────────────────────────────────
 export default function App() {
   const [screen, setScreen] = useState("home");
-  const [activeTest, setActiveTest] = useState(null); // null | "rezultat" | "tools"
+  const [activeTest, setActiveTest] = useState(null); // null | "clifton" | "rezultat" | "tools" | ...
   const [name, setName] = useState("");
   const [branchId, setBranchId] = useState(BRANCHES[0].id);
   const [applicantType, setApplicantType] = useState("candidate"); // candidate | employee
@@ -457,6 +457,11 @@ export default function App() {
     if (!name.trim()) return;
     setAnswers([]); setQi(0); setCandidateEmail("");
     setScreen("test");
+  }
+
+  function backToHome() {
+    setActiveTest(null);
+    setScreen("home");
   }
 
   function answer(side) {
@@ -541,28 +546,10 @@ export default function App() {
     <ToolsTest onBack={() => setActiveTest(null)} />
   );
 
-  if (screen === "home") return (
+  if (activeTest === "clifton" && screen === "home") return (
     <div style={S.page}><div style={S.wrap}>
-      <div style={{ marginBottom: 28 }}>
-        <div style={{ ...S.display, fontSize: 13, fontWeight: 700, textTransform: "uppercase", color: "#8A867E", marginBottom: 12 }}>Оценка кандидатов</div>
-        <h1 style={{ ...S.display, fontSize: 30, lineHeight: 1.15, margin: 0, fontWeight: 700 }}>Выберите тест</h1>
-        <p style={{ color: "#6B675F", fontSize: 16, lineHeight: 1.55, marginTop: 12 }}>
-          Единая точка входа для оценки сильных сторон, опыта, логики, продаж и личностного профиля.
-        </p>
-      </div>
+      <button onClick={backToHome} style={{ ...S.btn, background: "transparent", color: "#8A867E", fontSize: 14, padding: "8px 0", marginBottom: 16 }}>← Назад</button>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(210px,1fr))", gap: 12, marginBottom: 24 }}>
-        {TEST_CARDS.map((item) => (
-          <HomeTestCard
-            key={item.id}
-            item={item}
-            active={item.id === "clifton"}
-            onClick={() => item.id === "clifton" ? null : setActiveTest(item.id)}
-          />
-        ))}
-      </div>
-
-      {/* Форма Клифтон */}
       <div style={{ ...S.display, fontSize: 13, fontWeight: 700, textTransform: "uppercase", color: "#8A867E", marginBottom: 12 }}>
         Тест Клифтон
       </div>
@@ -596,6 +583,29 @@ export default function App() {
           style={{ ...S.btn, ...S.primary, width: "100%", marginTop: 20, opacity: name.trim() ? 1 : 0.4 }}>
           Начать тест
         </button>
+      </div>
+    </div></div>
+  );
+
+  if (screen === "home") return (
+    <div style={S.page}><div style={S.wrap}>
+      <div style={{ marginBottom: 28 }}>
+        <div style={{ ...S.display, fontSize: 13, fontWeight: 700, textTransform: "uppercase", color: "#8A867E", marginBottom: 12 }}>Оценка кандидатов</div>
+        <h1 style={{ ...S.display, fontSize: 30, lineHeight: 1.15, margin: 0, fontWeight: 700 }}>Выберите тест</h1>
+        <p style={{ color: "#6B675F", fontSize: 16, lineHeight: 1.55, marginTop: 12 }}>
+          Единая точка входа для оценки сильных сторон, опыта, логики, продаж и личностного профиля.
+        </p>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(210px,1fr))", gap: 12, marginBottom: 24 }}>
+        {TEST_CARDS.map((item) => (
+          <HomeTestCard
+            key={item.id}
+            item={item}
+            active={false}
+            onClick={() => setActiveTest(item.id)}
+          />
+        ))}
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 24 }}>

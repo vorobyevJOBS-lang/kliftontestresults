@@ -85,7 +85,23 @@ export default function Admin() {
   const [primLoading, setPrimLoading] = useState(false);
   const [openPrim, setOpenPrim] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [loadError, setLoadError] = useState("");
   const reportRef = useRef(null);
+
+  const withLoadTimeout = (promise, label) =>
+    Promise.race([
+      promise,
+      new Promise((resolve) => setTimeout(() => resolve({
+        data: null,
+        error: { message: `${label}: превышено время загрузки. Проверьте интернет/VPN или доступность Supabase.` },
+      }), 12000)),
+    ]);
+
+  const noteLoadError = (label, error) => {
+    if (!error) return;
+    console.error(label, error);
+    setLoadError("Не удалось загрузить часть результатов. Если без VPN висит загрузка, вероятно провайдер блокирует доступ к Supabase; включите VPN или попробуйте другую сеть.");
+  };
 
   const handleLogin = async () => {
     const cleanLogin = login.trim();
@@ -100,6 +116,7 @@ export default function Admin() {
     if (data) {
       setLoginError(false);
       setAuthorized(true);
+      setLoadError("");
       const superAdmin = data.login === "vvvorobyev1991";
       setIsSuperAdmin(superAdmin);
       setMyBranchId(superAdmin ? null : data.branch_id || null);
@@ -116,14 +133,16 @@ export default function Admin() {
 
   const loadResults = async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from("results")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .limit(200);
-    if (error) console.error(error);
-    if (data) setResults(data);
-    setLoading(false);
+    try {
+      const { data, error } = await withLoadTimeout(
+        supabase.from("results").select("*").order("created_at", { ascending: false }).limit(200),
+        "results"
+      );
+      noteLoadError("results", error);
+      if (data) setResults(data);
+    } finally {
+      setLoading(false);
+    }
   };
 
   function copyReport(text) {
@@ -196,62 +215,72 @@ export default function Admin() {
 
   const loadToolsResults = async () => {
     setToolsLoading(true);
-    const { data, error } = await supabase
-      .from("tools_results")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .limit(200);
-    if (error) console.error("tools_results:", error);
-    if (data) setToolsResults(data);
-    setToolsLoading(false);
+    try {
+      const { data, error } = await withLoadTimeout(
+        supabase.from("tools_results").select("*").order("created_at", { ascending: false }).limit(200),
+        "tools_results"
+      );
+      noteLoadError("tools_results", error);
+      if (data) setToolsResults(data);
+    } finally {
+      setToolsLoading(false);
+    }
   };
 
   const loadRezultatResults = async () => {
     setRezultatLoading(true);
-    const { data, error } = await supabase
-      .from("rezultat_results")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .limit(200);
-    if (error) console.error("rezultat_results:", error);
-    if (data) setRezultatResults(data);
-    setRezultatLoading(false);
+    try {
+      const { data, error } = await withLoadTimeout(
+        supabase.from("rezultat_results").select("*").order("created_at", { ascending: false }).limit(200),
+        "rezultat_results"
+      );
+      noteLoadError("rezultat_results", error);
+      if (data) setRezultatResults(data);
+    } finally {
+      setRezultatLoading(false);
+    }
   };
 
   const loadLogisResults = async () => {
     setLogisLoading(true);
-    const { data, error } = await supabase
-      .from("logis_results")
-      .select("*")
-      .order("completed_at", { ascending: false })
-      .limit(200);
-    if (error) console.error("logis_results:", error);
-    if (data) setLogisResults(data);
-    setLogisLoading(false);
+    try {
+      const { data, error } = await withLoadTimeout(
+        supabase.from("logis_results").select("*").order("completed_at", { ascending: false }).limit(200),
+        "logis_results"
+      );
+      noteLoadError("logis_results", error);
+      if (data) setLogisResults(data);
+    } finally {
+      setLogisLoading(false);
+    }
   };
 
   const loadSailsResults = async () => {
     setSailsLoading(true);
-    const { data, error } = await supabase
-      .from("sails_results")
-      .select("*")
-      .order("completed_at", { ascending: false })
-      .limit(200);
-    if (error) console.error("sails_results:", error);
-    if (data) setSailsResults(data);
-    setSailsLoading(false);
+    try {
+      const { data, error } = await withLoadTimeout(
+        supabase.from("sails_results").select("*").order("completed_at", { ascending: false }).limit(200),
+        "sails_results"
+      );
+      noteLoadError("sails_results", error);
+      if (data) setSailsResults(data);
+    } finally {
+      setSailsLoading(false);
+    }
   };
 
   const loadPrimResults = async () => {
     setPrimLoading(true);
-    const { data, error } = await supabase
-      .from("prim_results")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .limit(200);
-    if (error) console.error("prim_results:", error);
-    if (data) setPrimResults(data);
-    setPrimLoading(false);
+    try {
+      const { data, error } = await withLoadTimeout(
+        supabase.from("prim_results").select("*").order("created_at", { ascending: false }).limit(200),
+        "prim_results"
+      );
+      noteLoadError("prim_results", error);
+      if (data) setPrimResults(data);
+    } finally {
+      setPrimLoading(false);
+    }
   };
 
   async function removeRec(id) {
@@ -753,7 +782,8 @@ export default function Admin() {
     return item.branch_id === branchFilter;
   };
   const matchesAudience = (item) => {
-    const value = item.applicant_type || "employee";
+    if (!item.applicant_type) return true;
+    const value = item.applicant_type;
     return value === typeTab;
   };
 
@@ -797,7 +827,7 @@ export default function Admin() {
               {compareMode ? "Отмена сравнения" : "Сравнить"}
             </button>
           )}
-          <button onClick={() => { loadResults(); loadToolsResults(); loadRezultatResults(); loadLogisResults(); loadSailsResults(); loadPrimResults(); }} style={{ ...S.btn, ...S.ghost, padding: "8px 14px", fontSize: 14 }}>Обновить</button>
+          <button onClick={() => { setLoadError(""); loadResults(); loadToolsResults(); loadRezultatResults(); loadLogisResults(); loadSailsResults(); loadPrimResults(); }} style={{ ...S.btn, ...S.ghost, padding: "8px 14px", fontSize: 14 }}>Обновить</button>
           <button onClick={() => { setAuthorized(false); setIsSuperAdmin(false); }} style={{ ...S.btn, ...S.ghost, padding: "8px 14px", fontSize: 14 }}>Выйти</button>
         </div>
       </div>
@@ -817,6 +847,13 @@ export default function Admin() {
       )}
       {!isSuperAdmin && !myBranchId && (
         <div style={{ ...S.card, color: "#E25C44" }}>Вашему логину не назначен филиал — обратитесь к администратору.</div>
+      )}
+
+      {loadError && (
+        <div style={{ ...S.card, borderLeft: "5px solid #E25C44", color: "#6B675F", fontSize: 14, lineHeight: 1.55 }}>
+          <b style={{ color: "#E25C44" }}>Есть проблема с загрузкой.</b><br />
+          {loadError}
+        </div>
       )}
 
       {isSuperAdmin && (
