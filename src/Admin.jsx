@@ -10,6 +10,7 @@ import AnalysisBlock from "./AnalysisBlock";
 import RezultResultCard from "./RezultResultCard";
 import PrimResultCard from "./PrimResultCard";
 import { getCandidateKey } from "./candidateIdentity";
+import { getRouteProgress, TEST_ROUTE_META } from "./testRoutes";
 
 const ADMIN_RESPONSIVE_CSS = `
   [data-admin-report], [data-pdf-card] {
@@ -172,8 +173,18 @@ export default function Admin() {
 
     setCandidateProfiles((prev) => ({ ...prev, [person.key]: next }));
     setProfilesSaving((prev) => ({ ...prev, [person.key]: true }));
-    const { error } = await supabase.from("candidate_profiles").upsert(next, { onConflict: "candidate_key" });
+    const optionalFields = ["target_position_id", "target_position_name", "hired_feedback", "hired_feedback_date"];
+    let currentRecord = { ...next };
+    let response = await supabase.from("candidate_profiles").upsert(currentRecord, { onConflict: "candidate_key" });
+    while (response.error) {
+      const message = `${response.error.message || ""} ${response.error.details || ""}`.toLowerCase();
+      const missingField = optionalFields.find((field) => Object.prototype.hasOwnProperty.call(currentRecord, field) && message.includes(field));
+      if (!missingField) break;
+      delete currentRecord[missingField];
+      response = await supabase.from("candidate_profiles").upsert(currentRecord, { onConflict: "candidate_key" });
+    }
     setProfilesSaving((prev) => ({ ...prev, [person.key]: false }));
+    const { error } = response;
     if (error) {
       console.error("candidate_profiles upsert", error);
       window.alert("Не удалось сохранить статус/комментарий. Проверьте, что SQL для candidate_profiles выполнен в Supabase.");
@@ -984,15 +995,26 @@ export default function Admin() {
     };
   };
 
+  const getPersonRoleId = (person, entriesByType, profile = {}) => {
+    if (profile.target_position_id) return profile.target_position_id;
+    const clifton = entriesByType.clifton?.item;
+    if (clifton?.target_position_id) return clifton.target_position_id;
+    if (clifton?.position_id) return clifton.position_id;
+    return "administrator";
+  };
+
   const crmPeople = visiblePeople.map((person) => {
     const entriesByType = getEntriesByType(person);
     const profile = candidateProfiles[person.key] || {};
     const statusId = profile.status || "testing";
     const insight = buildPersonInsight(person, entriesByType);
+    const roleId = getPersonRoleId(person, entriesByType, profile);
+    const roleName = profile.target_position_name || entriesByType.clifton?.item?.target_position_name || entriesByType.clifton?.item?.position_name || POSITIONS.find((p) => p.id === roleId)?.name || "Администратор";
+    const routeProgress = getRouteProgress(entriesByType, roleId);
     const passedCount = Object.keys(entriesByType).length;
     const latestDateMs = person.latestDate ? new Date(person.latestDate).getTime() : 0;
-    const focusScore = insight.risks.length * 10 + (profile.manager_comment ? 0 : 2) + Math.min(passedCount, 3);
-    return { ...person, entriesByType, profile, statusId, insight, passedCount, latestDateMs, focusScore };
+    const focusScore = insight.risks.length * 10 + routeProgress.missingRequired.length * 4 + (profile.manager_comment ? 0 : 2) + Math.min(passedCount, 3);
+    return { ...person, entriesByType, profile, statusId, insight, roleId, roleName, routeProgress, passedCount, latestDateMs, focusScore };
   });
 
   const filteredCrmPeople = crmPeople.filter((person) => crmStatusFilter === "all" || person.statusId === crmStatusFilter);
@@ -1263,6 +1285,11 @@ export default function Admin() {
                         {insight.risks.length} риск
                       </span>
                     )}
+                    {person.routeProgress.missingRequired.length > 0 && (
+                      <span style={{ fontSize: 11, fontWeight: 800, color: "#D98E2B", background: "#FBF1E2", borderRadius: 99, padding: "4px 8px" }}>
+                        не хватает {person.routeProgress.missingRequired.length}
+                      </span>
+                    )}
                     {!profile.manager_comment && (
                       <span style={{ fontSize: 11, fontWeight: 800, color: "#D98E2B", background: "#FBF1E2", borderRadius: 99, padding: "4px 8px" }}>
                         нужна заметка
@@ -1341,6 +1368,25 @@ export default function Admin() {
                       </div>
                     </div>
                     <div style={{ background: "#fff", border: "1.5px solid #EEECE7", borderRadius: 14, padding: 14 }}>
+                      <label style={{ display: "block", fontSize: 12, fontWeight: 800, color: "#8A867E", marginBottom: 6 }}>Целевая должность</label>
+                      <select
+                        value={person.roleId}
+                        onChange={(e) => {
+                          const selectedRole = POSITIONS.find((p) => p.id === e.target.value);
+                          saveCandidateProfile(person, {
+                            target_position_id: e.target.value,
+                            target_position_name: selectedRole?.name || "",
+                          });
+                        }}
+                        style={{ width: "100%", padding: "10px 11px", fontSize: 14, borderRadius: 10, border: "1.5px solid #D8D5CF", fontFamily: "inherit", outline: "none", background: "#fff" }}
+                      >
+                        {POSITIONS.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                      </select>
+                      <div style={{ marginTop: 10, fontSize: 13, color: "#6B675F", lineHeight: 1.45 }}>
+                        {person.routeProgress.reason}
+                      </div>
+                    </div>
+                    <div style={{ background: "#fff", border: "1.5px solid #EEECE7", borderRadius: 14, padding: 14 }}>
                       <div style={{ fontSize: 12, fontWeight: 800, color: "#8A867E", marginBottom: 6 }}>Комментарий руководителя / HR</div>
                       <textarea
                         value={profile.manager_comment || ""}
@@ -1350,6 +1396,39 @@ export default function Admin() {
                         rows={3}
                         style={{ width: "100%", boxSizing: "border-box", resize: "vertical", padding: "11px 12px", fontSize: 14, lineHeight: 1.5, borderRadius: 10, border: "1.5px solid #D8D5CF", fontFamily: "inherit", outline: "none", background: "#fff" }}
                       />
+                    </div>
+                  </div>
+                  <div style={{ background: "#fff", border: "1.5px solid #EEECE7", borderRadius: 14, padding: 14, marginBottom: 12 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", marginBottom: 10 }}>
+                      <div>
+                        <div style={{ fontSize: 12, fontWeight: 800, color: "#8A867E", marginBottom: 4 }}>Маршрут оценки</div>
+                        <div style={{ fontWeight: 900 }}>{person.roleName}</div>
+                      </div>
+                      <div style={{ fontSize: 13, fontWeight: 800, color: person.routeProgress.missingRequired.length ? "#D98E2B" : "#2E9E87" }}>
+                        {person.routeProgress.missingRequired.length ? `Не хватает: ${person.routeProgress.missingRequired.length}` : "Картина полная"}
+                      </div>
+                    </div>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 8 }}>
+                      {[...person.routeProgress.required.map((testId) => [testId, true]), ...person.routeProgress.optional.map((testId) => [testId, false])].map(([testId, required]) => {
+                        const meta = TEST_ROUTE_META[testId];
+                        const done = Boolean(person.entriesByType[testId]);
+                        return (
+                          <button
+                            key={`${testId}-${required ? "required" : "optional"}`}
+                            onClick={() => person.entriesByType[testId] && openPersonTest(person.entriesByType[testId])}
+                            disabled={!done}
+                            style={{ border: `1.5px solid ${done ? "#BFE2D8" : required ? "#F3C7BA" : "#EEECE7"}`, background: done ? "#E4F4F0" : required ? "#FFF4F0" : "#F8F7F4", borderRadius: 12, padding: "10px 11px", textAlign: "left", cursor: done ? "pointer" : "default", fontFamily: "inherit", opacity: done || required ? 1 : 0.72 }}
+                          >
+                            <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center" }}>
+                              <span style={{ fontWeight: 900 }}>{meta.icon} {meta.label}</span>
+                              <span style={{ fontSize: 12, fontWeight: 900, color: done ? "#2E9E87" : required ? "#E25C44" : "#8A867E" }}>{done ? "✓" : required ? "!" : "·"}</span>
+                            </div>
+                            <div style={{ fontSize: 11, color: done ? "#2E9E87" : required ? "#E25C44" : "#8A867E", marginTop: 4 }}>
+                              {done ? "Пройден" : required ? "Обязательный" : "Дополнительно"}
+                            </div>
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 10, marginBottom: 12 }}>
@@ -1363,6 +1442,41 @@ export default function Admin() {
                         {insight.risks.length ? insight.risks.join(" ") : "Явных красных флагов по текущим тестам не найдено."}
                       </div>
                     </div>
+                  </div>
+                  <div style={{ background: "#fff", border: "1.5px solid #D8D4F5", borderRadius: 14, padding: 14, marginBottom: 12 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", marginBottom: 8 }}>
+                      <div>
+                        <div style={{ fontSize: 12, fontWeight: 800, color: "#6457D6", marginBottom: 4 }}>Пост-найм наблюдение</div>
+                        <div style={{ fontSize: 13, color: "#6B675F", lineHeight: 1.45 }}>
+                          Заполняется после 2-8 недель работы, чтобы сверить прогноз тестов с реальным поведением.
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => saveCandidateProfile(person, {
+                          status: "hired",
+                          hired_feedback_date: new Date().toISOString(),
+                        })}
+                        style={{ border: "none", borderRadius: 99, padding: "8px 12px", fontSize: 12, fontWeight: 900, cursor: "pointer", fontFamily: "inherit", background: "#E4F4F0", color: "#2E9E87", alignSelf: "flex-start" }}
+                      >
+                        Отметить как принят
+                      </button>
+                    </div>
+                    <textarea
+                      value={profile.hired_feedback || ""}
+                      onChange={(e) => setCandidateProfiles((prev) => ({ ...prev, [person.key]: { ...profile, hired_feedback: e.target.value } }))}
+                      onBlur={(e) => saveCandidateProfile(person, {
+                        hired_feedback: e.target.value,
+                        hired_feedback_date: e.target.value.trim() ? (profile.hired_feedback_date || new Date().toISOString()) : null,
+                      })}
+                      placeholder="Что подтвердилось? Что не совпало? Как человек держит темп, общается, продает, учится, реагирует на стресс?"
+                      rows={3}
+                      style={{ width: "100%", boxSizing: "border-box", resize: "vertical", padding: "11px 12px", fontSize: 14, lineHeight: 1.5, borderRadius: 10, border: "1.5px solid #D8D5CF", fontFamily: "inherit", outline: "none", background: "#fff" }}
+                    />
+                    {profile.hired_feedback_date && (
+                      <div style={{ marginTop: 8, fontSize: 12, color: "#8A867E" }}>
+                        Обновлено: {new Date(profile.hired_feedback_date).toLocaleDateString("ru-RU")}
+                      </div>
+                    )}
                   </div>
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 10 }}>
                     {Object.entries(TEST_META).map(([type, meta]) => {

@@ -14,6 +14,7 @@ import AudienceFields from "./AudienceFields";
 import { BRANCHES, branchById } from "./org";
 import TestStartLayout, { StartButton, startInputStyle, startLabelStyle } from "./TestStartLayout";
 import { getCandidateKey } from "./candidateIdentity";
+import { getTestRouteForRole, TEST_ROUTE_META } from "./testRoutes";
 
 // ─────────────────────────────────────────────────────────────
 // ДОМЕНЫ — визуальная группировка талантов
@@ -423,6 +424,7 @@ export default function App() {
   const [submitting, setSubmitting] = useState(false);
 
   const availablePositions = positionsForSchool(branchById(branchId).school);
+  const selectedRoute = getTestRouteForRole(positionId);
 
   useEffect(() => {
     // если текущая должность недоступна для выбранного филиала (например тьютор для Клячки) — сбросить на первую доступную
@@ -471,7 +473,7 @@ export default function App() {
     setAnswers(next);
     if (qi + 1 < QUESTIONS.length) { setQi(qi + 1); return; }
     const schoolPositionIds = availablePositions.map((p) => p.id);
-    const effectivePositionId = applicantType === "employee" ? positionId : null;
+    const effectivePositionId = positionId;
     const result = computeResult(next, effectivePositionId, schoolPositionIds);
     const rec = { id: Date.now().toString(36), name: name.trim(), positionId: effectivePositionId, branchId, applicantType, date: Date.now(), result, candidateEmail: "" };
     setCurrent(rec);
@@ -488,24 +490,42 @@ export default function App() {
 
     const branchName = branchById(rec.branchId).name;
     const typeName = rec.applicantType === "employee" ? "Действующий сотрудник" : "Кандидат на собеседование";
+    const resultRecord = {
+      candidate_name: rec.name,
+      candidate_email: rec.candidateEmail,
+      candidate_key: getCandidateKey({ email: rec.candidateEmail, name: rec.name }),
+      position_id: rec.positionId || rec.result.thisRoleFit.roleId,
+      position_name: rec.result.role.name,
+      target_position_id: rec.positionId || rec.result.thisRoleFit.roleId,
+      target_position_name: rec.result.role.name,
+      position_recommended: rec.result.isRecommended,
+      branch_id: rec.branchId,
+      applicant_type: rec.applicantType,
+      fit: rec.result.thisRoleFit.fit,
+      top_talents: rec.result.top5.map((t) => ({ id: t.id, name: TALENTS[t.id].name, pct: t.pct })),
+      role_matches: rec.result.roleMatches,
+      report: buildPlainText(rec),
+      report_json: JSON.stringify(rec.result),
+    };
+    const insertResult = async () => {
+      const optionalFields = ["target_position_id", "target_position_name"];
+      const currentRecord = { ...resultRecord };
+      for (let attempt = 0; attempt <= optionalFields.length; attempt++) {
+        const { error } = await supabase.from("results").insert(currentRecord);
+        if (!error) return;
+        const message = `${error.message || ""} ${error.details || ""}`.toLowerCase();
+        const missingField = optionalFields.find((field) => Object.prototype.hasOwnProperty.call(currentRecord, field) && message.includes(field));
+        if (!missingField) {
+          console.error(error);
+          return;
+        }
+        delete currentRecord[missingField];
+      }
+    };
 
     await Promise.allSettled([
       withTimeout(
-        supabase.from("results").insert({
-          candidate_name: rec.name,
-          candidate_email: rec.candidateEmail,
-          candidate_key: getCandidateKey({ email: rec.candidateEmail, name: rec.name }),
-          position_id: rec.positionId || rec.result.thisRoleFit.roleId,
-          position_name: rec.result.role.name,
-          position_recommended: rec.result.isRecommended,
-          branch_id: rec.branchId,
-          applicant_type: rec.applicantType,
-          fit: rec.result.thisRoleFit.fit,
-          top_talents: rec.result.top5.map((t) => ({ id: t.id, name: TALENTS[t.id].name, pct: t.pct })),
-          role_matches: rec.result.roleMatches,
-          report: buildPlainText(rec),
-          report_json: JSON.stringify(rec.result),
-        }).then((r) => { if (r.error) console.error(r.error); }).catch((e) => console.error(e)),
+        insertResult().catch((e) => console.error(e)),
         8000
       ),
       withTimeout(
@@ -554,7 +574,7 @@ export default function App() {
       icon="🏆"
       eyebrow="Тест Клифтон"
       title="Сильные стороны и подходящие роли"
-      description="В каждой паре выбирайте утверждение, которое ближе именно вам. Для кандидата роль будет рассчитана автоматически, для сотрудника можно указать текущую должность."
+      description="В каждой паре выбирайте утверждение, которое ближе именно вам. Результат покажет соответствие выбранной должности и подскажет зоны проверки."
       accent="#D98E2B"
       meta={[
         { value: QUESTIONS.length, label: "пар" },
@@ -574,15 +594,13 @@ export default function App() {
           setApplicantType={setApplicantType}
         />
 
-        {applicantType === "employee" && (
-          <>
-            <label style={{ ...startLabelStyle, margin: "18px 0 8px" }}>Ваша текущая должность</label>
-            <select value={positionId} onChange={(e) => setPositionId(e.target.value)}
-              style={startInputStyle}>
-              {availablePositions.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-            </select>
-          </>
-        )}
+        <label style={{ ...startLabelStyle, margin: "18px 0 8px" }}>
+          {applicantType === "employee" ? "Ваша текущая должность" : "Должность, на которую вы идёте"}
+        </label>
+        <select value={positionId} onChange={(e) => setPositionId(e.target.value)}
+          style={startInputStyle}>
+          {availablePositions.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+        </select>
 
         <StartButton onClick={startTest} disabled={!name.trim()}>
           Начать тест
@@ -598,6 +616,41 @@ export default function App() {
         <p style={{ color: "#6B675F", fontSize: 16, lineHeight: 1.55, marginTop: 12 }}>
           Единая точка входа для оценки сильных сторон, опыта, логики, продаж и личностного профиля.
         </p>
+      </div>
+
+      <div style={{ ...S.card, padding: 18, marginBottom: 18 }}>
+        <label style={{ ...startLabelStyle }}>Должность для маршрута оценки</label>
+        <select value={positionId} onChange={(e) => setPositionId(e.target.value)}
+          style={startInputStyle}>
+          {availablePositions.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+        </select>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 8, marginTop: 14 }}>
+          {selectedRoute.required.map((testId) => {
+            const meta = TEST_ROUTE_META[testId];
+            return (
+              <button key={testId} onClick={() => setActiveTest(testId)}
+                style={{ border: "1.5px solid #D8D5CF", background: "#F8F7F4", borderRadius: 12, padding: "11px 12px", cursor: "pointer", textAlign: "left", fontFamily: "inherit" }}>
+                <div style={{ fontSize: 18 }}>{meta.icon}</div>
+                <div style={{ fontWeight: 800, marginTop: 4 }}>{meta.label}</div>
+                <div style={{ fontSize: 12, color: "#2E9E87", marginTop: 3 }}>Обязательный</div>
+              </button>
+            );
+          })}
+          {selectedRoute.optional.map((testId) => {
+            const meta = TEST_ROUTE_META[testId];
+            return (
+              <button key={testId} onClick={() => setActiveTest(testId)}
+                style={{ border: "1.5px solid #EEECE7", background: "#fff", borderRadius: 12, padding: "11px 12px", cursor: "pointer", textAlign: "left", fontFamily: "inherit" }}>
+                <div style={{ fontSize: 18 }}>{meta.icon}</div>
+                <div style={{ fontWeight: 800, marginTop: 4 }}>{meta.label}</div>
+                <div style={{ fontSize: 12, color: "#8A867E", marginTop: 3 }}>Дополнительно</div>
+              </button>
+            );
+          })}
+        </div>
+        <div style={{ marginTop: 12, fontSize: 13, color: "#6B675F", lineHeight: 1.5 }}>
+          {selectedRoute.reason}
+        </div>
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(210px,1fr))", gap: 12, marginBottom: 24 }}>
