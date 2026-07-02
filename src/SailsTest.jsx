@@ -4,6 +4,7 @@ import { SAILS_QUESTIONS, SAILS_OPTIONS, SAILS_SCALE_NAMES, calcSailsScales, sai
 import AudienceFields from "./AudienceFields";
 import { BRANCHES } from "./org";
 import { insertWithOptionalOrg } from "./supabaseHelpers";
+import TestStartLayout, { StartButton, StartNote, startInputStyle, startLabelStyle } from "./TestStartLayout";
 
 const TOTAL_TIME = 30 * 60;
 
@@ -13,24 +14,25 @@ function StartScreen({ onStart, onBack }) {
   const [applicantType, setApplicantType] = useState("candidate");
   const start = () => name.trim() && onStart(name.trim(), branchId, applicantType);
   return (
-    <div style={{ minHeight: "100vh", background: "linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px", position: "relative" }}>
-      <button onClick={onBack} style={{ position: "absolute", top: 18, left: 18, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.14)", borderRadius: 10, color: "rgba(255,255,255,0.78)", fontSize: 14, cursor: "pointer", padding: "9px 12px", fontFamily: "inherit" }}>
-        ← Главная
-      </button>
-      <div style={{ background: "rgba(255,255,255,0.05)", backdropFilter: "blur(20px)", borderRadius: "24px", padding: "48px", maxWidth: "520px", width: "100%", border: "1px solid rgba(255,255,255,0.1)", textAlign: "center" }}>
-        <div style={{ fontSize: "64px", marginBottom: "16px" }}>💎</div>
-        <h1 style={{ color: "#fff", fontSize: "28px", fontWeight: "700", marginBottom: "8px" }}>Тест Продажник</h1>
-        <p style={{ color: "rgba(255,255,255,0.6)", fontSize: "15px", marginBottom: "32px", lineHeight: "1.6" }}>
-          120 вопросов · 30 минут<br />
-          Оцените своё отношение к работе в продажах
-        </p>
-        <div style={{ marginBottom: "24px", textAlign: "left" }}>
-          <label style={{ color: "rgba(255,255,255,0.7)", fontSize: "14px", display: "block", marginBottom: "8px" }}>Ваше имя</label>
+    <TestStartLayout
+      icon="💎"
+      eyebrow="Тест Продажник"
+      title="Потенциал в продажах"
+      description="Оценка отношения к продажам, устойчивости, организованности, командности и ориентации на результат."
+      accent="#9C27B0"
+      meta={[
+        { value: "120", label: "вопросов" },
+        { value: "30", label: "минут" },
+        { value: "10", label: "шкал" },
+      ]}
+      onBack={onBack}
+    >
+          <label style={startLabelStyle}>Имя</label>
           <input
             value={name}
             onChange={e => setName(e.target.value)}
-            placeholder="Введите имя..."
-            style={{ width: "100%", padding: "12px 16px", background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", borderRadius: "12px", color: "#fff", fontSize: "16px", outline: "none", boxSizing: "border-box" }}
+            placeholder="Например: Анна Петрова"
+            style={startInputStyle}
             onKeyDown={e => e.key === "Enter" && start()}
           />
           <AudienceFields
@@ -38,24 +40,15 @@ function StartScreen({ onStart, onBack }) {
             setBranchId={setBranchId}
             applicantType={applicantType}
             setApplicantType={setApplicantType}
-            dark
           />
-        </div>
-        <div style={{ background: "rgba(255,255,255,0.05)", borderRadius: "12px", padding: "16px", marginBottom: "24px", textAlign: "left" }}>
-          <p style={{ color: "rgba(255,255,255,0.6)", fontSize: "13px", margin: 0, lineHeight: "1.7" }}>
-            На каждый вопрос есть три варианта ответа: <strong style={{ color: "#fff" }}>Да</strong>, <strong style={{ color: "#fff" }}>Иногда</strong>, <strong style={{ color: "#fff" }}>Нет</strong>.<br />
+        <StartNote>
+            На каждый вопрос есть три варианта ответа: <strong>Да</strong>, <strong>Иногда</strong>, <strong>Нет</strong>.<br />
             Отвечайте искренне — правильных и неправильных ответов нет.
-          </p>
-        </div>
-        <button
-          onClick={start}
-          disabled={!name.trim()}
-          style={{ width: "100%", padding: "14px", background: name.trim() ? "linear-gradient(135deg, #e040fb, #9c27b0)" : "rgba(255,255,255,0.1)", border: "none", borderRadius: "12px", color: "#fff", fontSize: "16px", fontWeight: "600", cursor: name.trim() ? "pointer" : "not-allowed", transition: "all 0.2s" }}
-        >
+        </StartNote>
+        <StartButton onClick={start} disabled={!name.trim()}>
           Начать тест
-        </button>
-      </div>
-    </div>
+        </StartButton>
+    </TestStartLayout>
   );
 }
 

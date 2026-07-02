@@ -5,6 +5,7 @@ import { TOOLS_INDICATORS, getToolsLevel, TOOLS_DESCRIPTIONS, LEVEL_STYLE } from
 import AudienceFields from "./AudienceFields";
 import { BRANCHES } from "./org";
 import { insertWithOptionalOrg } from "./supabaseHelpers";
+import TestStartLayout, { StartButton, StartNote, startInputStyle, startLabelStyle } from "./TestStartLayout";
 
 // ─────────────────────────────────────────────────────────────
 // СКОРИНГ
@@ -190,38 +191,34 @@ export default function ToolsTest({ onBack }) {
   // ── ФОРМА ──────────────────────────────────────────────────
   if (screen === "form") {
     return (
-      <div style={S.page}><div style={{ ...S.wrap, maxWidth: 480 }}>
-        <button onClick={onBack} style={{ ...S.btn, background: "transparent", color: "#8A867E", fontSize: 14, padding: "8px 0", marginBottom: 16 }}>
-          ← Назад
-        </button>
-
-        <div style={{ marginBottom: 28 }}>
-          <div style={{ ...S.display, fontSize: 13, fontWeight: 700, letterSpacing: ".12em", textTransform: "uppercase", color: "#8A867E", marginBottom: 8 }}>
-            Тест Профиль
-          </div>
-          <h1 style={{ ...S.display, fontSize: 26, fontWeight: 700, margin: "0 0 10px" }}>Тест характера</h1>
-          <p style={{ color: "#6B675F", fontSize: 15, lineHeight: 1.6, margin: 0 }}>
-            200 вопросов · 10 показателей · 35 минут<br />
-            На каждый вопрос отвечайте «Да», «Может быть» или «Нет».
-          </p>
-        </div>
-
-        <div style={S.card}>
-          <label style={{ fontSize: 14, fontWeight: 600, display: "block", marginBottom: 8 }}>Имя</label>
+      <TestStartLayout
+        icon="🎯"
+        eyebrow="Тест Профиль"
+        title="Характер и рабочий стиль"
+        description="Оценка 10 рабочих показателей: как человек действует, принимает решения, общается и держит нагрузку."
+        accent="#0F766E"
+        meta={[
+          { value: TOTAL_QUESTIONS, label: "вопросов" },
+          { value: "35", label: "минут" },
+          { value: "10", label: "показателей" },
+        ]}
+        onBack={onBack}
+      >
+          <label style={startLabelStyle}>Имя</label>
           <input
             value={name}
             onChange={e => setName(e.target.value)}
             placeholder="Например: Анна Петрова"
-            style={{ width: "100%", boxSizing: "border-box", padding: "13px 14px", fontSize: 16, borderRadius: 12, border: "1.5px solid #D8D5CF", fontFamily: "inherit", outline: "none" }}
+            style={startInputStyle}
           />
 
-          <label style={{ fontSize: 14, fontWeight: 600, display: "block", margin: "18px 0 8px" }}>Возраст <span style={{ fontWeight: 400, color: "#8A867E" }}>(необязательно)</span></label>
+          <label style={{ ...startLabelStyle, margin: "18px 0 8px" }}>Возраст <span style={{ fontWeight: 400, color: "#8A867E" }}>(необязательно)</span></label>
           <input
             value={age}
             onChange={e => setAge(e.target.value.replace(/\D/g, ""))}
             placeholder="25"
             maxLength={3}
-            style={{ width: "100%", boxSizing: "border-box", padding: "13px 14px", fontSize: 16, borderRadius: 12, border: "1.5px solid #D8D5CF", fontFamily: "inherit", outline: "none" }}
+            style={startInputStyle}
           />
 
           <AudienceFields
@@ -231,19 +228,14 @@ export default function ToolsTest({ onBack }) {
             setApplicantType={setApplicantType}
           />
 
-          <div style={{ marginTop: 18, background: "#F6F5F2", borderRadius: 12, padding: "12px 14px", fontSize: 13, color: "#6B675F", lineHeight: 1.5 }}>
+          <StartNote>
             ⏱ У вас 35 минут. Отвечайте первым импульсом — не думайте слишком долго.
-          </div>
+          </StartNote>
 
-          <button
-            onClick={startTest}
-            disabled={!name.trim()}
-            style={{ ...S.btn, background: "#1C1B1A", color: "#fff", width: "100%", padding: "16px", marginTop: 20, fontSize: 16, opacity: name.trim() ? 1 : 0.4 }}
-          >
+          <StartButton onClick={startTest} disabled={!name.trim()}>
             Начать тест
-          </button>
-        </div>
-      </div></div>
+          </StartButton>
+      </TestStartLayout>
     );
   }
 

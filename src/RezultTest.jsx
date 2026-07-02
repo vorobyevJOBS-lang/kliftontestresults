@@ -4,6 +4,7 @@ import { REZULTAT_QUESTIONS, TOTAL_QUESTIONS } from "./rezultMeta";
 import AudienceFields from "./AudienceFields";
 import { BRANCHES } from "./org";
 import { insertWithOptionalOrg } from "./supabaseHelpers";
+import TestStartLayout from "./TestStartLayout";
 
 // ────────── helpers ──────────
 function formatTime(sec) {
@@ -289,9 +290,19 @@ export default function RezultTest({ onBack }) {
   // ── АНКЕТА ──
   if (stage === "anketa") {
     return (
-      <div style={{ minHeight: "100vh", background: "#F5F6FA", display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "40px 16px" }}>
-        <div style={{ background: "#fff", borderRadius: 20, padding: "36px 40px", maxWidth: 560, width: "100%", boxShadow: "0 2px 16px rgba(0,0,0,0.08)" }}>
-          <h2 style={{ fontSize: 28, fontWeight: 700, marginBottom: 28, color: "#111" }}>Анкета</h2>
+      <TestStartLayout
+        icon="📊"
+        eyebrow="Тест Опыт"
+        title="Продуктивность и трудовой путь"
+        description="Анкета помогает увидеть реальные рабочие привычки, стабильность, результативность и возможные риски по прошлому опыту."
+        accent="#2563EB"
+        meta={[
+          { value: "19", label: "вопросов" },
+          { value: "8-12", label: "минут" },
+          { value: "3", label: "типа поведения" },
+        ]}
+        onBack={onBack}
+      >
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 }}>
             <div>
@@ -380,8 +391,7 @@ export default function RezultTest({ onBack }) {
             )}
             <button onClick={startTest} style={{ ...btnPrimary, flex: 1 }}>Старт</button>
           </div>
-        </div>
-      </div>
+      </TestStartLayout>
     );
   }
 
@@ -499,16 +509,19 @@ export default function RezultTest({ onBack }) {
 }
 
 // ── styles ──
-const labelStyle = { fontSize: 13, color: "#555", display: "block", marginBottom: 4 };
+const labelStyle = { fontSize: 14, color: "#1C1B1A", fontWeight: 700, display: "block", marginBottom: 8 };
 const inputStyle = {
-  width: "100%", padding: "10px 14px", borderRadius: 10,
-  border: "1.5px solid #E0E0E0", fontSize: 14, boxSizing: "border-box", outline: "none",
+  width: "100%", padding: "14px 15px", borderRadius: 12,
+  border: "1.5px solid #D8D5CF", fontSize: 16, boxSizing: "border-box", outline: "none",
+  fontFamily: "inherit", background: "#fff",
 };
 const btnPrimary = {
-  padding: "13px 28px", borderRadius: 10, border: "none",
-  background: "#3B7BF6", color: "#fff", fontWeight: 700, fontSize: 15, cursor: "pointer",
+  padding: "14px 28px", borderRadius: 12, border: "none",
+  background: "#1C1B1A", color: "#fff", fontWeight: 800, fontSize: 15, cursor: "pointer",
+  fontFamily: "inherit", boxShadow: "0 10px 22px rgba(28,27,26,.16)",
 };
 const btnSecondary = {
-  padding: "13px 24px", borderRadius: 10, border: "2px solid #E0E0E0",
-  background: "#fff", color: "#555", fontWeight: 600, fontSize: 14, cursor: "pointer",
+  padding: "13px 24px", borderRadius: 12, border: "1.5px solid #D8D5CF",
+  background: "#fff", color: "#44413B", fontWeight: 700, fontSize: 14, cursor: "pointer",
+  fontFamily: "inherit",
 };

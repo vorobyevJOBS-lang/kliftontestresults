@@ -4,6 +4,7 @@ import { supabase } from "./supabase";
 import AudienceFields from "./AudienceFields";
 import { BRANCHES } from "./org";
 import { insertWithOptionalOrg } from "./supabaseHelpers";
+import TestStartLayout, { StartButton, StartNote, startInputStyle, startLabelStyle } from "./TestStartLayout";
 
 // ─── SVG для паттерновых вопросов ────────────────────────────
 
@@ -337,58 +338,38 @@ const S = {
 
 function StartScreen({ name, setName, onStart, onBack, branchId, setBranchId, applicantType, setApplicantType }) {
   return (
-    <div style={S.page}>
-      <div style={{ ...S.header, justifyContent: "space-between" }}>
-        <button onClick={onBack} style={{ background: "transparent", border: "none", color: "#666", fontSize: 14, cursor: "pointer", padding: "6px 8px" }}>
-          ← Главная
-        </button>
-        <span style={{ fontSize: 20, fontWeight: 700 }}>Тест Логика</span>
-        <span style={{ width: 76 }} />
-      </div>
-      <div style={S.wrap}>
-        <div style={{ ...S.card, textAlign: "center", marginTop: 48 }}>
-          <div style={{ fontSize: 48, marginBottom: 16 }}>🧠</div>
-          <h2 style={{ margin: "0 0 8px", fontSize: 24 }}>Тест Логика</h2>
-          <p style={{ color: "#666", marginBottom: 24, lineHeight: 1.6 }}>
-            80 вопросов · 30 минут · Максимум 160 баллов
-          </p>
+    <TestStartLayout
+      icon="🧠"
+      eyebrow="Тест Логика"
+      title="Логическое мышление"
+      description="Короткий тест на внимательность, закономерности и скорость обработки информации."
+      accent="#6C63FF"
+      meta={[
+        { value: "80", label: "вопросов" },
+        { value: "30", label: "минут" },
+        { value: "160", label: "баллов максимум" },
+      ]}
+      onBack={onBack}
+    >
+          <label style={startLabelStyle}>Имя</label>
           <input
             type="text"
-            placeholder="Ваше имя *"
+            placeholder="Например: Анна Петрова"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            style={{
-              display: "block",
-              width: "100%",
-              padding: "12px 16px",
-              borderRadius: 8,
-              border: "2px solid #e0e0e0",
-              fontSize: 16,
-              marginBottom: 16,
-              boxSizing: "border-box",
-            }}
+            style={startInputStyle}
           />
-          <div style={{ textAlign: "left" }}>
             <AudienceFields
               branchId={branchId}
               setBranchId={setBranchId}
               applicantType={applicantType}
               setApplicantType={setApplicantType}
             />
-          </div>
-          <button
-            style={{ ...S.btn("primary"), padding: "14px 36px", fontSize: 16, marginTop: 18 }}
-            onClick={onStart}
-            disabled={!name.trim()}
-          >
+          <StartNote>После начала таймер нельзя остановить.</StartNote>
+          <StartButton onClick={onStart} disabled={!name.trim()}>
             Начать тест
-          </button>
-          <p style={{ color: "#999", fontSize: 13, marginTop: 20 }}>
-            После начала таймер нельзя остановить
-          </p>
-        </div>
-      </div>
-    </div>
+          </StartButton>
+    </TestStartLayout>
   );
 }
 

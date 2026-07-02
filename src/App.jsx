@@ -12,6 +12,7 @@ import SailsTest from "./SailsTest";
 import PrimTest from "./PrimTest";
 import AudienceFields from "./AudienceFields";
 import { BRANCHES, branchById } from "./org";
+import TestStartLayout, { StartButton, startInputStyle, startLabelStyle } from "./TestStartLayout";
 
 // ─────────────────────────────────────────────────────────────
 // ДОМЕНЫ — визуальная группировка талантов
@@ -547,20 +548,22 @@ export default function App() {
   );
 
   if (activeTest === "clifton" && screen === "home") return (
-    <div style={S.page}><div style={S.wrap}>
-      <button onClick={backToHome} style={{ ...S.btn, background: "transparent", color: "#8A867E", fontSize: 14, padding: "8px 0", marginBottom: 16 }}>← Назад</button>
-
-      <div style={{ ...S.display, fontSize: 13, fontWeight: 700, textTransform: "uppercase", color: "#8A867E", marginBottom: 12 }}>
-        Тест Клифтон
-      </div>
-      <p style={{ color: "#6B675F", fontSize: 15, lineHeight: 1.55, marginTop: 0, marginBottom: 20 }}>
-        {QUESTIONS.length} пар утверждений · ≈ 45-50 минут. В каждой паре выбирайте, что вам ближе — A или B.
-      </p>
-
-      <div style={S.card}>
-        <label style={{ fontSize: 14, fontWeight: 600, display: "block", marginBottom: 8 }}>Имя</label>
+    <TestStartLayout
+      icon="🏆"
+      eyebrow="Тест Клифтон"
+      title="Сильные стороны и подходящие роли"
+      description="В каждой паре выбирайте утверждение, которое ближе именно вам. Для кандидата роль будет рассчитана автоматически, для сотрудника можно указать текущую должность."
+      accent="#D98E2B"
+      meta={[
+        { value: QUESTIONS.length, label: "пар" },
+        { value: "45-50", label: "минут" },
+        { value: "20", label: "талантов" },
+      ]}
+      onBack={backToHome}
+    >
+        <label style={startLabelStyle}>Имя</label>
         <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Например: Анна Петрова"
-          style={{ width: "100%", boxSizing: "border-box", padding: "13px 14px", fontSize: 16, borderRadius: 12, border: "1.5px solid #D8D5CF", fontFamily: "inherit", outline: "none" }} />
+          style={startInputStyle} />
 
         <AudienceFields
           branchId={branchId}
@@ -571,20 +574,18 @@ export default function App() {
 
         {applicantType === "employee" && (
           <>
-            <label style={{ fontSize: 14, fontWeight: 600, display: "block", margin: "18px 0 8px" }}>Ваша текущая должность</label>
+            <label style={{ ...startLabelStyle, margin: "18px 0 8px" }}>Ваша текущая должность</label>
             <select value={positionId} onChange={(e) => setPositionId(e.target.value)}
-              style={{ width: "100%", boxSizing: "border-box", padding: "13px 14px", fontSize: 16, borderRadius: 12, border: "1.5px solid #D8D5CF", fontFamily: "inherit", outline: "none", background: "#fff" }}>
+              style={startInputStyle}>
               {availablePositions.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
             </select>
           </>
         )}
 
-        <button onClick={startTest} disabled={!name.trim()}
-          style={{ ...S.btn, ...S.primary, width: "100%", marginTop: 20, opacity: name.trim() ? 1 : 0.4 }}>
+        <StartButton onClick={startTest} disabled={!name.trim()}>
           Начать тест
-        </button>
-      </div>
-    </div></div>
+        </StartButton>
+    </TestStartLayout>
   );
 
   if (screen === "home") return (
