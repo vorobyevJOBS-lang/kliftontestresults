@@ -1054,6 +1054,27 @@ export default function Admin() {
     return { level, title, color, note, checks };
   };
 
+  const buildReadinessScore = (person) => {
+    const requiredTotal = Math.max(person.routeProgress.required.length, 1);
+    const requiredDone = person.routeProgress.requiredDone.length;
+    const optionalTotal = Math.max(person.routeProgress.optional.length, 1);
+    const optionalDone = person.routeProgress.optionalDone.length;
+    const routeScore = Math.round((requiredDone / requiredTotal) * 55);
+    const optionalScore = Math.min(15, Math.round((optionalDone / optionalTotal) * 15));
+    const commentScore = person.profile.manager_comment ? 10 : 0;
+    const riskScore = Math.max(0, 15 - person.insight.risks.length * 5);
+    const feedbackScore = person.profile.hired_feedback ? 5 : 0;
+    const score = Math.max(0, Math.min(100, routeScore + optionalScore + commentScore + riskScore + feedbackScore));
+    const color = score >= 80 ? "#2E9E87" : score >= 55 ? "#D98E2B" : "#E25C44";
+    const label = score >= 80 ? "Высокая готовность" : score >= 55 ? "Средняя готовность" : "Мало данных";
+    const gaps = [
+      ...person.routeProgress.missingRequired.map((testId) => `обязательный тест ${TEST_ROUTE_META[testId]?.label}`),
+      ...(person.profile.manager_comment ? [] : ["комментарий руководителя"]),
+      ...(person.insight.risks.length ? ["проверка рисков на интервью"] : []),
+    ].slice(0, 3);
+    return { score, color, label, gaps };
+  };
+
   const getPersonRoleId = (person, entriesByType, profile = {}) => {
     if (profile.target_position_id) return profile.target_position_id;
     const clifton = entriesByType.clifton?.item;
@@ -1074,13 +1095,18 @@ export default function Admin() {
     const latestDateMs = person.latestDate ? new Date(person.latestDate).getTime() : 0;
     const focusScore = insight.risks.length * 10 + routeProgress.missingRequired.length * 4 + (profile.manager_comment ? 0 : 2) + Math.min(passedCount, 3);
     const personWithSignals = { ...person, entriesByType, profile, statusId, insight, roleId, roleName, routeProgress, passedCount, latestDateMs, focusScore };
-    return { ...personWithSignals, decision: buildDecisionSummary(personWithSignals) };
+    return {
+      ...personWithSignals,
+      decision: buildDecisionSummary(personWithSignals),
+      readiness: buildReadinessScore(personWithSignals),
+    };
   });
 
   const matchesCrmQuickFilter = (person) => {
     if (crmQuickFilter === "active") return !["hired", "rejected"].includes(person.statusId);
     if (crmQuickFilter === "risk") return person.insight.risks.length > 0;
     if (crmQuickFilter === "ready") return person.passedCount >= 3;
+    if (crmQuickFilter === "decision_ready") return person.readiness.score >= 80;
     if (crmQuickFilter === "incomplete") return person.routeProgress.missingRequired.length > 0;
     if (crmQuickFilter === "no_comment") return !person.profile.manager_comment;
     return true;
@@ -1091,6 +1117,7 @@ export default function Admin() {
     .sort((a, b) => {
       if (crmSort === "date") return b.latestDateMs - a.latestDateMs;
       if (crmSort === "risk") return b.insight.risks.length - a.insight.risks.length || b.focusScore - a.focusScore;
+      if (crmSort === "readiness") return b.readiness.score - a.readiness.score || b.latestDateMs - a.latestDateMs;
       if (crmSort === "tests") return b.passedCount - a.passedCount || b.latestDateMs - a.latestDateMs;
       if (crmSort === "missing") return b.routeProgress.missingRequired.length - a.routeProgress.missingRequired.length || b.focusScore - a.focusScore;
       return b.focusScore - a.focusScore || b.latestDateMs - a.latestDateMs;
@@ -1110,6 +1137,7 @@ export default function Admin() {
     active: crmPeople.filter((person) => !["hired", "rejected"].includes(person.statusId)).length,
     risk: crmPeople.filter((person) => person.insight.risks.length > 0).length,
     ready: crmPeople.filter((person) => person.passedCount >= 3).length,
+    decisionReady: crmPeople.filter((person) => person.readiness.score >= 80).length,
     incomplete: crmPeople.filter((person) => person.routeProgress.missingRequired.length > 0).length,
     noComment: crmPeople.filter((person) => !person.profile.manager_comment).length,
   };
@@ -1117,6 +1145,7 @@ export default function Admin() {
     crmQuickFilter === "active" ? "В работе" :
     crmQuickFilter === "risk" ? "С рисками" :
     crmQuickFilter === "ready" ? "3+ теста" :
+    crmQuickFilter === "decision_ready" ? "Готовы к решению" :
     crmQuickFilter === "incomplete" ? "Неполный маршрут" :
     crmQuickFilter === "no_comment" ? "Без заметки" : "";
 
@@ -1280,6 +1309,7 @@ export default function Admin() {
                 <option value="priority">Сначала приоритетные</option>
                 <option value="date">Сначала новые</option>
                 <option value="risk">Сначала риски</option>
+                <option value="readiness">Сначала готовые</option>
                 <option value="missing">Сначала неполные</option>
                 <option value="tests">Сначала больше тестов</option>
               </select>
@@ -1297,6 +1327,7 @@ export default function Admin() {
               ["active", "В работе", crmStats.active, "#2563EB"],
               ["risk", "С рисками", crmStats.risk, "#E25C44"],
               ["ready", "3+ теста", crmStats.ready, "#2E9E87"],
+              ["decision_ready", "Готовы к решению", crmStats.decisionReady, "#0F766E"],
               ["incomplete", "Неполный маршрут", crmStats.incomplete, "#D98E2B"],
               ["no_comment", "Без заметки", crmStats.noComment, "#7C3AED"],
             ].map(([id, label, value, color]) => (
@@ -1459,6 +1490,15 @@ export default function Admin() {
                     {status.label}
                   </div>
                   <div style={{ fontSize: 12, color: "#8A867E", marginTop: 4 }}>{latestDate}</div>
+                  <div style={{ marginTop: 8, maxWidth: 160 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", gap: 8, fontSize: 11, fontWeight: 800, color: person.readiness.color, marginBottom: 4 }}>
+                      <span>Готовность</span>
+                      <span>{person.readiness.score}%</span>
+                    </div>
+                    <div style={{ height: 6, background: "#EEECE7", borderRadius: 99, overflow: "hidden" }}>
+                      <div style={{ width: `${person.readiness.score}%`, height: "100%", background: person.readiness.color, borderRadius: 99 }} />
+                    </div>
+                  </div>
                   <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 10 }}>
                     {[
                       ["interview", "Интервью"],
@@ -1525,6 +1565,11 @@ export default function Admin() {
                         <div style={{ fontSize: 14, color: "#44413B", lineHeight: 1.55, marginTop: 8 }}>{person.decision.note}</div>
                       </div>
                       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
+                        <div style={{ minWidth: 140, background: `${person.readiness.color}12`, border: `1px solid ${person.readiness.color}33`, borderRadius: 14, padding: "9px 12px" }}>
+                          <div style={{ fontSize: 11, fontWeight: 900, color: "#8A867E", marginBottom: 3 }}>Готовность картины</div>
+                          <div style={{ fontSize: 22, fontWeight: 900, color: person.readiness.color, lineHeight: 1 }}>{person.readiness.score}%</div>
+                          <div style={{ fontSize: 11, color: person.readiness.color, fontWeight: 800, marginTop: 3 }}>{person.readiness.label}</div>
+                        </div>
                         <button onClick={() => saveCandidateProfile(person, { status: "interview" })} style={{ border: "none", borderRadius: 99, padding: "9px 12px", fontSize: 12, fontWeight: 900, cursor: "pointer", fontFamily: "inherit", background: "#EEF3FF", color: "#2563EB" }}>На интервью</button>
                         <button onClick={() => saveCandidateProfile(person, { status: "offer" })} style={{ border: "none", borderRadius: 99, padding: "9px 12px", fontSize: 12, fontWeight: 900, cursor: "pointer", fontFamily: "inherit", background: "#E4F4F0", color: "#0F766E" }}>Оффер</button>
                         <button onClick={() => saveCandidateProfile(person, { status: "rejected" })} style={{ border: "none", borderRadius: 99, padding: "9px 12px", fontSize: 12, fontWeight: 900, cursor: "pointer", fontFamily: "inherit", background: "#FCEAE6", color: "#E25C44" }}>Отказ</button>
@@ -1536,6 +1581,9 @@ export default function Admin() {
                           {check}
                         </div>
                       ))}
+                      <div style={{ background: person.readiness.gaps.length ? "#FFF8F0" : "#E4F4F0", border: `1px solid ${person.readiness.gaps.length ? "#F0D2A0" : "#BFE2D8"}`, borderRadius: 12, padding: "10px 12px", fontSize: 13, lineHeight: 1.45, color: "#44413B" }}>
+                        {person.readiness.gaps.length ? `Для 100% не хватает: ${person.readiness.gaps.join(", ")}.` : "Картина достаточно полная для управленческого решения."}
+                      </div>
                     </div>
                   </div>
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12, alignItems: "start", marginBottom: 12 }}>
