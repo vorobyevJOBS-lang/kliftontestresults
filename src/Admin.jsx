@@ -51,6 +51,14 @@ const ADMIN_RESPONSIVE_CSS = `
       flex-wrap: wrap !important;
     }
   }
+  @media (max-width: 900px) {
+    [data-crm-head] {
+      display: none !important;
+    }
+    [data-crm-row] {
+      grid-template-columns: 1fr !important;
+    }
+  }
 `;
 
 const TEST_META = {
@@ -128,6 +136,7 @@ export default function Admin() {
   const [openPersonKey, setOpenPersonKey] = useState(null);
   const [crmStatusFilter, setCrmStatusFilter] = useState("all");
   const [crmQuickFilter, setCrmQuickFilter] = useState("all");
+  const [crmSort, setCrmSort] = useState("priority");
   const [candidateProfiles, setCandidateProfiles] = useState({});
   const [profilesSaving, setProfilesSaving] = useState({});
   const reportRef = useRef(null);
@@ -1022,11 +1031,20 @@ export default function Admin() {
     if (crmQuickFilter === "active") return !["hired", "rejected"].includes(person.statusId);
     if (crmQuickFilter === "risk") return person.insight.risks.length > 0;
     if (crmQuickFilter === "ready") return person.passedCount >= 3;
+    if (crmQuickFilter === "incomplete") return person.routeProgress.missingRequired.length > 0;
+    if (crmQuickFilter === "no_comment") return !person.profile.manager_comment;
     return true;
   };
   const filteredCrmPeople = crmPeople
     .filter((person) => crmStatusFilter === "all" || person.statusId === crmStatusFilter)
-    .filter(matchesCrmQuickFilter);
+    .filter(matchesCrmQuickFilter)
+    .sort((a, b) => {
+      if (crmSort === "date") return b.latestDateMs - a.latestDateMs;
+      if (crmSort === "risk") return b.insight.risks.length - a.insight.risks.length || b.focusScore - a.focusScore;
+      if (crmSort === "tests") return b.passedCount - a.passedCount || b.latestDateMs - a.latestDateMs;
+      if (crmSort === "missing") return b.routeProgress.missingRequired.length - a.routeProgress.missingRequired.length || b.focusScore - a.focusScore;
+      return b.focusScore - a.focusScore || b.latestDateMs - a.latestDateMs;
+    });
   const crmCounts = STATUS_OPTIONS.map(([id, label, color]) => ({
     id,
     label,
@@ -1042,11 +1060,15 @@ export default function Admin() {
     active: crmPeople.filter((person) => !["hired", "rejected"].includes(person.statusId)).length,
     risk: crmPeople.filter((person) => person.insight.risks.length > 0).length,
     ready: crmPeople.filter((person) => person.passedCount >= 3).length,
+    incomplete: crmPeople.filter((person) => person.routeProgress.missingRequired.length > 0).length,
+    noComment: crmPeople.filter((person) => !person.profile.manager_comment).length,
   };
   const activeCrmFilterLabel =
     crmQuickFilter === "active" ? "В работе" :
     crmQuickFilter === "risk" ? "С рисками" :
-    crmQuickFilter === "ready" ? "3+ теста" : "";
+    crmQuickFilter === "ready" ? "3+ теста" :
+    crmQuickFilter === "incomplete" ? "Неполный маршрут" :
+    crmQuickFilter === "no_comment" ? "Без заметки" : "";
 
   const openPersonTest = (entry) => {
     setTestTab(entry.type);
@@ -1064,8 +1086,10 @@ export default function Admin() {
 
   const adminWrap = {
     ...S.wrap,
-    maxWidth: testTab === "people" ? 1440 : 1180,
-    padding: "32px clamp(18px, 4vw, 56px) 80px",
+    maxWidth: testTab === "people" ? "none" : 1180,
+    width: "100%",
+    boxSizing: "border-box",
+    padding: "32px clamp(18px, 3.5vw, 64px) 80px",
   };
 
   return (
@@ -1188,11 +1212,24 @@ export default function Admin() {
                 Воронка, приоритеты и быстрый доступ к тестам по каждому человеку.
               </div>
             </div>
-            {(crmStatusFilter !== "all" || crmQuickFilter !== "all") && (
-              <button onClick={() => { setCrmStatusFilter("all"); setCrmQuickFilter("all"); }} style={{ ...S.btn, ...S.ghost, padding: "8px 12px", fontSize: 13 }}>
-                Сбросить CRM-фильтр
-              </button>
-            )}
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+              <select
+                value={crmSort}
+                onChange={(e) => setCrmSort(e.target.value)}
+                style={{ padding: "9px 12px", fontSize: 13, borderRadius: 10, border: "1.5px solid #D8D5CF", fontFamily: "inherit", outline: "none", background: "#fff" }}
+              >
+                <option value="priority">Сначала приоритетные</option>
+                <option value="date">Сначала новые</option>
+                <option value="risk">Сначала риски</option>
+                <option value="missing">Сначала неполные</option>
+                <option value="tests">Сначала больше тестов</option>
+              </select>
+              {(crmStatusFilter !== "all" || crmQuickFilter !== "all") && (
+                <button onClick={() => { setCrmStatusFilter("all"); setCrmQuickFilter("all"); }} style={{ ...S.btn, ...S.ghost, padding: "8px 12px", fontSize: 13 }}>
+                  Сбросить CRM-фильтр
+                </button>
+              )}
+            </div>
           </div>
 
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 10, marginBottom: 14 }}>
@@ -1201,6 +1238,8 @@ export default function Admin() {
               ["active", "В работе", crmStats.active, "#2563EB"],
               ["risk", "С рисками", crmStats.risk, "#E25C44"],
               ["ready", "3+ теста", crmStats.ready, "#2E9E87"],
+              ["incomplete", "Неполный маршрут", crmStats.incomplete, "#D98E2B"],
+              ["no_comment", "Без заметки", crmStats.noComment, "#7C3AED"],
             ].map(([id, label, value, color]) => (
               <button
                 key={id}
@@ -1280,6 +1319,15 @@ export default function Admin() {
             {crmStatusFilter !== "all" ? ` · статус: ${STATUS_META[crmStatusFilter]?.label || crmStatusFilter}` : ""}
           </div>
         )}
+        {filteredCrmPeople.length > 0 && (
+          <div data-crm-head style={{ display: "grid", gridTemplateColumns: "minmax(220px, 1.4fr) minmax(150px, .9fr) minmax(180px, 1fr) minmax(150px, .8fr) minmax(220px, 1.2fr)", gap: 14, padding: "0 20px 10px", color: "#8A867E", fontSize: 12, fontWeight: 800, textTransform: "uppercase", letterSpacing: ".04em" }}>
+            <div>Человек</div>
+            <div>Контакты</div>
+            <div>Должность / маршрут</div>
+            <div>Статус</div>
+            <div style={{ textAlign: "right" }}>Тесты</div>
+          </div>
+        )}
         {filteredCrmPeople.map((person) => {
           const isOpenPerson = openPersonKey === person.key;
           const entriesByType = person.entries.reduce((acc, entry) => {
@@ -1295,6 +1343,7 @@ export default function Admin() {
           return (
             <div key={person.key} style={{ ...S.card, padding: 0, overflow: "hidden" }}>
               <button
+                data-crm-row
                 onClick={() => setOpenPersonKey(isOpenPerson ? null : person.key)}
                 style={{
                   width: "100%",
@@ -1305,7 +1354,7 @@ export default function Admin() {
                   textAlign: "left",
                   fontFamily: "inherit",
                   display: "grid",
-                  gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
+                  gridTemplateColumns: "minmax(220px, 1.4fr) minmax(150px, .9fr) minmax(180px, 1fr) minmax(150px, .8fr) minmax(220px, 1.2fr)",
                   gap: 14,
                   alignItems: "center",
                 }}
@@ -1336,8 +1385,16 @@ export default function Admin() {
                     )}
                   </div>
                 </div>
-                <div style={{ fontSize: 14, color: person.phone ? "#1C1B1A" : "#AAA49C" }}>{person.phone || "Телефон —"}</div>
-                <div style={{ fontSize: 14, color: person.email ? "#1C1B1A" : "#AAA49C", overflow: "hidden", textOverflow: "ellipsis" }}>{person.email || "Почта —"}</div>
+                <div>
+                  <div style={{ fontSize: 14, color: person.phone ? "#1C1B1A" : "#AAA49C" }}>{person.phone || "Телефон —"}</div>
+                  <div style={{ fontSize: 13, color: person.email ? "#6B675F" : "#AAA49C", overflow: "hidden", textOverflow: "ellipsis", marginTop: 3 }}>{person.email || "Почта —"}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: 800, color: "#1C1B1A" }}>{person.roleName}</div>
+                  <div style={{ fontSize: 12, color: person.routeProgress.missingRequired.length ? "#D98E2B" : "#2E9E87", marginTop: 4 }}>
+                    {person.routeProgress.missingRequired.length ? `Не хватает ${person.routeProgress.missingRequired.length} обяз.` : "Маршрут закрыт"}
+                  </div>
+                </div>
                 <div>
                   <div style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 14, fontWeight: 800, color: status.color, background: `${status.color}12`, border: `1px solid ${status.color}24`, borderRadius: 99, padding: "5px 10px" }}>
                     {status.label}
