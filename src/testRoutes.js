@@ -7,16 +7,31 @@ export const TEST_ROUTE_META = {
   prim: { label: "Анализ", icon: "🧭" },
 };
 
-const SALES_ROLES = new Set(["sales_manager", "lead_manager", "promoter", "sales_head", "callcenter_head"]);
 const LEADER_ROLES = new Set(["supervisor", "callcenter_head", "product_manager", "sales_head", "director"]);
 const CARE_ROLES = new Set(["teacher", "tutor"]);
 
 export function getTestRouteForRole(roleId) {
-  if (SALES_ROLES.has(roleId)) {
+  if (roleId === "promoter") {
     return {
-      required: ["clifton", "sails", "tools", "prim"],
-      optional: ["rezultat", "logis"],
-      reason: "Для продаж важны мотивация, устойчивость, клиентский стиль, личностные риски и способность доводить сделки.",
+      required: ["sails"],
+      optional: ["clifton", "prim"],
+      reason: "Для промоутера важен быстрый вход: сначала коротко проверяем продажи и контактность, а глубокие тесты добавляем только если кандидат перспективный.",
+    };
+  }
+
+  if (roleId === "lead_manager") {
+    return {
+      required: ["sails", "tools"],
+      optional: ["clifton", "prim"],
+      reason: "Для менеджера записи достаточно быстро проверить клиентский стиль, дисциплину и способность доводить контакт до записи.",
+    };
+  }
+
+  if (roleId === "sales_manager") {
+    return {
+      required: ["clifton", "sails", "prim"],
+      optional: ["tools", "rezultat"],
+      reason: "Для менеджера продаж важны сильные стороны, продажный стиль и личностные риски; дополнительные тесты нужны для спорных кандидатов.",
     };
   }
 
@@ -30,16 +45,24 @@ export function getTestRouteForRole(roleId) {
 
   if (CARE_ROLES.has(roleId)) {
     return {
-      required: ["clifton", "tools", "prim"],
-      optional: ["rezultat", "logis"],
-      reason: "Для обучающих и сопровождающих ролей важны сильные стороны, коммуникация, устойчивость и способность работать с людьми.",
+      required: ["clifton", "prim"],
+      optional: ["tools", "rezultat"],
+      reason: "Для обучающих и сопровождающих ролей сначала проверяем сильные стороны, устойчивость и работу с людьми; остальные тесты добавляем при сомнениях.",
+    };
+  }
+
+  if (roleId === "administrator") {
+    return {
+      required: ["tools", "logis"],
+      optional: ["prim", "clifton"],
+      reason: "Для администратора в первую очередь важны рабочий стиль, внимательность, логика и дисциплина; глубокий профиль нужен для финальных кандидатов.",
     };
   }
 
   return {
-    required: ["clifton", "tools", "prim", "logis"],
-    optional: ["rezultat"],
-    reason: "Для операционных ролей важны сильные стороны, рабочий стиль, внимательность, логика и личностная устойчивость.",
+    required: ["clifton", "prim"],
+    optional: ["tools", "logis", "rezultat"],
+    reason: "Базовый маршрут не перегружает кандидата: сначала проверяем сильные стороны и риски, дополнительные тесты добавляем по необходимости.",
   };
 }
 
