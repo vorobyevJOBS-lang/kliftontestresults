@@ -139,6 +139,7 @@ export default function Admin() {
   const [crmQuickFilter, setCrmQuickFilter] = useState("all");
   const [crmSort, setCrmSort] = useState("priority");
   const [candidateProfiles, setCandidateProfiles] = useState({});
+  const [candidateActivities, setCandidateActivities] = useState({});
   const [profilesSaving, setProfilesSaving] = useState({});
   const reportRef = useRef(null);
 
@@ -167,6 +168,47 @@ export default function Admin() {
       return;
     }
     setCandidateProfiles(Object.fromEntries((data || []).map((profile) => [profile.candidate_key, profile])));
+  };
+
+  const loadCandidateActivities = async () => {
+    const { data, error } = await withLoadTimeout(
+      supabase.from("candidate_activity").select("*").order("created_at", { ascending: false }).limit(500),
+      "candidate_activity"
+    );
+    if (error) {
+      console.warn("candidate_activity", error);
+      return;
+    }
+    const grouped = {};
+    (data || []).forEach((item) => {
+      grouped[item.candidate_key] = grouped[item.candidate_key] || [];
+      grouped[item.candidate_key].push(item);
+    });
+    setCandidateActivities(grouped);
+  };
+
+  const describeProfilePatch = (patch, current) => {
+    if (patch.status && patch.status !== current.status) return `Статус: ${STATUS_META[current.status]?.label || "—"} → ${STATUS_META[patch.status]?.label || patch.status}`;
+    if (Object.prototype.hasOwnProperty.call(patch, "manager_comment")) return "Обновлён комментарий руководителя / HR";
+    if (Object.prototype.hasOwnProperty.call(patch, "target_position_id")) return `Целевая должность: ${patch.target_position_name || "обновлена"}`;
+    if (Object.prototype.hasOwnProperty.call(patch, "hired_feedback")) return "Обновлено пост-найм наблюдение";
+    return "Обновлена карточка кандидата";
+  };
+
+  const logCandidateActivity = async (person, patch, current) => {
+    const activity = {
+      candidate_key: person.key,
+      candidate_name: person.name,
+      action_type: patch.status && patch.status !== current.status ? "status" : Object.keys(patch)[0] || "update",
+      action_text: describeProfilePatch(patch, current),
+      created_at: new Date().toISOString(),
+    };
+    setCandidateActivities((prev) => ({
+      ...prev,
+      [person.key]: [activity, ...(prev[person.key] || [])].slice(0, 20),
+    }));
+    const { error } = await supabase.from("candidate_activity").insert(activity);
+    if (error) console.warn("candidate_activity insert", error);
   };
 
   const saveCandidateProfile = async (person, patch) => {
@@ -199,7 +241,9 @@ export default function Admin() {
     if (error) {
       console.error("candidate_profiles upsert", error);
       window.alert("Не удалось сохранить статус/комментарий. Проверьте, что SQL для candidate_profiles выполнен в Supabase.");
+      return;
     }
+    logCandidateActivity(person, patch, current);
   };
 
   const handleLogin = async () => {
@@ -232,6 +276,7 @@ export default function Admin() {
       loadSailsResults();
       loadPrimResults();
       loadCandidateProfiles();
+      loadCandidateActivities();
     } else {
       setLoginError(true);
     }
@@ -1258,7 +1303,7 @@ export default function Admin() {
               {compareMode ? "Отмена сравнения" : "Сравнить"}
             </button>
           )}
-          <button onClick={() => { setLoadError(""); loadResults(); loadToolsResults(); loadRezultatResults(); loadLogisResults(); loadSailsResults(); loadPrimResults(); loadCandidateProfiles(); }} style={{ ...S.btn, ...S.ghost, padding: "8px 14px", fontSize: 14 }}>Обновить</button>
+          <button onClick={() => { setLoadError(""); loadResults(); loadToolsResults(); loadRezultatResults(); loadLogisResults(); loadSailsResults(); loadPrimResults(); loadCandidateProfiles(); loadCandidateActivities(); }} style={{ ...S.btn, ...S.ghost, padding: "8px 14px", fontSize: 14 }}>Обновить</button>
           <button onClick={() => { setAuthorized(false); setIsSuperAdmin(false); }} style={{ ...S.btn, ...S.ghost, padding: "8px 14px", fontSize: 14 }}>Выйти</button>
         </div>
       </div>
@@ -1492,6 +1537,7 @@ export default function Admin() {
           const statusId = profile.status || "testing";
           const status = STATUS_META[statusId] || STATUS_META.testing;
           const insight = buildPersonInsight(person, entriesByType);
+          const activityItems = candidateActivities[person.key] || [];
           return (
             <div key={person.key} data-person-key={person.key} style={{ ...S.card, padding: 0, overflow: "hidden" }}>
               <div
@@ -1809,6 +1855,41 @@ export default function Admin() {
                     {profile.hired_feedback_date && (
                       <div style={{ marginTop: 8, fontSize: 12, color: "#8A867E" }}>
                         Обновлено: {new Date(profile.hired_feedback_date).toLocaleDateString("ru-RU")}
+                      </div>
+                    )}
+                  </div>
+                  <div style={{ background: "#fff", border: "1.5px solid #EEECE7", borderRadius: 14, padding: 14, marginBottom: 12 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", marginBottom: 10 }}>
+                      <div>
+                        <div style={{ fontSize: 12, fontWeight: 800, color: "#8A867E", marginBottom: 4 }}>Журнал действий</div>
+                        <div style={{ fontSize: 13, color: "#6B675F", lineHeight: 1.45 }}>
+                          История решений, статусов и заметок по человеку.
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => loadCandidateActivities()}
+                        style={{ ...S.btn, ...S.ghost, padding: "7px 11px", fontSize: 12, alignSelf: "flex-start" }}
+                      >
+                        Обновить журнал
+                      </button>
+                    </div>
+                    {activityItems.length === 0 ? (
+                      <div style={{ background: "#F8F7F4", border: "1px solid #EEECE7", borderRadius: 12, padding: "11px 12px", fontSize: 13, color: "#8A867E", lineHeight: 1.45 }}>
+                        История появится после изменения статуса, должности или комментария.
+                      </div>
+                    ) : (
+                      <div style={{ display: "grid", gap: 8 }}>
+                        {activityItems.slice(0, 6).map((activity) => (
+                          <div
+                            key={`${activity.created_at}-${activity.action_text}`}
+                            style={{ background: "#F8F7F4", border: "1px solid #EEECE7", borderRadius: 12, padding: "10px 12px" }}
+                          >
+                            <div style={{ fontSize: 13, fontWeight: 900, color: "#1C1B1A", lineHeight: 1.4 }}>{activity.action_text}</div>
+                            <div style={{ fontSize: 12, color: "#8A867E", marginTop: 4 }}>
+                              {activity.created_at ? new Date(activity.created_at).toLocaleString("ru-RU") : "Дата не указана"}
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     )}
                   </div>
