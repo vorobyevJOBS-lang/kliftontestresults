@@ -11,6 +11,7 @@ import RezultResultCard from "./RezultResultCard";
 import PrimResultCard from "./PrimResultCard";
 import { getCandidateKey } from "./candidateIdentity";
 import { getRouteProgress, TEST_ROUTE_META } from "./testRoutes";
+import { ROLE_QUESTIONS } from "./roleQuestions";
 
 const ADMIN_RESPONSIVE_CSS = `
   [data-admin-report], [data-pdf-card] {
@@ -1075,6 +1076,66 @@ export default function Admin() {
     return { score, color, label, gaps };
   };
 
+  const buildInterviewQuestions = (person) => {
+    const questions = [];
+    const used = new Set();
+    const addQuestion = (tag, text, reason) => {
+      if (!text || used.has(text)) return;
+      questions.push({ tag, text, reason });
+      used.add(text);
+    };
+
+    try {
+      const cliftonJson = person.entriesByType.clifton?.item?.report_json;
+      const parsed = cliftonJson ? JSON.parse(cliftonJson) : null;
+      (parsed?.targetedQuestions || []).slice(0, 3).forEach((q) => {
+        addQuestion(TALENTS[q.id]?.name || "Клифтон", q.q, `Проверка темы из Клифтон-профиля.`);
+      });
+    } catch {}
+
+    const roleQuestions = ROLE_QUESTIONS[person.roleId] || {};
+    Object.entries(roleQuestions).slice(0, 3).forEach(([talentId, question]) => {
+      addQuestion(TALENTS[talentId]?.name || "Роль", question, `Вопрос под роль «${person.roleName}».`);
+    });
+
+    person.insight.risks.forEach((risk) => {
+      if (risk.includes("Клифтон")) {
+        addQuestion(
+          "Мотивация",
+          `Что именно вас привлекает в роли «${person.roleName}», а какие задачи могут быстро утомить?`,
+          "Нужно проверить реальную мотивацию при низком соответствии роли."
+        );
+      }
+      if (risk.includes("Анализ")) {
+        addQuestion(
+          "Риски",
+          "Расскажите о рабочей ситуации, где на вас давили сроки, конфликт или неопределённость. Как вы действовали?",
+          "Нужно перепроверить факторы риска из первичного анализа."
+        );
+      }
+      if (risk.includes("Профиль")) {
+        addQuestion(
+          "Определённость",
+          "В каких рабочих вопросах вы обычно сомневаетесь дольше всего, и как принимаете итоговое решение?",
+          "Много нейтральных ответов может означать неопределённость или осторожность."
+        );
+      }
+    });
+
+    addQuestion(
+      "Кейс",
+      `Представьте, что вы уже работаете на позиции «${person.roleName}», и первая неделя пошла не по плану. Что вы сделаете в первую очередь?`,
+      "Базовая проверка самостоятельности и понимания роли."
+    );
+    addQuestion(
+      "Факты",
+      "Какой ваш последний измеримый результат на работе или в учебе? За счет чего он получился?",
+      "Помогает отделить уверенный рассказ от подтверждённого результата."
+    );
+
+    return questions.slice(0, 7);
+  };
+
   const getPersonRoleId = (person, entriesByType, profile = {}) => {
     if (profile.target_position_id) return profile.target_position_id;
     const clifton = entriesByType.clifton?.item;
@@ -1099,6 +1160,7 @@ export default function Admin() {
       ...personWithSignals,
       decision: buildDecisionSummary(personWithSignals),
       readiness: buildReadinessScore(personWithSignals),
+      interviewQuestions: buildInterviewQuestions(personWithSignals),
     };
   });
 
@@ -1584,6 +1646,31 @@ export default function Admin() {
                       <div style={{ background: person.readiness.gaps.length ? "#FFF8F0" : "#E4F4F0", border: `1px solid ${person.readiness.gaps.length ? "#F0D2A0" : "#BFE2D8"}`, borderRadius: 12, padding: "10px 12px", fontSize: 13, lineHeight: 1.45, color: "#44413B" }}>
                         {person.readiness.gaps.length ? `Для 100% не хватает: ${person.readiness.gaps.join(", ")}.` : "Картина достаточно полная для управленческого решения."}
                       </div>
+                    </div>
+                  </div>
+                  <div style={{ background: "#fff", border: "1.5px solid #D8D4F5", borderRadius: 14, padding: 16, marginBottom: 12 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", marginBottom: 12 }}>
+                      <div>
+                        <div style={{ fontSize: 12, fontWeight: 900, color: "#6457D6", textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 5 }}>Вопросы для интервью</div>
+                        <div style={{ fontSize: 14, color: "#6B675F", lineHeight: 1.45 }}>
+                          Под роль, найденные риски и профиль человека.
+                        </div>
+                      </div>
+                      <div style={{ fontSize: 13, fontWeight: 900, color: "#6457D6", background: "#ECEAFB", borderRadius: 99, padding: "7px 11px", alignSelf: "flex-start" }}>
+                        {person.interviewQuestions.length} вопросов
+                      </div>
+                    </div>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 10 }}>
+                      {person.interviewQuestions.map((question, index) => (
+                        <div key={`${question.tag}-${index}`} style={{ background: "#F8F7F4", border: "1px solid #EEECE7", borderRadius: 12, padding: "12px 13px" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                            <span style={{ width: 24, height: 24, borderRadius: 8, display: "inline-flex", alignItems: "center", justifyContent: "center", background: "#ECEAFB", color: "#6457D6", fontSize: 12, fontWeight: 900 }}>{index + 1}</span>
+                            <span style={{ fontSize: 12, color: "#6457D6", fontWeight: 900 }}>{question.tag}</span>
+                          </div>
+                          <div style={{ fontSize: 14, lineHeight: 1.5, fontWeight: 700, color: "#1C1B1A" }}>{question.text}</div>
+                          <div style={{ fontSize: 12, lineHeight: 1.45, color: "#8A867E", marginTop: 8 }}>{question.reason}</div>
+                        </div>
+                      ))}
                     </div>
                   </div>
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12, alignItems: "start", marginBottom: 12 }}>
