@@ -1005,6 +1005,55 @@ export default function Admin() {
     };
   };
 
+  const buildDecisionSummary = (person) => {
+    const cliftonFit = person.entriesByType.clifton?.item?.fit;
+    const fit = cliftonFit == null ? null : Number(cliftonFit);
+    const requiredMissing = person.routeProgress.missingRequired.length;
+    const riskCount = person.insight.risks.length;
+    const hasEnoughTests = person.passedCount >= Math.min(3, person.routeProgress.required.length);
+
+    let level = "review";
+    let title = "Думать / проверить";
+    let color = "#D98E2B";
+    let note = "Данных уже достаточно для первичного решения, но лучше закрыть ключевые вопросы перед финальным статусом.";
+
+    if (requiredMissing >= 2) {
+      level = "missing";
+      title = "Сначала добрать тесты";
+      color = "#D98E2B";
+      note = "Картина неполная: не хватает нескольких обязательных тестов по маршруту роли.";
+    } else if (riskCount >= 2 || (fit != null && fit < 55)) {
+      level = "caution";
+      title = "Высокий риск";
+      color = "#E25C44";
+      note = "Перед решением стоит перепроверить мотивацию, устойчивость и реальные рабочие кейсы.";
+    } else if (requiredMissing === 0 && riskCount === 0 && fit != null && fit >= 70 && hasEnoughTests) {
+      level = "go";
+      title = "Можно двигать дальше";
+      color = "#2E9E87";
+      note = "По текущим данным профиль выглядит достаточно сильным для следующего этапа.";
+    } else if (requiredMissing === 0 && riskCount <= 1 && hasEnoughTests) {
+      level = "ok";
+      title = "Можно на интервью";
+      color = "#2563EB";
+      note = "Маршрут оценки закрыт или почти закрыт. Решение лучше принимать после короткой проверки рисков.";
+    }
+
+    const checks = [
+      requiredMissing
+        ? `Добрать обязательные тесты: ${person.routeProgress.missingRequired.map((testId) => TEST_ROUTE_META[testId]?.label).filter(Boolean).join(", ")}.`
+        : "Обязательный маршрут по роли закрыт.",
+      riskCount
+        ? person.insight.risks.join(" ")
+        : "Критичных красных флагов по текущим данным не видно.",
+      person.profile.manager_comment
+        ? "Комментарий руководителя уже зафиксирован."
+        : "Добавьте короткий комментарий руководителя перед финальным решением.",
+    ];
+
+    return { level, title, color, note, checks };
+  };
+
   const getPersonRoleId = (person, entriesByType, profile = {}) => {
     if (profile.target_position_id) return profile.target_position_id;
     const clifton = entriesByType.clifton?.item;
@@ -1024,7 +1073,8 @@ export default function Admin() {
     const passedCount = Object.keys(entriesByType).length;
     const latestDateMs = person.latestDate ? new Date(person.latestDate).getTime() : 0;
     const focusScore = insight.risks.length * 10 + routeProgress.missingRequired.length * 4 + (profile.manager_comment ? 0 : 2) + Math.min(passedCount, 3);
-    return { ...person, entriesByType, profile, statusId, insight, roleId, roleName, routeProgress, passedCount, latestDateMs, focusScore };
+    const personWithSignals = { ...person, entriesByType, profile, statusId, insight, roleId, roleName, routeProgress, passedCount, latestDateMs, focusScore };
+    return { ...personWithSignals, decision: buildDecisionSummary(personWithSignals) };
   });
 
   const matchesCrmQuickFilter = (person) => {
@@ -1466,6 +1516,27 @@ export default function Admin() {
                       </div>
                     </div>
                     <button onClick={() => setOpenPersonKey(null)} style={{ ...S.btn, ...S.ghost, padding: "8px 12px", fontSize: 13 }}>Свернуть</button>
+                  </div>
+                  <div style={{ background: "#fff", border: `1.5px solid ${person.decision.color}44`, borderLeft: `5px solid ${person.decision.color}`, borderRadius: 14, padding: 16, marginBottom: 12 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", gap: 14, flexWrap: "wrap", alignItems: "flex-start" }}>
+                      <div style={{ flex: "1 1 360px" }}>
+                        <div style={{ fontSize: 12, fontWeight: 900, color: "#8A867E", textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 6 }}>Решение по кандидату</div>
+                        <div style={{ ...S.display, fontSize: 19, fontWeight: 900, color: person.decision.color }}>{person.decision.title}</div>
+                        <div style={{ fontSize: 14, color: "#44413B", lineHeight: 1.55, marginTop: 8 }}>{person.decision.note}</div>
+                      </div>
+                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
+                        <button onClick={() => saveCandidateProfile(person, { status: "interview" })} style={{ border: "none", borderRadius: 99, padding: "9px 12px", fontSize: 12, fontWeight: 900, cursor: "pointer", fontFamily: "inherit", background: "#EEF3FF", color: "#2563EB" }}>На интервью</button>
+                        <button onClick={() => saveCandidateProfile(person, { status: "offer" })} style={{ border: "none", borderRadius: 99, padding: "9px 12px", fontSize: 12, fontWeight: 900, cursor: "pointer", fontFamily: "inherit", background: "#E4F4F0", color: "#0F766E" }}>Оффер</button>
+                        <button onClick={() => saveCandidateProfile(person, { status: "rejected" })} style={{ border: "none", borderRadius: 99, padding: "9px 12px", fontSize: 12, fontWeight: 900, cursor: "pointer", fontFamily: "inherit", background: "#FCEAE6", color: "#E25C44" }}>Отказ</button>
+                      </div>
+                    </div>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 8, marginTop: 14 }}>
+                      {person.decision.checks.map((check, index) => (
+                        <div key={index} style={{ background: "#F8F7F4", border: "1px solid #EEECE7", borderRadius: 12, padding: "10px 12px", fontSize: 13, lineHeight: 1.45, color: "#44413B" }}>
+                          {check}
+                        </div>
+                      ))}
+                    </div>
                   </div>
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12, alignItems: "start", marginBottom: 12 }}>
                     <div style={{ background: "#fff", border: "1.5px solid #EEECE7", borderRadius: 14, padding: 14 }}>
