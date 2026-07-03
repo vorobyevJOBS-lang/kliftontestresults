@@ -1181,6 +1181,92 @@ export default function Admin() {
     return questions.slice(0, 7);
   };
 
+  const buildNextAction = (person) => {
+    const missingRequired = person.routeProgress.missingRequired
+      .map((testId) => TEST_ROUTE_META[testId]?.label)
+      .filter(Boolean);
+
+    if (missingRequired.length > 0) {
+      return {
+        level: "missing",
+        title: "Добрать тесты",
+        note: `Нужно пройти: ${missingRequired.join(", ")}.`,
+        color: "#D98E2B",
+        targetStatus: "testing",
+      };
+    }
+    if (!person.profile.manager_comment) {
+      return {
+        level: "comment",
+        title: "Добавить заметку",
+        note: "Зафиксируйте короткое управленческое решение или сомнение по человеку.",
+        color: "#7C3AED",
+        targetStatus: "review",
+      };
+    }
+    if (person.insight.risks.length > 0 && !["interview", "offer", "hired", "rejected"].includes(person.statusId)) {
+      return {
+        level: "risk",
+        title: "Проверить риск",
+        note: person.insight.risks[0],
+        color: "#E25C44",
+        targetStatus: "interview",
+      };
+    }
+    if (person.statusId === "testing" || person.statusId === "new") {
+      return {
+        level: "review",
+        title: "Передать на проверку",
+        note: "Маршрут закрыт, можно перейти к оценке руководителем.",
+        color: "#2563EB",
+        targetStatus: "review",
+      };
+    }
+    if (person.statusId === "review") {
+      return {
+        level: "interview",
+        title: "Назначить интервью",
+        note: "Карточка готова, лучше проверить человека вопросами из блока интервью.",
+        color: "#2563EB",
+        targetStatus: "interview",
+      };
+    }
+    if (person.statusId === "interview") {
+      return {
+        level: "decision",
+        title: "Принять решение",
+        note: "После интервью выберите: оффер, отказ или дополнительная проверка.",
+        color: "#0F766E",
+        targetStatus: "offer",
+      };
+    }
+    if (person.statusId === "offer") {
+      return {
+        level: "offer",
+        title: "Закрыть оффер",
+        note: "Если кандидат согласован, переведите его в принятые.",
+        color: "#2E9E87",
+        targetStatus: "hired",
+      };
+    }
+    if (person.statusId === "hired" && !person.profile.hired_feedback) {
+      return {
+        level: "feedback",
+        title: "Добавить пост-найм отзыв",
+        note: "Через 2-8 недель сравните прогноз тестов с реальной работой.",
+        color: "#6457D6",
+        targetStatus: "hired",
+      };
+    }
+    return {
+      level: "done",
+      title: "Карточка в порядке",
+      note: "Ключевые действия по человеку закрыты.",
+      color: "#2E9E87",
+      targetStatus: null,
+    };
+  };
+
   const getPersonRoleId = (person, entriesByType, profile = {}) => {
     if (profile.target_position_id) return profile.target_position_id;
     const clifton = entriesByType.clifton?.item;
@@ -1206,6 +1292,7 @@ export default function Admin() {
       decision: buildDecisionSummary(personWithSignals),
       readiness: buildReadinessScore(personWithSignals),
       interviewQuestions: buildInterviewQuestions(personWithSignals),
+      nextAction: buildNextAction(personWithSignals),
     };
   });
 
@@ -1216,6 +1303,7 @@ export default function Admin() {
     if (crmQuickFilter === "decision_ready") return person.readiness.score >= 80;
     if (crmQuickFilter === "incomplete") return person.routeProgress.missingRequired.length > 0;
     if (crmQuickFilter === "no_comment") return !person.profile.manager_comment;
+    if (crmQuickFilter === "needs_action") return !["hired", "rejected"].includes(person.statusId) && person.nextAction.level !== "done";
     return true;
   };
   const filteredCrmPeople = crmPeople
@@ -1247,6 +1335,7 @@ export default function Admin() {
     decisionReady: crmPeople.filter((person) => person.readiness.score >= 80).length,
     incomplete: crmPeople.filter((person) => person.routeProgress.missingRequired.length > 0).length,
     noComment: crmPeople.filter((person) => !person.profile.manager_comment).length,
+    needsAction: crmPeople.filter((person) => !["hired", "rejected"].includes(person.statusId) && person.nextAction.level !== "done").length,
   };
   const activeCrmFilterLabel =
     crmQuickFilter === "active" ? "В работе" :
@@ -1254,7 +1343,8 @@ export default function Admin() {
     crmQuickFilter === "ready" ? "3+ теста" :
     crmQuickFilter === "decision_ready" ? "Готовы к решению" :
     crmQuickFilter === "incomplete" ? "Неполный маршрут" :
-    crmQuickFilter === "no_comment" ? "Без заметки" : "";
+    crmQuickFilter === "no_comment" ? "Без заметки" :
+    crmQuickFilter === "needs_action" ? "Нужен шаг" : "";
 
   const openPersonTest = (entry) => {
     setTestTab(entry.type);
@@ -1437,6 +1527,7 @@ export default function Admin() {
               ["decision_ready", "Готовы к решению", crmStats.decisionReady, "#0F766E"],
               ["incomplete", "Неполный маршрут", crmStats.incomplete, "#D98E2B"],
               ["no_comment", "Без заметки", crmStats.noComment, "#7C3AED"],
+              ["needs_action", "Нужен шаг", crmStats.needsAction, "#6457D6"],
             ].map(([id, label, value, color]) => (
               <button
                 key={id}
@@ -1592,6 +1683,9 @@ export default function Admin() {
                   <div style={{ fontSize: 12, color: person.routeProgress.missingRequired.length ? "#D98E2B" : "#2E9E87", marginTop: 4 }}>
                     {person.routeProgress.missingRequired.length ? `Не хватает ${person.routeProgress.missingRequired.length} обяз.` : "Маршрут закрыт"}
                   </div>
+                  <div style={{ display: "inline-flex", marginTop: 8, fontSize: 11, fontWeight: 900, color: person.nextAction.color, background: `${person.nextAction.color}12`, border: `1px solid ${person.nextAction.color}22`, borderRadius: 99, padding: "4px 8px" }}>
+                    {person.nextAction.title}
+                  </div>
                 </div>
                 <div>
                   <div style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 14, fontWeight: 800, color: status.color, background: `${status.color}12`, border: `1px solid ${status.color}24`, borderRadius: 99, padding: "5px 10px" }}>
@@ -1692,6 +1786,23 @@ export default function Admin() {
                       <div style={{ background: person.readiness.gaps.length ? "#FFF8F0" : "#E4F4F0", border: `1px solid ${person.readiness.gaps.length ? "#F0D2A0" : "#BFE2D8"}`, borderRadius: 12, padding: "10px 12px", fontSize: 13, lineHeight: 1.45, color: "#44413B" }}>
                         {person.readiness.gaps.length ? `Для 100% не хватает: ${person.readiness.gaps.join(", ")}.` : "Картина достаточно полная для управленческого решения."}
                       </div>
+                    </div>
+                  </div>
+                  <div style={{ background: "#fff", border: `1.5px solid ${person.nextAction.color}33`, borderLeft: `5px solid ${person.nextAction.color}`, borderRadius: 14, padding: 16, marginBottom: 12 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", gap: 14, flexWrap: "wrap", alignItems: "center" }}>
+                      <div style={{ flex: "1 1 320px" }}>
+                        <div style={{ fontSize: 12, fontWeight: 900, color: "#8A867E", textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 5 }}>Следующий шаг</div>
+                        <div style={{ ...S.display, fontSize: 18, fontWeight: 900, color: person.nextAction.color }}>{person.nextAction.title}</div>
+                        <div style={{ fontSize: 14, color: "#44413B", lineHeight: 1.55, marginTop: 7 }}>{person.nextAction.note}</div>
+                      </div>
+                      {person.nextAction.targetStatus && (
+                        <button
+                          onClick={() => saveCandidateProfile(person, { status: person.nextAction.targetStatus })}
+                          style={{ border: "none", borderRadius: 99, padding: "10px 13px", fontSize: 12, fontWeight: 900, cursor: "pointer", fontFamily: "inherit", background: `${person.nextAction.color}12`, color: person.nextAction.color }}
+                        >
+                          Поставить статус: {STATUS_META[person.nextAction.targetStatus]?.label || "обновить"}
+                        </button>
+                      )}
                     </div>
                   </div>
                   <div style={{ background: "#fff", border: "1.5px solid #D8D4F5", borderRadius: 14, padding: 16, marginBottom: 12 }}>
