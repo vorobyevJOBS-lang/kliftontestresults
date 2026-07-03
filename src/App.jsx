@@ -14,7 +14,7 @@ import AudienceFields from "./AudienceFields";
 import { BRANCHES, branchById } from "./org";
 import TestStartLayout, { StartButton, startInputStyle, startLabelStyle } from "./TestStartLayout";
 import { getCandidateKey } from "./candidateIdentity";
-import { getTestRouteForRole, TEST_ROUTE_META } from "./testRoutes";
+import { getRouteSummary, getTestRouteForRole, TEST_ROUTE_META } from "./testRoutes";
 
 // ─────────────────────────────────────────────────────────────
 // ДОМЕНЫ — визуальная группировка талантов
@@ -425,6 +425,7 @@ export default function App() {
 
   const availablePositions = positionsForSchool(branchById(branchId).school);
   const selectedRoute = getTestRouteForRole(positionId);
+  const selectedRouteSummary = getRouteSummary(selectedRoute);
 
   useEffect(() => {
     // если текущая должность недоступна для выбранного филиала (например тьютор для Клячки) — сбросить на первую доступную
@@ -624,6 +625,19 @@ export default function App() {
           style={startInputStyle}>
           {availablePositions.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
         </select>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12 }}>
+          <span style={{ fontSize: 12, fontWeight: 800, color: selectedRouteSummary.color, background: `${selectedRouteSummary.color}14`, borderRadius: 99, padding: "6px 10px" }}>
+            {selectedRouteSummary.level}
+          </span>
+          <span style={{ fontSize: 12, fontWeight: 800, color: "#6B675F", background: "#F1EFEA", borderRadius: 99, padding: "6px 10px" }}>
+            Обязательно: ≈ {selectedRouteSummary.requiredMinutes} мин
+          </span>
+          {selectedRouteSummary.optionalCount > 0 && (
+            <span style={{ fontSize: 12, fontWeight: 800, color: "#8A867E", background: "#F8F7F4", borderRadius: 99, padding: "6px 10px" }}>
+              Дополнительно: ≈ {selectedRouteSummary.optionalMinutes} мин
+            </span>
+          )}
+        </div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 8, marginTop: 14 }}>
           {selectedRoute.required.map((testId) => {
             const meta = TEST_ROUTE_META[testId];
@@ -632,7 +646,7 @@ export default function App() {
                 style={{ border: "1.5px solid #D8D5CF", background: "#F8F7F4", borderRadius: 12, padding: "11px 12px", cursor: "pointer", textAlign: "left", fontFamily: "inherit" }}>
                 <div style={{ fontSize: 18 }}>{meta.icon}</div>
                 <div style={{ fontWeight: 800, marginTop: 4 }}>{meta.label}</div>
-                <div style={{ fontSize: 12, color: "#2E9E87", marginTop: 3 }}>Обязательный</div>
+                <div style={{ fontSize: 12, color: "#2E9E87", marginTop: 3 }}>Обязательный · ≈ {meta.minutes} мин</div>
               </button>
             );
           })}
@@ -643,7 +657,7 @@ export default function App() {
                 style={{ border: "1.5px solid #EEECE7", background: "#fff", borderRadius: 12, padding: "11px 12px", cursor: "pointer", textAlign: "left", fontFamily: "inherit" }}>
                 <div style={{ fontSize: 18 }}>{meta.icon}</div>
                 <div style={{ fontWeight: 800, marginTop: 4 }}>{meta.label}</div>
-                <div style={{ fontSize: 12, color: "#8A867E", marginTop: 3 }}>Дополнительно</div>
+                <div style={{ fontSize: 12, color: "#8A867E", marginTop: 3 }}>Дополнительно · ≈ {meta.minutes} мин</div>
               </button>
             );
           })}

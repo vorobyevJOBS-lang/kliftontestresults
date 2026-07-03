@@ -325,6 +325,7 @@ export default function Admin() {
       `Здравствуйте${person.name && person.name !== "Без имени" ? `, ${person.name}` : ""}!`,
       "",
       `Для оценки на позицию «${person.roleName}» нужно пройти тесты в системе:`,
+      `Маршрут: ${person.routeProgress.level}, обязательная часть примерно ${person.routeProgress.requiredMinutes} минут.`,
       `Обязательные: ${required.join(", ")}.`,
       optional.length ? `Дополнительно: ${optional.join(", ")}.` : "",
       missing.length ? `Сейчас осталось пройти: ${missing.join(", ")}.` : "Обязательные тесты уже пройдены.",
@@ -2081,6 +2082,19 @@ export default function Admin() {
                         <div style={{ fontSize: 12, color: "#8A867E", lineHeight: 1.45, marginTop: 4 }}>
                           Для объединения результатов просите указывать один email во всех тестах.
                         </div>
+                        <div style={{ display: "flex", gap: 7, flexWrap: "wrap", marginTop: 9 }}>
+                          <span style={{ fontSize: 12, fontWeight: 900, color: person.routeProgress.color, background: `${person.routeProgress.color}14`, borderRadius: 99, padding: "5px 9px" }}>
+                            {person.routeProgress.level}
+                          </span>
+                          <span style={{ fontSize: 12, fontWeight: 900, color: "#6B675F", background: "#F1EFEA", borderRadius: 99, padding: "5px 9px" }}>
+                            Обязательно: ≈ {person.routeProgress.requiredMinutes} мин
+                          </span>
+                          {person.routeProgress.optionalCount > 0 && (
+                            <span style={{ fontSize: 12, fontWeight: 900, color: "#8A867E", background: "#F8F7F4", borderRadius: 99, padding: "5px 9px" }}>
+                              Дополнительно: ≈ {person.routeProgress.optionalMinutes} мин
+                            </span>
+                          )}
+                        </div>
                       </div>
                       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "flex-start", justifyContent: "flex-end" }}>
                         <div style={{ fontSize: 13, fontWeight: 800, color: person.routeProgress.missingRequired.length ? "#D98E2B" : "#2E9E87", background: person.routeProgress.missingRequired.length ? "#FBF1E2" : "#E4F4F0", borderRadius: 99, padding: "7px 10px" }}>
@@ -2110,7 +2124,7 @@ export default function Admin() {
                               <span style={{ fontSize: 12, fontWeight: 900, color: done ? "#2E9E87" : required ? "#E25C44" : "#8A867E" }}>{done ? "✓" : required ? "!" : "·"}</span>
                             </div>
                             <div style={{ fontSize: 11, color: done ? "#2E9E87" : required ? "#E25C44" : "#8A867E", marginTop: 4 }}>
-                              {done ? "Пройден" : required ? "Обязательный" : "Дополнительно"}
+                              {done ? "Пройден" : required ? "Обязательный" : "Дополнительно"} · ≈ {meta.minutes} мин
                             </div>
                           </button>
                         );

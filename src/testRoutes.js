@@ -1,10 +1,10 @@
 export const TEST_ROUTE_META = {
-  clifton: { label: "Клифтон", icon: "🏆" },
-  rezultat: { label: "Опыт", icon: "📊" },
-  tools: { label: "Профиль", icon: "🎯" },
-  logis: { label: "Логика", icon: "🧠" },
-  sails: { label: "Продажник", icon: "💎" },
-  prim: { label: "Анализ", icon: "🧭" },
+  clifton: { label: "Клифтон", icon: "🏆", minutes: 50 },
+  rezultat: { label: "Опыт", icon: "📊", minutes: 12 },
+  tools: { label: "Профиль", icon: "🎯", minutes: 35 },
+  logis: { label: "Логика", icon: "🧠", minutes: 30 },
+  sails: { label: "Продажник", icon: "💎", minutes: 30 },
+  prim: { label: "Анализ", icon: "🧭", minutes: 36 },
 };
 
 const LEADER_ROLES = new Set(["supervisor", "callcenter_head", "product_manager", "sales_head", "director"]);
@@ -70,11 +70,29 @@ export function getRouteProgress(entriesByType, roleId) {
   const route = getTestRouteForRole(roleId);
   const requiredDone = route.required.filter((testId) => entriesByType[testId]);
   const optionalDone = route.optional.filter((testId) => entriesByType[testId]);
+  const summary = getRouteSummary(route);
   return {
     ...route,
+    ...summary,
     requiredDone,
     optionalDone,
     missingRequired: route.required.filter((testId) => !entriesByType[testId]),
     missingOptional: route.optional.filter((testId) => !entriesByType[testId]),
+  };
+}
+
+export function getRouteSummary(route) {
+  const requiredMinutes = route.required.reduce((sum, testId) => sum + (TEST_ROUTE_META[testId]?.minutes || 0), 0);
+  const optionalMinutes = route.optional.reduce((sum, testId) => sum + (TEST_ROUTE_META[testId]?.minutes || 0), 0);
+  const requiredCount = route.required.length;
+  const level = requiredCount <= 1 ? "Лёгкий маршрут" : requiredCount <= 3 ? "Базовый маршрут" : "Полный маршрут";
+  const color = requiredCount <= 1 ? "#2E9E87" : requiredCount <= 3 ? "#D98E2B" : "#6457D6";
+  return {
+    requiredMinutes,
+    optionalMinutes,
+    requiredCount,
+    optionalCount: route.optional.length,
+    level,
+    color,
   };
 }
