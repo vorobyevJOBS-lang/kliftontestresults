@@ -59,6 +59,9 @@ const ADMIN_RESPONSIVE_CSS = `
     [data-crm-row] {
       grid-template-columns: 1fr !important;
     }
+    [data-date-filter] {
+      grid-template-columns: 1fr !important;
+    }
   }
 `;
 
@@ -133,6 +136,9 @@ export default function Admin() {
   const [primLoading, setPrimLoading] = useState(false);
   const [openPrim, setOpenPrim] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [dateFilter, setDateFilter] = useState("all");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
   const [loadError, setLoadError] = useState("");
   const [openPersonKey, setOpenPersonKey] = useState(null);
   const [crmStatusFilter, setCrmStatusFilter] = useState("all");
@@ -940,6 +946,51 @@ export default function Admin() {
   // ── АРХИВ ──
   // Доступные филиалы: суперадмин видит всё (с фильтром), обычный админ — только свой
   const normalizedSearch = searchQuery.trim().toLowerCase();
+  const toDateInputValue = (date) => {
+    const yyyy = date.getFullYear();
+    const mm = String(date.getMonth() + 1).padStart(2, "0");
+    const dd = String(date.getDate()).padStart(2, "0");
+    return `${yyyy}-${mm}-${dd}`;
+  };
+  const getDateRange = () => {
+    const now = new Date();
+    const end = new Date(now);
+    end.setHours(23, 59, 59, 999);
+    if (dateFilter === "today") {
+      const start = new Date(now);
+      start.setHours(0, 0, 0, 0);
+      return { start, end };
+    }
+    if (dateFilter === "7d" || dateFilter === "30d") {
+      const days = dateFilter === "7d" ? 7 : 30;
+      const start = new Date(now);
+      start.setDate(start.getDate() - days + 1);
+      start.setHours(0, 0, 0, 0);
+      return { start, end };
+    }
+    if (dateFilter === "custom") {
+      const start = dateFrom ? new Date(`${dateFrom}T00:00:00`) : null;
+      const customEnd = dateTo ? new Date(`${dateTo}T23:59:59.999`) : null;
+      return { start, end: customEnd };
+    }
+    return { start: null, end: null };
+  };
+  const dateRange = getDateRange();
+  const matchesDate = (item) => {
+    if (!dateRange.start && !dateRange.end) return true;
+    const rawDate = resultDate(item);
+    if (!rawDate) return false;
+    const date = new Date(rawDate);
+    if (Number.isNaN(date.getTime())) return false;
+    if (dateRange.start && date < dateRange.start) return false;
+    if (dateRange.end && date > dateRange.end) return false;
+    return true;
+  };
+  const activeDateLabel =
+    dateFilter === "today" ? "сегодня" :
+    dateFilter === "7d" ? "7 дней" :
+    dateFilter === "30d" ? "30 дней" :
+    dateFilter === "custom" ? "свой период" : "";
   const matchesSearch = (item) => {
     if (!normalizedSearch) return true;
     return [
@@ -969,13 +1020,14 @@ export default function Admin() {
   const visibleResults = results
     .filter(matchesBranch)
     .filter(matchesAudience)
+    .filter(matchesDate)
     .filter(matchesSearch);
 
   const filterByBranch = (items) => {
-    return items.filter(matchesBranch).filter(matchesAudience).filter(matchesSearch);
+    return items.filter(matchesBranch).filter(matchesAudience).filter(matchesDate).filter(matchesSearch);
   };
   const filterByScope = (items) => {
-    return items.filter(matchesBranch).filter(matchesAudience);
+    return items.filter(matchesBranch).filter(matchesAudience).filter(matchesDate);
   };
   const visibleTools = filterByBranch(toolsResults);
   const visibleRezultat = filterByBranch(rezultatResults);
@@ -1467,6 +1519,52 @@ export default function Admin() {
         />
       </div>
 
+      <div data-date-filter style={{ display: "grid", gridTemplateColumns: "minmax(180px, 1fr) repeat(2, minmax(150px, .7fr))", gap: 10, marginBottom: 18 }}>
+        <select
+          value={dateFilter}
+          onChange={(e) => {
+            const value = e.target.value;
+            setDateFilter(value);
+            if (value === "today") {
+              const today = toDateInputValue(new Date());
+              setDateFrom(today);
+              setDateTo(today);
+            } else if (value === "7d" || value === "30d") {
+              const days = value === "7d" ? 7 : 30;
+              const end = new Date();
+              const start = new Date();
+              start.setDate(start.getDate() - days + 1);
+              setDateFrom(toDateInputValue(start));
+              setDateTo(toDateInputValue(end));
+            } else if (value === "all") {
+              setDateFrom("");
+              setDateTo("");
+            }
+          }}
+          style={{ width: "100%", boxSizing: "border-box", padding: "12px 14px", fontSize: 15, borderRadius: 12, border: "1.5px solid #D8D5CF", fontFamily: "inherit", outline: "none", background: "#fff" }}
+        >
+          <option value="all">За всё время</option>
+          <option value="today">Сегодня</option>
+          <option value="7d">Последние 7 дней</option>
+          <option value="30d">Последние 30 дней</option>
+          <option value="custom">Свой период</option>
+        </select>
+        <input
+          type="date"
+          value={dateFrom}
+          onChange={(e) => { setDateFilter("custom"); setDateFrom(e.target.value); }}
+          disabled={dateFilter !== "custom"}
+          style={{ width: "100%", boxSizing: "border-box", padding: "11px 14px", fontSize: 15, borderRadius: 12, border: "1.5px solid #D8D5CF", fontFamily: "inherit", outline: "none", background: dateFilter === "custom" ? "#fff" : "#F1EFEA", color: dateFilter === "custom" ? "#1C1B1A" : "#8A867E" }}
+        />
+        <input
+          type="date"
+          value={dateTo}
+          onChange={(e) => { setDateFilter("custom"); setDateTo(e.target.value); }}
+          disabled={dateFilter !== "custom"}
+          style={{ width: "100%", boxSizing: "border-box", padding: "11px 14px", fontSize: 15, borderRadius: 12, border: "1.5px solid #D8D5CF", fontFamily: "inherit", outline: "none", background: dateFilter === "custom" ? "#fff" : "#F1EFEA", color: dateFilter === "custom" ? "#1C1B1A" : "#8A867E" }}
+        />
+      </div>
+
       <div style={{ display: "flex", gap: 10, marginBottom: 18 }}>
         {[["candidate", "Кандидаты"], ["employee", "Действующие сотрудники"]].map(([id, label]) => (
           <button key={id} onClick={() => setTypeTab(id)}
@@ -1484,12 +1582,18 @@ export default function Admin() {
               Сейчас показано: <b>{activeStat?.[2] ?? 0}</b> · всего по фильтрам: <b>{totalVisible}</b>
             </div>
           </div>
-          {searchQuery.trim() && (
-            <button onClick={() => setSearchQuery("")} style={{ ...S.btn, ...S.ghost, padding: "8px 12px", fontSize: 13 }}>
-              Сбросить поиск
+          {(searchQuery.trim() || dateFilter !== "all") && (
+            <button onClick={() => { setSearchQuery(""); setDateFilter("all"); setDateFrom(""); setDateTo(""); }} style={{ ...S.btn, ...S.ghost, padding: "8px 12px", fontSize: 13 }}>
+              Сбросить фильтры
             </button>
           )}
         </div>
+        {activeDateLabel && (
+          <div style={{ fontSize: 13, color: "#6B675F", margin: "-6px 0 12px" }}>
+            Период прохождения: <b>{activeDateLabel}</b>
+            {dateFilter === "custom" && (dateFrom || dateTo) ? ` · ${dateFrom || "начало"} — ${dateTo || "сегодня"}` : ""}
+          </div>
+        )}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(96px,1fr))", gap: 8 }}>
           {archiveStats.map(([id, label, count]) => (
             <button
