@@ -1084,6 +1084,15 @@ export default function Admin() {
     if (entry.type === "prim") setOpenPrim(entry.item);
   };
 
+  const openPersonCard = (personKey) => {
+    setOpenPersonKey(personKey);
+    window.setTimeout(() => {
+      const safeKey = personKey.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+      const node = document.querySelector(`[data-person-key="${safeKey}"]`);
+      if (node) node.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 80);
+  };
+
   const adminWrap = {
     ...S.wrap,
     maxWidth: testTab === "people" ? "none" : 1180,
@@ -1286,7 +1295,7 @@ export default function Admin() {
                 return (
                   <button
                     key={person.key}
-                    onClick={() => setOpenPersonKey(person.key)}
+                    onClick={() => openPersonCard(person.key)}
                     style={{ border: "1.5px solid #F3C7BA", background: "#FFF8F5", borderRadius: 14, padding: 14, textAlign: "left", cursor: "pointer", fontFamily: "inherit" }}
                   >
                     <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "flex-start" }}>
@@ -1341,13 +1350,13 @@ export default function Admin() {
           const status = STATUS_META[statusId] || STATUS_META.testing;
           const insight = buildPersonInsight(person, entriesByType);
           return (
-            <div key={person.key} style={{ ...S.card, padding: 0, overflow: "hidden" }}>
-              <button
+            <div key={person.key} data-person-key={person.key} style={{ ...S.card, padding: 0, overflow: "hidden" }}>
+              <div
                 data-crm-row
                 onClick={() => setOpenPersonKey(isOpenPerson ? null : person.key)}
                 style={{
                   width: "100%",
-                  border: "none",
+                  boxSizing: "border-box",
                   background: "#fff",
                   padding: "18px 20px",
                   cursor: "pointer",
@@ -1400,6 +1409,29 @@ export default function Admin() {
                     {status.label}
                   </div>
                   <div style={{ fontSize: 12, color: "#8A867E", marginTop: 4 }}>{latestDate}</div>
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 10 }}>
+                    {[
+                      ["interview", "Интервью"],
+                      ["offer", "Оффер"],
+                      ["hired", "Принят"],
+                      ["rejected", "Отказ"],
+                    ].map(([nextStatusId, label]) => {
+                      const nextStatus = STATUS_META[nextStatusId];
+                      return (
+                        <button
+                          key={nextStatusId}
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            saveCandidateProfile(person, { status: nextStatusId });
+                          }}
+                          style={{ border: "none", borderRadius: 99, padding: "5px 8px", fontSize: 11, fontWeight: 800, cursor: "pointer", fontFamily: "inherit", background: statusId === nextStatusId ? nextStatus.color : `${nextStatus.color}12`, color: statusId === nextStatusId ? "#fff" : nextStatus.color }}
+                        >
+                          {label}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
                   {Object.entries(TEST_META).map(([type, meta]) => {
@@ -1423,7 +1455,7 @@ export default function Admin() {
                     );
                   })}
                 </div>
-              </button>
+              </div>
               {isOpenPerson && (
                 <div style={{ borderTop: "1px solid #EEECE7", padding: "16px 20px 20px", background: "#F8F7F4" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", marginBottom: 14 }}>
