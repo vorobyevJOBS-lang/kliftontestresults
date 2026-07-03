@@ -305,6 +305,32 @@ export default function Admin() {
     } catch (e) { console.error(e); }
   }
 
+  function copyCandidateRoute(person) {
+    const required = person.routeProgress.required
+      .map((testId) => TEST_ROUTE_META[testId]?.label)
+      .filter(Boolean);
+    const optional = person.routeProgress.optional
+      .map((testId) => TEST_ROUTE_META[testId]?.label)
+      .filter(Boolean);
+    const missing = person.routeProgress.missingRequired
+      .map((testId) => TEST_ROUTE_META[testId]?.label)
+      .filter(Boolean);
+    const lines = [
+      `Здравствуйте${person.name && person.name !== "Без имени" ? `, ${person.name}` : ""}!`,
+      "",
+      `Для оценки на позицию «${person.roleName}» нужно пройти тесты в системе:`,
+      `Обязательные: ${required.join(", ")}.`,
+      optional.length ? `Дополнительно: ${optional.join(", ")}.` : "",
+      missing.length ? `Сейчас осталось пройти: ${missing.join(", ")}.` : "Обязательные тесты уже пройдены.",
+      "",
+      "Важно: во всех тестах указывайте один и тот же email, чтобы результаты корректно объединились в одну карточку.",
+      person.email ? `Ваш email для тестов: ${person.email}` : "Email лучше указать тот же, который вы отправляли HR.",
+      "",
+      "Ссылка на тесты: https://kliftontestresults.vercel.app",
+    ].filter(Boolean).join("\n");
+    copyReport(lines);
+  }
+
   async function downloadPdf(candidateName, sourceNode = reportRef.current) {
     if (!sourceNode || pdfLoading) return;
     setPdfLoading(true);
@@ -1894,9 +1920,20 @@ export default function Admin() {
                       <div>
                         <div style={{ fontSize: 12, fontWeight: 800, color: "#8A867E", marginBottom: 4 }}>Маршрут оценки</div>
                         <div style={{ fontWeight: 900 }}>{person.roleName}</div>
+                        <div style={{ fontSize: 12, color: "#8A867E", lineHeight: 1.45, marginTop: 4 }}>
+                          Для объединения результатов просите указывать один email во всех тестах.
+                        </div>
                       </div>
-                      <div style={{ fontSize: 13, fontWeight: 800, color: person.routeProgress.missingRequired.length ? "#D98E2B" : "#2E9E87" }}>
-                        {person.routeProgress.missingRequired.length ? `Не хватает: ${person.routeProgress.missingRequired.length}` : "Картина полная"}
+                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "flex-start", justifyContent: "flex-end" }}>
+                        <div style={{ fontSize: 13, fontWeight: 800, color: person.routeProgress.missingRequired.length ? "#D98E2B" : "#2E9E87", background: person.routeProgress.missingRequired.length ? "#FBF1E2" : "#E4F4F0", borderRadius: 99, padding: "7px 10px" }}>
+                          {person.routeProgress.missingRequired.length ? `Не хватает: ${person.routeProgress.missingRequired.length}` : "Картина полная"}
+                        </div>
+                        <button
+                          onClick={() => copyCandidateRoute(person)}
+                          style={{ ...S.btn, ...S.ghost, padding: "7px 11px", fontSize: 12 }}
+                        >
+                          {copied ? "Скопировано" : "Скопировать маршрут"}
+                        </button>
                       </div>
                     </div>
                     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 8 }}>
