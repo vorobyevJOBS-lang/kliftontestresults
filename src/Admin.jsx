@@ -1373,6 +1373,23 @@ export default function Admin() {
       nextAction: buildNextAction(personWithSignals),
     };
   });
+  const normalizePersonName = (name) => (name || "")
+    .toLowerCase()
+    .replace(/ё/g, "е")
+    .replace(/[^a-zа-я0-9\s]/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  const duplicateGroups = Object.values(crmPeople.reduce((acc, person) => {
+    const key = normalizePersonName(person.name);
+    if (!key || key === "без имени") return acc;
+    acc[key] = acc[key] || [];
+    acc[key].push(person);
+    return acc;
+  }, {})).filter((group) => group.length > 1);
+  const duplicatePeopleKeys = new Set(duplicateGroups.flat().map((person) => person.key));
+  const duplicateGroupByKey = Object.fromEntries(
+    duplicateGroups.flatMap((group) => group.map((person) => [person.key, group.filter((item) => item.key !== person.key)]))
+  );
 
   const matchesCrmQuickFilter = (person) => {
     if (crmQuickFilter === "active") return !["hired", "rejected"].includes(person.statusId);
@@ -1382,6 +1399,7 @@ export default function Admin() {
     if (crmQuickFilter === "incomplete") return person.routeProgress.missingRequired.length > 0;
     if (crmQuickFilter === "no_comment") return !person.profile.manager_comment;
     if (crmQuickFilter === "needs_action") return !["hired", "rejected"].includes(person.statusId) && person.nextAction.level !== "done";
+    if (crmQuickFilter === "duplicates") return duplicatePeopleKeys.has(person.key);
     return true;
   };
   const filteredCrmPeople = crmPeople
@@ -1414,6 +1432,7 @@ export default function Admin() {
     incomplete: crmPeople.filter((person) => person.routeProgress.missingRequired.length > 0).length,
     noComment: crmPeople.filter((person) => !person.profile.manager_comment).length,
     needsAction: crmPeople.filter((person) => !["hired", "rejected"].includes(person.statusId) && person.nextAction.level !== "done").length,
+    duplicates: duplicatePeopleKeys.size,
   };
   const activeCrmFilterLabel =
     crmQuickFilter === "active" ? "В работе" :
@@ -1422,7 +1441,8 @@ export default function Admin() {
     crmQuickFilter === "decision_ready" ? "Готовы к решению" :
     crmQuickFilter === "incomplete" ? "Неполный маршрут" :
     crmQuickFilter === "no_comment" ? "Без заметки" :
-    crmQuickFilter === "needs_action" ? "Нужен шаг" : "";
+    crmQuickFilter === "needs_action" ? "Нужен шаг" :
+    crmQuickFilter === "duplicates" ? "Возможные дубли" : "";
 
   const openPersonTest = (entry) => {
     setTestTab(entry.type);
@@ -1658,6 +1678,7 @@ export default function Admin() {
               ["incomplete", "Неполный маршрут", crmStats.incomplete, "#D98E2B"],
               ["no_comment", "Без заметки", crmStats.noComment, "#7C3AED"],
               ["needs_action", "Нужен шаг", crmStats.needsAction, "#6457D6"],
+              ["duplicates", "Возможные дубли", crmStats.duplicates, "#C2410C"],
             ].map(([id, label, value, color]) => (
               <button
                 key={id}
@@ -1759,6 +1780,7 @@ export default function Admin() {
           const status = STATUS_META[statusId] || STATUS_META.testing;
           const insight = buildPersonInsight(person, entriesByType);
           const activityItems = candidateActivities[person.key] || [];
+          const duplicateMatches = duplicateGroupByKey[person.key] || [];
           return (
             <div key={person.key} data-person-key={person.key} style={{ ...S.card, padding: 0, overflow: "hidden" }}>
               <div
@@ -1800,6 +1822,11 @@ export default function Admin() {
                     {!profile.manager_comment && (
                       <span style={{ fontSize: 11, fontWeight: 800, color: "#D98E2B", background: "#FBF1E2", borderRadius: 99, padding: "4px 8px" }}>
                         нужна заметка
+                      </span>
+                    )}
+                    {duplicateMatches.length > 0 && (
+                      <span style={{ fontSize: 11, fontWeight: 800, color: "#C2410C", background: "#FFF1E8", borderRadius: 99, padding: "4px 8px" }}>
+                        возможный дубль
                       </span>
                     )}
                   </div>
@@ -1935,6 +1962,33 @@ export default function Admin() {
                       )}
                     </div>
                   </div>
+                  {duplicateMatches.length > 0 && (
+                    <div style={{ background: "#FFF8F3", border: "1.5px solid #FDBA74", borderLeft: "5px solid #C2410C", borderRadius: 14, padding: 16, marginBottom: 12 }}>
+                      <div style={{ fontSize: 12, fontWeight: 900, color: "#C2410C", textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 6 }}>Возможные дубли</div>
+                      <div style={{ fontSize: 14, color: "#44413B", lineHeight: 1.5, marginBottom: 10 }}>
+                        Найдены карточки с таким же ФИО. Проверьте email и объединяйте результаты через одинаковый email в следующих тестах.
+                      </div>
+                      <div style={{ display: "grid", gap: 8 }}>
+                        {duplicateMatches.map((match) => (
+                          <button
+                            key={match.key}
+                            onClick={() => openPersonCard(match.key)}
+                            style={{ border: "1px solid #FED7AA", background: "#fff", borderRadius: 12, padding: "10px 12px", textAlign: "left", cursor: "pointer", fontFamily: "inherit" }}
+                          >
+                            <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+                              <div>
+                                <div style={{ fontSize: 13, fontWeight: 900, color: "#1C1B1A" }}>{match.name}</div>
+                                <div style={{ fontSize: 12, color: "#8A867E", marginTop: 3 }}>{match.email || "email не указан"} · {match.phone || "телефон не указан"}</div>
+                              </div>
+                              <div style={{ fontSize: 12, fontWeight: 900, color: "#C2410C", background: "#FFF1E8", borderRadius: 99, padding: "5px 9px" }}>
+                                {match.passedCount}/{Object.keys(TEST_META).length} тестов
+                              </div>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   <div style={{ background: "#fff", border: "1.5px solid #D8D4F5", borderRadius: 14, padding: 16, marginBottom: 12 }}>
                     <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", marginBottom: 12 }}>
                       <div>
