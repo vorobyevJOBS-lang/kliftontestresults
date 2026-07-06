@@ -143,6 +143,7 @@ export default function Admin() {
   const [openPersonKey, setOpenPersonKey] = useState(null);
   const [crmStatusFilter, setCrmStatusFilter] = useState("all");
   const [crmQuickFilter, setCrmQuickFilter] = useState("all");
+  const [crmRoleFilter, setCrmRoleFilter] = useState("all");
   const [crmSort, setCrmSort] = useState("priority");
   const [candidateProfiles, setCandidateProfiles] = useState({});
   const [candidateActivities, setCandidateActivities] = useState({});
@@ -1403,7 +1404,8 @@ export default function Admin() {
     if (crmQuickFilter === "duplicates") return duplicatePeopleKeys.has(person.key);
     return true;
   };
-  const filteredCrmPeople = crmPeople
+  const roleFilteredCrmPeople = crmPeople.filter((person) => crmRoleFilter === "all" || person.roleId === crmRoleFilter);
+  const filteredCrmPeople = roleFilteredCrmPeople
     .filter((person) => crmStatusFilter === "all" || person.statusId === crmStatusFilter)
     .filter(matchesCrmQuickFilter)
     .sort((a, b) => {
@@ -1418,22 +1420,22 @@ export default function Admin() {
     id,
     label,
     color,
-    count: crmPeople.filter((person) => person.statusId === id).length,
+    count: roleFilteredCrmPeople.filter((person) => person.statusId === id).length,
   }));
-  const crmFocusPeople = [...crmPeople]
+  const crmFocusPeople = [...roleFilteredCrmPeople]
     .filter((person) => person.insight.risks.length > 0 || !person.profile.manager_comment)
     .sort((a, b) => b.focusScore - a.focusScore || b.latestDateMs - a.latestDateMs)
     .slice(0, 3);
   const crmStats = {
-    total: crmPeople.length,
-    active: crmPeople.filter((person) => !["hired", "rejected"].includes(person.statusId)).length,
-    risk: crmPeople.filter((person) => person.insight.risks.length > 0).length,
-    ready: crmPeople.filter((person) => person.passedCount >= 3).length,
-    decisionReady: crmPeople.filter((person) => person.readiness.score >= 80).length,
-    incomplete: crmPeople.filter((person) => person.routeProgress.missingRequired.length > 0).length,
-    noComment: crmPeople.filter((person) => !person.profile.manager_comment).length,
-    needsAction: crmPeople.filter((person) => !["hired", "rejected"].includes(person.statusId) && person.nextAction.level !== "done").length,
-    duplicates: duplicatePeopleKeys.size,
+    total: roleFilteredCrmPeople.length,
+    active: roleFilteredCrmPeople.filter((person) => !["hired", "rejected"].includes(person.statusId)).length,
+    risk: roleFilteredCrmPeople.filter((person) => person.insight.risks.length > 0).length,
+    ready: roleFilteredCrmPeople.filter((person) => person.passedCount >= 3).length,
+    decisionReady: roleFilteredCrmPeople.filter((person) => person.readiness.score >= 80).length,
+    incomplete: roleFilteredCrmPeople.filter((person) => person.routeProgress.missingRequired.length > 0).length,
+    noComment: roleFilteredCrmPeople.filter((person) => !person.profile.manager_comment).length,
+    needsAction: roleFilteredCrmPeople.filter((person) => !["hired", "rejected"].includes(person.statusId) && person.nextAction.level !== "done").length,
+    duplicates: roleFilteredCrmPeople.filter((person) => duplicatePeopleKeys.has(person.key)).length,
   };
   const activeCrmFilterLabel =
     crmQuickFilter === "active" ? "В работе" :
@@ -1650,6 +1652,14 @@ export default function Admin() {
             </div>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
               <select
+                value={crmRoleFilter}
+                onChange={(e) => setCrmRoleFilter(e.target.value)}
+                style={{ padding: "9px 12px", fontSize: 13, borderRadius: 10, border: "1.5px solid #D8D5CF", fontFamily: "inherit", outline: "none", background: "#fff", maxWidth: 230 }}
+              >
+                <option value="all">Все должности</option>
+                {POSITIONS.map((position) => <option key={position.id} value={position.id}>{position.name}</option>)}
+              </select>
+              <select
                 value={crmSort}
                 onChange={(e) => setCrmSort(e.target.value)}
                 style={{ padding: "9px 12px", fontSize: 13, borderRadius: 10, border: "1.5px solid #D8D5CF", fontFamily: "inherit", outline: "none", background: "#fff" }}
@@ -1661,8 +1671,8 @@ export default function Admin() {
                 <option value="missing">Сначала неполные</option>
                 <option value="tests">Сначала больше тестов</option>
               </select>
-              {(crmStatusFilter !== "all" || crmQuickFilter !== "all") && (
-                <button onClick={() => { setCrmStatusFilter("all"); setCrmQuickFilter("all"); }} style={{ ...S.btn, ...S.ghost, padding: "8px 12px", fontSize: 13 }}>
+              {(crmStatusFilter !== "all" || crmQuickFilter !== "all" || crmRoleFilter !== "all") && (
+                <button onClick={() => { setCrmStatusFilter("all"); setCrmQuickFilter("all"); setCrmRoleFilter("all"); }} style={{ ...S.btn, ...S.ghost, padding: "8px 12px", fontSize: 13 }}>
                   Сбросить CRM-фильтр
                 </button>
               )}
@@ -1706,7 +1716,7 @@ export default function Admin() {
               onClick={() => { setCrmStatusFilter("all"); setCrmQuickFilter("all"); }}
               style={{ ...S.btn, padding: "10px 14px", fontSize: 13, whiteSpace: "nowrap", flex: "0 0 auto", background: crmStatusFilter === "all" ? "#1C1B1A" : "#F1EFEA", color: crmStatusFilter === "all" ? "#fff" : "#1C1B1A" }}
             >
-              Все · {crmPeople.length}
+              Все · {roleFilteredCrmPeople.length}
             </button>
             {crmCounts.map((stage) => (
               <button
@@ -1752,11 +1762,12 @@ export default function Admin() {
             <div style={{ fontSize: 14 }}>Измените статус, поиск или фильтр филиала, чтобы увидеть людей.</div>
           </div>
         )}
-        {filteredCrmPeople.length > 0 && (crmQuickFilter !== "all" || crmStatusFilter !== "all") && (
+        {filteredCrmPeople.length > 0 && (crmQuickFilter !== "all" || crmStatusFilter !== "all" || crmRoleFilter !== "all") && (
           <div style={{ fontSize: 13, color: "#6B675F", margin: "-4px 0 12px" }}>
             Показано: <b>{filteredCrmPeople.length}</b>
             {activeCrmFilterLabel ? ` · фильтр: ${activeCrmFilterLabel}` : ""}
             {crmStatusFilter !== "all" ? ` · статус: ${STATUS_META[crmStatusFilter]?.label || crmStatusFilter}` : ""}
+            {crmRoleFilter !== "all" ? ` · должность: ${POSITIONS.find((position) => position.id === crmRoleFilter)?.name || crmRoleFilter}` : ""}
           </div>
         )}
         {filteredCrmPeople.length > 0 && (
