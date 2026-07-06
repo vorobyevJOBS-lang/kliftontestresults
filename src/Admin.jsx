@@ -1447,6 +1447,34 @@ export default function Admin() {
     crmQuickFilter === "needs_action" ? "Нужен шаг" :
     crmQuickFilter === "duplicates" ? "Возможные дубли" : "";
 
+  const exportCrmCsv = () => {
+    const escapeCsv = (value) => `"${String(value ?? "").replace(/"/g, '""')}"`;
+    const header = ["ФИО", "Должность", "Статус", "Филиал", "Телефон", "Email", "Тестов", "Готовность", "Рисков", "Не хватает", "Последний тест"];
+    const rows = filteredCrmPeople.map((person) => [
+      person.name,
+      person.roleName,
+      STATUS_META[person.statusId]?.label || person.statusId,
+      person.branchId ? branchById(person.branchId).name : "",
+      person.phone,
+      person.email,
+      `${person.passedCount}/${Object.keys(TEST_META).length}`,
+      `${person.readiness.score}%`,
+      person.insight.risks.length,
+      person.routeProgress.missingRequired.map((testId) => TEST_ROUTE_META[testId]?.label).filter(Boolean).join(", "),
+      person.latestDate ? new Date(person.latestDate).toLocaleString("ru-RU") : "",
+    ]);
+    const csv = [header, ...rows].map((row) => row.map(escapeCsv).join(";")).join("\n");
+    const blob = new Blob([`\uFEFF${csv}`], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `hr-crm-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   const openPersonTest = (entry) => {
     setTestTab(entry.type);
     setOpen(null);
@@ -1671,6 +1699,13 @@ export default function Admin() {
                 <option value="missing">Сначала неполные</option>
                 <option value="tests">Сначала больше тестов</option>
               </select>
+              <button
+                onClick={exportCrmCsv}
+                disabled={filteredCrmPeople.length === 0}
+                style={{ ...S.btn, ...S.ghost, padding: "8px 12px", fontSize: 13, opacity: filteredCrmPeople.length === 0 ? 0.45 : 1 }}
+              >
+                Экспорт CSV
+              </button>
               {(crmStatusFilter !== "all" || crmQuickFilter !== "all" || crmRoleFilter !== "all") && (
                 <button onClick={() => { setCrmStatusFilter("all"); setCrmQuickFilter("all"); setCrmRoleFilter("all"); }} style={{ ...S.btn, ...S.ghost, padding: "8px 12px", fontSize: 13 }}>
                   Сбросить CRM-фильтр
