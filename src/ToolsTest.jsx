@@ -102,18 +102,18 @@ function ProgressBar({ pct }) {
 // ГЛАВНЫЙ КОМПОНЕНТ
 // Props: onBack — вернуться на главную
 // ─────────────────────────────────────────────────────────────
-export default function ToolsTest({ onBack }) {
+export default function ToolsTest({ onBack, initialName = "", initialEmail = "", initialBranchId = BRANCHES[0].id, initialApplicantType = "candidate" }) {
   const [screen, setScreen] = useState("form"); // form | test | saving | done
-  const [name, setName] = useState("");
+  const [name, setName] = useState(initialName);
   const [age, setAge] = useState("");
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(initialEmail);
   const [qi, setQi] = useState(0);
   const [answers, setAnswers] = useState(Array(TOTAL_QUESTIONS).fill(null));
   const [timeLeft, setTimeLeft] = useState(35 * 60); // 35 мин в секундах
   const [saving, setSaving] = useState(false);
   const [savedScores, setSavedScores] = useState(null);
-  const [branchId, setBranchId] = useState(BRANCHES[0].id);
-  const [applicantType, setApplicantType] = useState("candidate");
+  const [branchId, setBranchId] = useState(initialBranchId);
+  const [applicantType, setApplicantType] = useState(initialApplicantType);
   const timerRef = useRef(null);
 
   // Таймер (запускается когда screen === "test")

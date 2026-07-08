@@ -55,18 +55,18 @@ function ProgressBar({ pct }) {
   );
 }
 
-export default function PrimTest({ onBack }) {
+export default function PrimTest({ onBack, initialName = "", initialEmail = "", initialBranchId = BRANCHES[0].id, initialApplicantType = "candidate" }) {
   const [screen, setScreen] = useState("form");
-  const [name, setName] = useState("");
+  const [name, setName] = useState(initialName);
   const [age, setAge] = useState("");
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(initialEmail);
   const [qi, setQi] = useState(0);
   const [answers, setAnswers] = useState(Array(PRIM_TOTAL).fill(null));
   const [timeLeft, setTimeLeft] = useState(36 * 60);
   const [savedScores, setSavedScores] = useState(null);
   const [saveError, setSaveError] = useState("");
-  const [branchId, setBranchId] = useState(BRANCHES[0].id);
-  const [applicantType, setApplicantType] = useState("candidate");
+  const [branchId, setBranchId] = useState(initialBranchId);
+  const [applicantType, setApplicantType] = useState(initialApplicantType);
   const timerRef = useRef(null);
 
   useEffect(() => {

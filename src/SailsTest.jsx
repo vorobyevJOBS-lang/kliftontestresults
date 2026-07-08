@@ -9,11 +9,11 @@ import TestStartLayout, { StartButton, StartNote, startInputStyle, startLabelSty
 
 const TOTAL_TIME = 30 * 60;
 
-function StartScreen({ onStart, onBack }) {
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [branchId, setBranchId] = useState(BRANCHES[0].id);
-  const [applicantType, setApplicantType] = useState("candidate");
+function StartScreen({ onStart, onBack, initialName = "", initialEmail = "", initialBranchId = BRANCHES[0].id, initialApplicantType = "candidate" }) {
+  const [name, setName] = useState(initialName);
+  const [email, setEmail] = useState(initialEmail);
+  const [branchId, setBranchId] = useState(initialBranchId);
+  const [applicantType, setApplicantType] = useState(initialApplicantType);
   const start = () => name.trim() && onStart(name.trim(), email.trim(), branchId, applicantType);
   return (
     <TestStartLayout
@@ -81,7 +81,7 @@ function ResultScreen({ name, onBack }) {
 }
 
 
-export default function SailsTest({ onBack }) {
+export default function SailsTest({ onBack, initialName = "", initialEmail = "", initialBranchId = BRANCHES[0].id, initialApplicantType = "candidate" }) {
   const [screen, setScreen] = useState("start");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -148,7 +148,7 @@ export default function SailsTest({ onBack }) {
 
   const formatTime = (s) => `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
 
-  if (screen === "start") return <StartScreen onStart={handleStart} onBack={onBack} />;
+  if (screen === "start") return <StartScreen onStart={handleStart} onBack={onBack} initialName={initialName} initialEmail={initialEmail} initialBranchId={initialBranchId} initialApplicantType={initialApplicantType} />;
   if (screen === "result") return <ResultScreen name={name} answers={answers} scales={scales} onBack={onBack} />;
 
   const q = SAILS_QUESTIONS[current];

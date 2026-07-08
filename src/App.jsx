@@ -1,20 +1,29 @@
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { QUESTIONS } from "./questions";
 import { TALENTS } from "./talents";
 import { ROLE_PROFILES } from "./roles";
 import { TALENT_META, TALENT_GROWTH } from "./talentMeta";
 import { ROLE_QUESTIONS } from "./roleQuestions";
 import { supabase } from "./supabase";
-import RezultTest from "./RezultTest";
-import ToolsTest from "./ToolsTest";
-import LogisTest from "./LogisTest";
-import SailsTest from "./SailsTest";
-import PrimTest from "./PrimTest";
 import AudienceFields from "./AudienceFields";
 import { BRANCHES, branchById } from "./org";
 import TestStartLayout, { StartButton, startInputStyle, startLabelStyle } from "./TestStartLayout";
 import { getCandidateKey } from "./candidateIdentity";
 import { getRouteSummary, getTestRouteForRole, TEST_ROUTE_META } from "./testRoutes";
+
+const RezultTest = lazy(() => import("./RezultTest"));
+const ToolsTest = lazy(() => import("./ToolsTest"));
+const LogisTest = lazy(() => import("./LogisTest"));
+const SailsTest = lazy(() => import("./SailsTest"));
+const PrimTest = lazy(() => import("./PrimTest"));
+
+function TestLoading() {
+  return (
+    <div style={{ minHeight: "100vh", display: "grid", placeItems: "center", background: "#F6F5F2", color: "#6B675F", fontFamily: "'Golos Text', system-ui, sans-serif" }}>
+      Загрузка теста...
+    </div>
+  );
+}
 
 // ─────────────────────────────────────────────────────────────
 // ДОМЕНЫ — визуальная группировка талантов
@@ -44,6 +53,19 @@ const TEST_CARDS = [
   { id: "sails", icon: "💎", title: "Продажник", desc: "Потенциал в продажах", meta: "120 вопросов · 30 мин", accent: "#9C27B0", muted: "#F3E5F5" },
   { id: "prim", icon: "🧭", title: "Первичный анализ", desc: "Личностный профиль", meta: "160 вопросов · 30-36 мин", accent: "#7C3AED", muted: "#F1EAFF" },
 ];
+
+function getInitialRouteContext() {
+  if (typeof window === "undefined") return {};
+  const params = new URLSearchParams(window.location.search);
+  const type = params.get("type") || "candidate";
+  return {
+    name: params.get("name") || "",
+    email: params.get("email") || "",
+    role: params.get("role") || "",
+    branch: params.get("branch") || "",
+    applicantType: type === "employee" ? "employee" : "candidate",
+  };
+}
 
 function positionsForSchool(school) {
   if (school === "klyachka") return ALL_POSITIONS.filter((p) => p.id !== "tutor");
@@ -410,16 +432,17 @@ function buildPlainText(rec) {
 // КОМПОНЕНТ
 // ─────────────────────────────────────────────────────────────
 export default function App() {
+  const initialRouteContext = getInitialRouteContext();
   const [screen, setScreen] = useState("home");
   const [activeTest, setActiveTest] = useState(null); // null | "clifton" | "rezultat" | "tools" | ...
-  const [name, setName] = useState("");
-  const [branchId, setBranchId] = useState(BRANCHES[0].id);
-  const [applicantType, setApplicantType] = useState("candidate"); // candidate | employee
-  const [positionId, setPositionId] = useState(ALL_POSITIONS[0].id);
+  const [name, setName] = useState(initialRouteContext.name || "");
+  const [branchId, setBranchId] = useState(BRANCHES.find((branch) => branch.id === initialRouteContext.branch)?.id || BRANCHES[0].id);
+  const [applicantType, setApplicantType] = useState(initialRouteContext.applicantType || "candidate"); // candidate | employee
+  const [positionId, setPositionId] = useState(ALL_POSITIONS.find((position) => position.id === initialRouteContext.role)?.id || ALL_POSITIONS[0].id);
   const [qi, setQi] = useState(0);
   const [answers, setAnswers] = useState([]);
   const [current, setCurrent] = useState(null);
-  const [candidateEmail, setCandidateEmail] = useState("");
+  const [candidateEmail, setCandidateEmail] = useState(initialRouteContext.email || "");
   const [timeLeft, setTimeLeft] = useState(20);
   const [submitting, setSubmitting] = useState(false);
 
@@ -460,7 +483,7 @@ export default function App() {
 
   function startTest() {
     if (!name.trim()) return;
-    setAnswers([]); setQi(0); setCandidateEmail("");
+    setAnswers([]); setQi(0);
     setScreen("test");
   }
 
@@ -555,19 +578,29 @@ export default function App() {
   // ── ГЛАВНАЯ ──
   // Route to Опыт test
   if (activeTest === "rezultat") return (
-    <RezultTest onBack={() => setActiveTest(null)} />
+    <Suspense fallback={<TestLoading />}>
+      <RezultTest onBack={() => setActiveTest(null)} initialName={name} initialEmail={candidateEmail} initialBranchId={branchId} initialApplicantType={applicantType} />
+    </Suspense>
   );
   if (activeTest === "logis") return (
-    <LogisTest onBack={() => setActiveTest(null)} />
+    <Suspense fallback={<TestLoading />}>
+      <LogisTest onBack={() => setActiveTest(null)} initialName={name} initialEmail={candidateEmail} initialBranchId={branchId} initialApplicantType={applicantType} />
+    </Suspense>
   );
   if (activeTest === "sails") return (
-    <SailsTest onBack={() => setActiveTest(null)} />
+    <Suspense fallback={<TestLoading />}>
+      <SailsTest onBack={() => setActiveTest(null)} initialName={name} initialEmail={candidateEmail} initialBranchId={branchId} initialApplicantType={applicantType} />
+    </Suspense>
   );
   if (activeTest === "prim") return (
-    <PrimTest onBack={() => setActiveTest(null)} />
+    <Suspense fallback={<TestLoading />}>
+      <PrimTest onBack={() => setActiveTest(null)} initialName={name} initialEmail={candidateEmail} initialBranchId={branchId} initialApplicantType={applicantType} />
+    </Suspense>
   );
   if (activeTest === "tools") return (
-    <ToolsTest onBack={() => setActiveTest(null)} />
+    <Suspense fallback={<TestLoading />}>
+      <ToolsTest onBack={() => setActiveTest(null)} initialName={name} initialEmail={candidateEmail} initialBranchId={branchId} initialApplicantType={applicantType} />
+    </Suspense>
   );
 
   if (activeTest === "clifton" && screen === "home") return (

@@ -400,17 +400,17 @@ function ResultScreen({ name, onBack }) {
 }
 
 
-export default function LogisTest({ onBack }) {
+export default function LogisTest({ onBack, initialName = "", initialEmail = "", initialBranchId = BRANCHES[0].id, initialApplicantType = "candidate" }) {
   const [phase, setPhase] = useState("start"); // start | test | result
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
+  const [name, setName] = useState(initialName);
+  const [email, setEmail] = useState(initialEmail);
   const [answers, setAnswers] = useState({});
   const [current, setCurrent] = useState(0);
   const [timeLeft, setTimeLeft] = useState(TOTAL_TIME);
   const [result, setResult] = useState(null);
   const [saving, setSaving] = useState(false);
-  const [branchId, setBranchId] = useState(BRANCHES[0].id);
-  const [applicantType, setApplicantType] = useState("candidate");
+  const [branchId, setBranchId] = useState(initialBranchId);
+  const [applicantType, setApplicantType] = useState(initialApplicantType);
   const timerRef = useRef(null);
 
   const q = LOGIS_QUESTIONS[current];

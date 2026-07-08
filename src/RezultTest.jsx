@@ -185,14 +185,15 @@ function TextQuestion({ q, answer, onChange }) {
 }
 
 // ────────── Main component ──────────
-export default function RezultTest({ onBack }) {
+export default function RezultTest({ onBack, initialName = "", initialEmail = "", initialBranchId = BRANCHES[0].id, initialApplicantType = "candidate" }) {
+  const nameParts = initialName.trim().split(/\s+/).filter(Boolean);
   const [stage, setStage] = useState("anketa"); // anketa | test | done
   const [anketa, setAnketa] = useState({
-    firstName: "", lastName: "", age: "", phone: "", email: "", city: "",
+    firstName: nameParts[0] || "", lastName: nameParts.slice(1).join(" "), age: "", phone: "", email: initialEmail, city: "",
     gender: "", previousTest: "", gdpr: false,
   });
-  const [branchId, setBranchId] = useState(BRANCHES[0].id);
-  const [applicantType, setApplicantType] = useState("candidate");
+  const [branchId, setBranchId] = useState(initialBranchId);
+  const [applicantType, setApplicantType] = useState(initialApplicantType);
   const [jobIndex, setJobIndex] = useState(0); // which job position (0 = first, 1 = second)
   const [allJobs, setAllJobs] = useState([{}]); // array of answer objects per job
   const [currentQ, setCurrentQ] = useState(0); // index in REZULTAT_QUESTIONS

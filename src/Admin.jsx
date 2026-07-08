@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { supabase } from "./supabase";
+import { setSupabaseAuthToken, supabase } from "./supabase";
 import { S, Bar, DomainTag, DOMAINS, TALENT_META, TALENTS, POSITIONS, BRANCHES, branchById } from "./App";
 import { jsPDF } from "jspdf";
 import html2canvas from "html2canvas";
@@ -85,13 +85,6 @@ const STATUS_OPTIONS = [
 ];
 
 const STATUS_META = Object.fromEntries(STATUS_OPTIONS.map(([id, label, color]) => [id, { label, color }]));
-
-async function sha256(text) {
-  if (!window.crypto?.subtle) return "";
-  const bytes = new TextEncoder().encode(text);
-  const hash = await window.crypto.subtle.digest("SHA-256", bytes);
-  return Array.from(new Uint8Array(hash)).map((b) => b.toString(16).padStart(2, "0")).join("");
-}
 
 function personName(item) {
   return item.candidate_name || item.name || "Без имени";
@@ -253,29 +246,56 @@ export default function Admin() {
     logCandidateActivity(person, patch, current);
   };
 
+  const mergeCandidateRecords = async (targetPerson, sourcePerson) => {
+    if (!window.confirm(`Объединить карточку «${sourcePerson.name}» с «${targetPerson.name}»? Результаты дубля переедут в текущую карточку.`)) return;
+    const tables = ["results", "tools_results", "rezultat_results", "logis_results", "sails_results", "prim_results"];
+    const updates = tables.map((table) => (
+      supabase
+        .from(table)
+        .update({
+          candidate_key: targetPerson.key,
+          ...(targetPerson.email ? { candidate_email: targetPerson.email } : {}),
+        })
+        .eq("candidate_key", sourcePerson.key)
+    ));
+    const results = await Promise.all(updates);
+    const failed = results.find((result) => result.error);
+    if (failed) {
+      console.error("merge candidate", failed.error);
+      window.alert("Не удалось объединить все результаты. Проверьте права Supabase/API.");
+      return;
+    }
+    await logCandidateActivity(targetPerson, { manager_comment: `Объединён дубль: ${sourcePerson.name}` }, targetPerson.profile || {});
+    loadResults();
+    loadToolsResults();
+    loadRezultatResults();
+    loadLogisResults();
+    loadSailsResults();
+    loadPrimResults();
+    loadCandidateActivities();
+    setOpenPersonKey(targetPerson.key);
+  };
+
   const handleLogin = async () => {
     const cleanLogin = login.trim();
     const cleanPassword = password.trim();
-    const { data, error } = await supabase
-      .from("admins")
-      .select("*")
-      .eq("login", cleanLogin)
-      .maybeSingle();
-
-    if (error) console.error("admins login", error);
-    const cleanPasswordHash = await sha256(cleanPassword);
-    const passwordOk = data && (
-      data.password_hash === cleanPasswordHash ||
-      data.password === cleanPassword
-    );
-
-    if (passwordOk) {
+    try {
+      const response = await fetch("/api/auth", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ login: cleanLogin, password: cleanPassword }),
+      });
+      const { data, error } = await response.json();
+      if (!response.ok || error || !data?.token) {
+        setLoginError(true);
+        return;
+      }
+      setSupabaseAuthToken(data.token);
       setLoginError(false);
       setAuthorized(true);
       setLoadError("");
-      const superAdmin = data.login === "vvvorobyev1991";
-      setIsSuperAdmin(superAdmin);
-      setMyBranchId(superAdmin ? null : data.branch_id || null);
+      setIsSuperAdmin(Boolean(data.is_super_admin));
+      setMyBranchId(data.is_super_admin ? null : data.branch_id || null);
       loadResults();
       loadToolsResults();
       loadRezultatResults();
@@ -284,7 +304,8 @@ export default function Admin() {
       loadPrimResults();
       loadCandidateProfiles();
       loadCandidateActivities();
-    } else {
+    } catch (error) {
+      console.error("admins login", error);
       setLoginError(true);
     }
   };
@@ -322,6 +343,12 @@ export default function Admin() {
     const missing = person.routeProgress.missingRequired
       .map((testId) => TEST_ROUTE_META[testId]?.label)
       .filter(Boolean);
+    const routeUrl = new URL(window.location.origin);
+    routeUrl.searchParams.set("role", person.roleId);
+    routeUrl.searchParams.set("type", typeTab);
+    if (person.branchId) routeUrl.searchParams.set("branch", person.branchId);
+    if (person.name && person.name !== "Без имени") routeUrl.searchParams.set("name", person.name);
+    if (person.email) routeUrl.searchParams.set("email", person.email);
     const lines = [
       `Здравствуйте${person.name && person.name !== "Без имени" ? `, ${person.name}` : ""}!`,
       "",
@@ -334,7 +361,7 @@ export default function Admin() {
       "Важно: во всех тестах указывайте один и тот же email, чтобы результаты корректно объединились в одну карточку.",
       person.email ? `Ваш email для тестов: ${person.email}` : "Email лучше указать тот же, который вы отправляли HR.",
       "",
-      "Ссылка на тесты: https://kliftontestresults.vercel.app",
+      `Персональная ссылка на маршрут: ${routeUrl.toString()}`,
     ].filter(Boolean).join("\n");
     copyReport(lines);
   }
@@ -1402,6 +1429,7 @@ export default function Admin() {
     if (crmQuickFilter === "no_comment") return !person.profile.manager_comment;
     if (crmQuickFilter === "needs_action") return !["hired", "rejected"].includes(person.statusId) && person.nextAction.level !== "done";
     if (crmQuickFilter === "duplicates") return duplicatePeopleKeys.has(person.key);
+    if (crmQuickFilter === "feedback_missing") return person.statusId === "hired" && !person.profile.hired_feedback;
     return true;
   };
   const roleFilteredCrmPeople = crmPeople.filter((person) => crmRoleFilter === "all" || person.roleId === crmRoleFilter);
@@ -1436,6 +1464,8 @@ export default function Admin() {
     noComment: roleFilteredCrmPeople.filter((person) => !person.profile.manager_comment).length,
     needsAction: roleFilteredCrmPeople.filter((person) => !["hired", "rejected"].includes(person.statusId) && person.nextAction.level !== "done").length,
     duplicates: roleFilteredCrmPeople.filter((person) => duplicatePeopleKeys.has(person.key)).length,
+    feedbackMissing: roleFilteredCrmPeople.filter((person) => person.statusId === "hired" && !person.profile.hired_feedback).length,
+    feedbackDone: roleFilteredCrmPeople.filter((person) => person.statusId === "hired" && person.profile.hired_feedback).length,
   };
   const activeCrmFilterLabel =
     crmQuickFilter === "active" ? "В работе" :
@@ -1445,7 +1475,8 @@ export default function Admin() {
     crmQuickFilter === "incomplete" ? "Неполный маршрут" :
     crmQuickFilter === "no_comment" ? "Без заметки" :
     crmQuickFilter === "needs_action" ? "Нужен шаг" :
-    crmQuickFilter === "duplicates" ? "Возможные дубли" : "";
+    crmQuickFilter === "duplicates" ? "Возможные дубли" :
+    crmQuickFilter === "feedback_missing" ? "Пост-найм без заметки" : "";
 
   const exportCrmCsv = () => {
     const escapeCsv = (value) => `"${String(value ?? "").replace(/"/g, '""')}"`;
@@ -1523,7 +1554,7 @@ export default function Admin() {
             </button>
           )}
           <button onClick={() => { setLoadError(""); loadResults(); loadToolsResults(); loadRezultatResults(); loadLogisResults(); loadSailsResults(); loadPrimResults(); loadCandidateProfiles(); loadCandidateActivities(); }} style={{ ...S.btn, ...S.ghost, padding: "8px 14px", fontSize: 14 }}>Обновить</button>
-          <button onClick={() => { setAuthorized(false); setIsSuperAdmin(false); }} style={{ ...S.btn, ...S.ghost, padding: "8px 14px", fontSize: 14 }}>Выйти</button>
+          <button onClick={() => { setSupabaseAuthToken(""); setAuthorized(false); setIsSuperAdmin(false); }} style={{ ...S.btn, ...S.ghost, padding: "8px 14px", fontSize: 14 }}>Выйти</button>
         </div>
       </div>
 
@@ -1725,6 +1756,7 @@ export default function Admin() {
               ["no_comment", "Без заметки", crmStats.noComment, "#7C3AED"],
               ["needs_action", "Нужен шаг", crmStats.needsAction, "#6457D6"],
               ["duplicates", "Возможные дубли", crmStats.duplicates, "#C2410C"],
+              ["feedback_missing", "Пост-найм без заметки", crmStats.feedbackMissing, "#B45309"],
             ].map(([id, label, value, color]) => (
               <button
                 key={id}
@@ -1829,7 +1861,7 @@ export default function Admin() {
           const activityItems = candidateActivities[person.key] || [];
           const duplicateMatches = duplicateGroupByKey[person.key] || [];
           return (
-            <div key={person.key} data-person-key={person.key} style={{ ...S.card, padding: 0, overflow: "hidden" }}>
+            <div key={person.key} data-person-key={person.key} data-pdf-card style={{ ...S.card, padding: 0, overflow: "hidden" }}>
               <div
                 data-crm-row
                 onClick={() => setOpenPersonKey(isOpenPerson ? null : person.key)}
@@ -1961,7 +1993,16 @@ export default function Admin() {
                         Пройдено тестов: <b>{Object.keys(entriesByType).length}</b> из {Object.keys(TEST_META).length} · {person.email || "email не указан"}
                       </div>
                     </div>
-                    <button onClick={() => setOpenPersonKey(null)} style={{ ...S.btn, ...S.ghost, padding: "8px 12px", fontSize: 13 }}>Свернуть</button>
+                    <div data-pdf-actions style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+                      <button
+                        onClick={(e) => downloadPdf(person.name, e.currentTarget.closest("[data-pdf-card]"))}
+                        disabled={pdfLoading}
+                        style={{ ...S.btn, ...S.primary, padding: "8px 12px", fontSize: 13, opacity: pdfLoading ? 0.6 : 1 }}
+                      >
+                        {pdfLoading ? "Готовлю PDF..." : "Скачать 360 PDF"}
+                      </button>
+                      <button onClick={() => setOpenPersonKey(null)} style={{ ...S.btn, ...S.ghost, padding: "8px 12px", fontSize: 13 }}>Свернуть</button>
+                    </div>
                   </div>
                   <div style={{ background: "#fff", border: `1.5px solid ${person.decision.color}44`, borderLeft: `5px solid ${person.decision.color}`, borderRadius: 14, padding: 16, marginBottom: 12 }}>
                     <div style={{ display: "flex", justifyContent: "space-between", gap: 14, flexWrap: "wrap", alignItems: "flex-start" }}>
@@ -2017,21 +2058,36 @@ export default function Admin() {
                       </div>
                       <div style={{ display: "grid", gap: 8 }}>
                         {duplicateMatches.map((match) => (
-                          <button
+                          <div
                             key={match.key}
-                            onClick={() => openPersonCard(match.key)}
-                            style={{ border: "1px solid #FED7AA", background: "#fff", borderRadius: 12, padding: "10px 12px", textAlign: "left", cursor: "pointer", fontFamily: "inherit" }}
+                            style={{ border: "1px solid #FED7AA", background: "#fff", borderRadius: 12, padding: "10px 12px" }}
                           >
                             <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
                               <div>
                                 <div style={{ fontSize: 13, fontWeight: 900, color: "#1C1B1A" }}>{match.name}</div>
                                 <div style={{ fontSize: 12, color: "#8A867E", marginTop: 3 }}>{match.email || "email не указан"} · {match.phone || "телефон не указан"}</div>
                               </div>
-                              <div style={{ fontSize: 12, fontWeight: 900, color: "#C2410C", background: "#FFF1E8", borderRadius: 99, padding: "5px 9px" }}>
-                                {match.passedCount}/{Object.keys(TEST_META).length} тестов
+                              <div style={{ display: "flex", gap: 7, flexWrap: "wrap", alignItems: "center" }}>
+                                <div style={{ fontSize: 12, fontWeight: 900, color: "#C2410C", background: "#FFF1E8", borderRadius: 99, padding: "5px 9px" }}>
+                                  {match.passedCount}/{Object.keys(TEST_META).length} тестов
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => openPersonCard(match.key)}
+                                  style={{ border: "1px solid #FED7AA", background: "#fff", borderRadius: 99, padding: "6px 9px", fontSize: 12, fontWeight: 900, color: "#C2410C", cursor: "pointer", fontFamily: "inherit" }}
+                                >
+                                  Открыть
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => mergeCandidateRecords(person, match)}
+                                  style={{ border: "none", background: "#C2410C", borderRadius: 99, padding: "7px 10px", fontSize: 12, fontWeight: 900, color: "#fff", cursor: "pointer", fontFamily: "inherit" }}
+                                >
+                                  Объединить сюда
+                                </button>
                               </div>
                             </div>
-                          </button>
+                          </div>
                         ))}
                       </div>
                     </div>
