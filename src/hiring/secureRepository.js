@@ -19,7 +19,7 @@ export async function getSessionUser() {
 
 export async function getMembership(userId) {
   const { data, error } = await supabase.from("organization_members")
-    .select("organization_id, role, organizations(name)")
+    .select("organization_id, role, branch_id, organizations(name)")
     .eq("user_id", userId)
     .limit(1)
     .maybeSingle();
@@ -80,6 +80,7 @@ function mapRemoteAssessment(row, currentUserId) {
     candidateId: row.candidate_id,
     name: row.candidates?.full_name || "Кандидат",
     email: row.candidates?.email || "",
+    branchId: row.branch_id || row.candidates?.branch_id || "",
     profileId: row.profile_key,
     status: row.status,
     createdAt: row.created_at,
@@ -98,7 +99,7 @@ function mapRemoteAssessment(row, currentUserId) {
 
 export async function listAssessments(organizationId, currentUserId) {
   const { data, error } = await supabase.from("assessments")
-    .select("id, candidate_id, profile_key, status, final_decision, decision_reason, created_at, candidates(full_name,email), assessment_evidence(rater_id,method,item_id,rating,notes), outcome_followups(checkpoint_days,retained,manager_rating,kpi_value,kpi_definition,notes), assessment_invites(candidate_response,submitted_at)")
+    .select("id, candidate_id, profile_key, branch_id, status, final_decision, decision_reason, created_at, candidates(full_name,email,branch_id), assessment_evidence(rater_id,method,item_id,rating,notes), outcome_followups(checkpoint_days,retained,manager_rating,kpi_value,kpi_definition,notes), assessment_invites(candidate_response,submitted_at)")
     .eq("organization_id", organizationId)
     .order("created_at", { ascending: false });
   if (error) throw error;
@@ -110,6 +111,7 @@ export async function createAssessment(organizationId, userId, candidate) {
     organization_id: organizationId,
     full_name: candidate.name,
     email: candidate.email || null,
+    branch_id: candidate.branchId || null,
     consent_at: candidate.email ? new Date().toISOString() : null,
     created_by: userId,
   }).select("id").single();
@@ -119,6 +121,7 @@ export async function createAssessment(organizationId, userId, candidate) {
     organization_id: organizationId,
     candidate_id: person.id,
     profile_key: candidate.profileId,
+    branch_id: candidate.branchId || null,
     status: "assessment",
     created_by: userId,
   }).select("id, created_at").single();

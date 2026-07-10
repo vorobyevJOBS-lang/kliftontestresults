@@ -69,12 +69,13 @@ export function calculateRaterAgreement(ratings) {
   return { range, needsCalibration: range >= 2 };
 }
 
-export function createCandidateRecord({ name, email, profileId }) {
+export function createCandidateRecord({ name, email, profileId, branchId = "" }) {
   return {
     id: globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(16).slice(2)}`,
     name: name.trim(),
     email: email.trim(),
     profileId,
+    branchId,
     status: "assessment",
     createdAt: new Date().toISOString(),
     interviewRatings: {},

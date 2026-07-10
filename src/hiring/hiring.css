@@ -146,6 +146,11 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .eh-test-picker input { accent-color: #1f6f4e; }
 .eh-test-picker span { display: grid; gap: 3px; }
 .eh-test-picker small { color: #748077; }
+.eh-next-step { border: 1px solid #cfe0d2; border-radius: 12px; background: #f4f8f4; padding: 12px 14px; }
+.eh-next-step > summary { cursor: pointer; color: #155b3e; font-weight: 800; }
+.eh-guidance { padding: 14px 0; border-bottom: 1px solid #dfe8df; }
+.eh-guidance:last-of-type { border-bottom: 0; }
+.eh-guidance p { margin: 7px 0 0; color: #536057; line-height: 1.55; font-size: 13px; }
 
 @media (max-width: 720px) { .eh-test-picker { grid-template-columns: 1fr 1fr; } }
 

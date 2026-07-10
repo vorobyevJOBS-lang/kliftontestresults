@@ -28,12 +28,14 @@ export default async function handler(req, res) {
   if (authError || !authData.user) return res.status(401).json({ error: "Нужен вход в EvidenceHire" });
 
   const { data: membership, error: membershipError } = await authenticated.from("organization_members")
-    .select("organization_id, role").eq("user_id", authData.user.id)
+    .select("organization_id, role, branch_id").eq("user_id", authData.user.id)
     .in("role", ["owner", "admin"]).limit(1).maybeSingle();
   if (membershipError || !membership) return res.status(403).json({ error: "Архив доступен только владельцу или администратору" });
 
   const batches = await Promise.all(TABLES.map(async ([table, type, label, dateColumn]) => {
-    const { data, error } = await reader.from(table).select("*").order(dateColumn, { ascending: false }).limit(1000);
+    let query = reader.from(table).select("*").order(dateColumn, { ascending: false }).limit(1000);
+    if (membership.branch_id) query = query.eq("branch_id", membership.branch_id);
+    const { data, error } = await query;
     if (error) return { table, error: error.message, items: [] };
     return { table, items: (data || []).map((raw) => ({
       id: `${table}:${raw.id}`, sourceId: raw.id, table, type, label,
