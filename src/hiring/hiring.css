@@ -139,6 +139,8 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; animation: none !important; }
 }
 
+.eh-legacy-report { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 420px; overflow: auto; background: #f6f7f5; border: 1px solid var(--eh-line); border-radius: 12px; padding: 14px; font: 13px/1.55 ui-monospace, SFMono-Regular, Menlo, monospace; color: #28312c; }
+
 @media print {
   .eh-header, .eh-back, .eh-actions, .eh-stage-summary > span:last-child, .eh-callout, .eh-helper { display: none !important; }
   .eh-shell, body { background: #fff !important; }

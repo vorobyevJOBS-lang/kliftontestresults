@@ -27,6 +27,17 @@ export async function getMembership(userId) {
   return data;
 }
 
+export async function listLegacyResults() {
+  const { data, error } = await supabase.auth.getSession();
+  if (error) throw error;
+  const token = data.session?.access_token;
+  if (!token) throw new Error("Нет активной сессии");
+  const response = await fetch("/api/evidence-legacy", { headers: { Authorization: `Bearer ${token}` } });
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload.error || "Не удалось загрузить архив прежних тестов");
+  return payload;
+}
+
 export async function listCustomProfiles(organizationId) {
   const { data, error } = await supabase.from("job_profiles").select("definition")
     .eq("organization_id", organizationId).neq("status", "archived").order("updated_at", { ascending: false });

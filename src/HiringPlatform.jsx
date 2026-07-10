@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { COMPETENCIES, getJobProfile, JOB_PROFILES, PROFILE_STATUS } from "./hiring/jobProfiles";
 import { calculateAssessment, createCandidateRecord } from "./hiring/assessmentEngine";
 import { configureValidationCalculator, summarizeValidation } from "./hiring/validationMetrics";
-import { createAssessment, createCandidateInvite, createCustomProfile, deleteAssessment, getMembership, getSessionUser, listAssessments, listCustomProfiles, saveAssessment, saveOutcome, signIn, signOut } from "./hiring/secureRepository";
+import { createAssessment, createCandidateInvite, createCustomProfile, deleteAssessment, getMembership, getSessionUser, listAssessments, listCustomProfiles, listLegacyResults, saveAssessment, saveOutcome, signIn, signOut } from "./hiring/secureRepository";
 import "./hiring/hiring.css";
 
 configureValidationCalculator(calculateAssessment);
@@ -45,6 +45,7 @@ function Header({ view, setView, account, onSignOut }) {
       <nav className="eh-nav" aria-label="Основная навигация">
         <button type="button" aria-current={view === "profiles" ? "page" : undefined} onClick={() => setView("profiles")}>Должности</button>
         <button type="button" aria-current={view === "candidates" ? "page" : undefined} onClick={() => setView("candidates")}>Кандидаты</button>
+        <button type="button" aria-current={view === "legacy" ? "page" : undefined} onClick={() => setView("legacy")}>Архив тестов</button>
         <button type="button" aria-current={view === "method" ? "page" : undefined} onClick={() => setView("method")}>Методика</button>
         <button type="button" aria-current={view === "research" ? "page" : undefined} onClick={() => setView("research")}>Исследования</button>
         {account && <button type="button" onClick={onSignOut}>Выйти</button>}
@@ -217,6 +218,32 @@ function Candidates({ candidates, onOpen, onNew, resolveProfile }) {
   </>;
 }
 
+const LEGACY_FIELDS = [
+  ["candidate_email", "Email"], ["candidate_phone", "Телефон"], ["candidate_city", "Город"],
+  ["position_name", "Должность"], ["recommended_position", "Рекомендованная роль"],
+  ["total_score", "Итоговый балл"], ["score", "Балл"], ["level", "Уровень"],
+];
+
+function LegacyArchive({ archive }) {
+  const [search, setSearch] = useState("");
+  const [type, setType] = useState("all");
+  if (archive.loading) return <div className="eh-empty">Загружаем прежние результаты…</div>;
+  if (archive.error) return <div className="eh-panel"><h2>Не удалось открыть архив</h2><p>{archive.error}</p><p className="eh-helper">Проверьте SUPABASE_SERVICE_ROLE_KEY в Vercel. Старые данные остаются в базе и доступны в прежнем кабинете.</p></div>;
+  const query = search.trim().toLowerCase();
+  const items = archive.items.filter((item) => (type === "all" || item.type === type) && (!query || `${item.candidateName} ${item.email} ${item.phone} ${item.label}`.toLowerCase().includes(query)));
+  const types = [...new Map(archive.items.map((item) => [item.type, item.label])).entries()];
+  return <>
+    <div className="eh-toolbar"><div><h2>Архив прежних тестов</h2><p>{archive.items.length} сохранённых результатов · только чтение</p></div><div className="eh-actions"><div className="eh-search"><label className="eh-label" htmlFor="legacy-search">Найти кандидата</label><input id="legacy-search" className="eh-input" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Имя, email или телефон" /></div><div><label className="eh-label" htmlFor="legacy-type">Методика</label><select id="legacy-type" className="eh-select" value={type} onChange={(event) => setType(event.target.value)}><option value="all">Все методики</option>{types.map(([id, label]) => <option key={id} value={id}>{label}</option>)}</select></div></div></div>
+    <div className="eh-callout" style={{ marginBottom: 18 }}>Старые результаты показаны отдельно и не входят автоматически в новый итоговый балл: для них использовались другие вопросы, шкалы и правила интерпретации.</div>
+    {archive.warnings.length > 0 && <div className="eh-callout" style={{ marginBottom: 18 }}>Часть таблиц временно недоступна: {archive.warnings.map((item) => item.table).join(", ")}.</div>}
+    {!items.length ? <div className="eh-empty"><h3>Ничего не найдено</h3><p>Измените поиск или фильтр методики.</p></div> : <div className="eh-candidates">{items.map((item) => {
+      const visibleFields = LEGACY_FIELDS.map(([key, label]) => [label, item.raw?.[key]]).filter(([, value]) => value !== null && value !== undefined && value !== "");
+      const report = item.raw?.report || item.raw?.summary || item.raw?.analysis || item.raw?.recommendation || "";
+      return <article className="eh-candidate" key={item.id} style={{ alignItems: "flex-start" }}><div style={{ minWidth: 0, width: "100%" }}><span className="eh-family">{item.label}</span><h3 style={{ marginTop: 8 }}>{item.candidateName}</h3><p>{item.createdAt ? new Date(item.createdAt).toLocaleString("ru-RU") : "Дата не указана"}{item.email ? ` · ${item.email}` : ""}{item.phone ? ` · ${item.phone}` : ""}</p>{visibleFields.length > 0 && <div className="eh-card-meta">{visibleFields.map(([label, value]) => <span className="eh-chip" key={label}>{label}: {String(value)}</span>)}</div>}<details style={{ marginTop: 14 }}><summary style={{ cursor: "pointer", fontWeight: 700 }}>Сохранённый результат</summary><pre className="eh-legacy-report">{report ? (typeof report === "string" ? report : JSON.stringify(report, null, 2)) : JSON.stringify(item.raw, null, 2)}</pre></details></div></article>;
+    })}</div>}
+  </>;
+}
+
 function Method() {
   return <article className="eh-method">
     <p className="eh-kicker" style={{ color: "#1f6f4e", opacity: 1 }}>Стандарт EvidenceHire</p><h1>Как система поддерживает обоснованный найм</h1>
@@ -257,14 +284,22 @@ export default function HiringPlatform() {
   // Демонстрационный режим намеренно не сохраняет персональные данные в браузере.
   // Production-хранилище подключается через evidence_hiring_schema.sql и Supabase Auth.
   const [candidates, setCandidates] = useState([]);
+  const [legacyArchive, setLegacyArchive] = useState({ loading: true, items: [], warnings: [], error: "" });
   const [saveState, setSaveState] = useState("idle");
 
   const loadAccount = async (user) => {
     const membership = await getMembership(user.id);
     if (!membership) throw new Error("Для пользователя не настроено членство в организации. Добавьте запись organization_members.");
-    const [items, custom] = await Promise.all([listAssessments(membership.organization_id, user.id), listCustomProfiles(membership.organization_id)]);
+    const [items, custom, legacy] = await Promise.all([
+      listAssessments(membership.organization_id, user.id),
+      listCustomProfiles(membership.organization_id),
+      ["owner", "admin"].includes(membership.role)
+        ? listLegacyResults().catch((reason) => ({ items: [], warnings: [], error: reason?.message || "Ошибка архива" }))
+        : Promise.resolve({ items: [], warnings: [], error: "Архив доступен владельцу и администратору" }),
+    ]);
     setCandidates(items);
     setCustomProfiles(custom);
+    setLegacyArchive({ loading: false, items: legacy.items || [], warnings: legacy.warnings || [], error: legacy.error || "" });
     setAuth({ loading: false, user, membership, demo: false, error: "" });
   };
 
@@ -302,6 +337,7 @@ export default function HiringPlatform() {
   else if (buildingProfile) content = <ProfileBuilder onCancel={() => setBuildingProfile(false)} onCreate={async (created) => { if (!auth.demo) await createCustomProfile(auth.membership.organization_id, auth.user.id, created); setCustomProfiles((items) => [created, ...items]); setBuildingProfile(false); setSelectedProfile(created); }} />;
   else if (selectedProfile) content = <CandidateForm profile={selectedProfile} onCancel={() => setSelectedProfile(null)} onCreate={async (created) => { const stored = auth.demo ? created : await createAssessment(auth.membership.organization_id, auth.user.id, created); setCandidates((items) => [stored, ...items]); setCandidate(stored); }} />;
   else if (view === "candidates") content = <Candidates candidates={candidates} onOpen={setCandidate} onNew={() => navigate("profiles")} resolveProfile={resolveProfile} />;
+  else if (view === "legacy") content = <LegacyArchive archive={legacyArchive} />;
   else if (view === "method") content = <Method />;
   else if (view === "research") content = <Research candidates={candidates} resolveProfile={resolveProfile} />;
   else content = <Profiles profiles={profiles} onSelect={setSelectedProfile} onCreateCustom={() => setBuildingProfile(true)} />;
