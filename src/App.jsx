@@ -645,7 +645,10 @@ export default function App() {
   if (screen === "home") return (
     <div style={S.page}><div style={S.wrap}>
       <div style={{ marginBottom: 28 }}>
-        <div style={{ ...S.display, fontSize: 13, fontWeight: 700, textTransform: "uppercase", color: "#8A867E", marginBottom: 12 }}>Оценка кандидатов</div>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16, marginBottom: 12 }}>
+          <div style={{ ...S.display, fontSize: 13, fontWeight: 700, textTransform: "uppercase", color: "#8A867E" }}>Оценка кандидатов</div>
+          <a href="/hr" style={{ color: "#1C1B1A", fontSize: 13, fontWeight: 700, textDecoration: "none", padding: "8px 12px", border: "1px solid #D8D5CF", borderRadius: 10, whiteSpace: "nowrap" }}>Вход для HR</a>
+        </div>
         <h1 style={{ ...S.display, fontSize: 30, lineHeight: 1.15, margin: 0, fontWeight: 700 }}>Выберите тест</h1>
         <p style={{ color: "#6B675F", fontSize: 16, lineHeight: 1.55, marginTop: 12 }}>
           Единая точка входа для оценки сильных сторон, опыта, логики, продаж и личностного профиля.
