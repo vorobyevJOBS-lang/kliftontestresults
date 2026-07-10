@@ -215,13 +215,13 @@ function formatTime(seconds) {
 const S = {
   page: {
     minHeight: "100vh",
-    background: "#f5f5f5",
-    fontFamily: "'Segoe UI', sans-serif",
+    background: "radial-gradient(circle at 80% 0, #e3efe7 0, transparent 28rem), #f4f6f2",
+    fontFamily: "'Golos Text', Inter, system-ui, sans-serif",
     padding: "0 0 40px",
   },
   header: {
-    background: "#1e1e2e",
-    color: "#fff",
+    background: "rgba(250,251,248,.96)",
+    color: "#17211b",
     padding: "14px 24px",
     display: "flex",
     alignItems: "center",
@@ -233,7 +233,7 @@ const S = {
   timer: (urgent) => ({
     fontSize: 22,
     fontWeight: "bold",
-    color: urgent ? "#ff6b6b" : "#7ee8a2",
+    color: urgent ? "#9d332c" : "#1f6f4e",
     fontVariantNumeric: "tabular-nums",
   }),
   progress: {
@@ -243,7 +243,7 @@ const S = {
   progressBar: (pct) => ({
     height: "100%",
     width: `${pct}%`,
-    background: "#6c63ff",
+    background: "#1f6f4e",
     transition: "width 0.3s",
   }),
   wrap: {
@@ -253,10 +253,10 @@ const S = {
   },
   card: {
     background: "#fff",
-    borderRadius: 12,
+    borderRadius: 20,
     padding: "24px 28px",
     marginTop: 24,
-    boxShadow: "0 2px 12px rgba(0,0,0,.08)",
+    boxShadow: "0 14px 38px rgba(22,69,47,.08)",
   },
   qNum: {
     fontSize: 13,
@@ -285,8 +285,8 @@ const S = {
     padding: "12px 16px",
     marginBottom: 8,
     borderRadius: 8,
-    border: selected ? "2px solid #6c63ff" : "2px solid #e8e8e8",
-    background: selected ? "#f0eeff" : "#fafafa",
+    border: selected ? "2px solid #1f6f4e" : "2px solid #dfe6dd",
+    background: selected ? "#e8f3eb" : "#fff",
     cursor: "pointer",
     fontSize: 15,
     transition: "all .15s",
@@ -305,7 +305,7 @@ const S = {
     cursor: "pointer",
     fontWeight: 600,
     fontSize: 14,
-    background: variant === "primary" ? "#6c63ff" : "#eee",
+    background: variant === "primary" ? "#1f6f4e" : "#e8eee9",
     color: variant === "primary" ? "#fff" : "#333",
   }),
   submitWrap: {

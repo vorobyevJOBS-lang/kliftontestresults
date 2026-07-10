@@ -76,13 +76,13 @@ function positionsForSchool(school) {
 // СТИЛИ
 // ─────────────────────────────────────────────────────────────
 const S = {
-  page: { minHeight: "100vh", background: "#F6F5F2", color: "#1C1B1A", fontFamily: "'Golos Text', system-ui, sans-serif" },
+  page: { minHeight: "100vh", background: "radial-gradient(circle at 80% 0, #e3efe7 0, transparent 28rem), #f4f6f2", color: "#17211b", fontFamily: "'Golos Text', system-ui, sans-serif" },
   wrap: { maxWidth: 760, margin: "0 auto", padding: "32px 20px 80px" },
   display: { fontFamily: "'Unbounded', 'Golos Text', sans-serif" },
   card: { background: "#fff", borderRadius: 16, padding: 24, boxShadow: "0 1px 3px rgba(28,27,26,.07)", marginBottom: 16 },
   btn: { display: "inline-block", border: "none", borderRadius: 12, padding: "14px 24px", fontSize: 16, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" },
   ghost: { background: "transparent", border: "1.5px solid #D8D5CF", color: "#1C1B1A" },
-  primary: { background: "#1C1B1A", color: "#fff" },
+  primary: { background: "#1f6f4e", color: "#fff" },
 };
 
 function Bar({ pct, color }) {

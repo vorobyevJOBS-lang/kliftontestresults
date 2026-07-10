@@ -6,7 +6,7 @@ export const startInputStyle = {
   padding: "14px 15px",
   fontSize: 16,
   borderRadius: 12,
-  border: "1.5px solid #D8D5CF",
+  border: "1px solid #cfd8cf",
   fontFamily: "inherit",
   outline: "none",
   background: "#fff",
@@ -53,15 +53,15 @@ export function StartButton({ children, disabled, onClick }) {
         fontWeight: 800,
         cursor: disabled ? "not-allowed" : "pointer",
         fontFamily: "inherit",
-        background: disabled ? "#B9B6AF" : "#1C1B1A",
+        background: disabled ? "#aeb9b0" : "#1f6f4e",
         color: "#fff",
-        boxShadow: disabled ? "none" : "0 10px 22px rgba(28,27,26,.16)",
+        boxShadow: disabled ? "none" : "0 10px 22px rgba(22,69,47,.16)",
         transition: "transform .16s ease, box-shadow .16s ease, background .16s ease",
       }}
       onMouseEnter={(e) => {
         if (disabled) return;
         e.currentTarget.style.transform = "translateY(-1px)";
-        e.currentTarget.style.boxShadow = "0 14px 26px rgba(28,27,26,.2)";
+        e.currentTarget.style.boxShadow = "0 14px 26px rgba(22,69,47,.2)";
       }}
       onMouseLeave={(e) => {
         e.currentTarget.style.transform = "translateY(0)";
@@ -86,15 +86,15 @@ export default function TestStartLayout({
   return (
     <div style={{
       minHeight: "100vh",
-      background: "#F6F5F2",
-      color: "#1C1B1A",
+      background: "radial-gradient(circle at 80% 0, #e3efe7 0, transparent 28rem), #f4f6f2",
+      color: "#17211b",
       fontFamily: "'Golos Text', system-ui, sans-serif",
     }}>
       <div style={{ maxWidth: 720, margin: "0 auto", padding: "28px 20px 80px" }}>
         <button
           onClick={onBack}
           style={{
-            border: "1.5px solid #D8D5CF",
+          border: "1px solid #cfd8cf",
             background: "rgba(255,255,255,.72)",
             color: "#44413B",
             borderRadius: 12,
@@ -113,8 +113,8 @@ export default function TestStartLayout({
           background: "#fff",
           borderRadius: 18,
           padding: "28px 28px 30px",
-          boxShadow: "0 14px 38px rgba(28,27,26,.08)",
-          border: "1px solid #EEECE7",
+          boxShadow: "0 14px 38px rgba(22,69,47,.08)",
+          border: "1px solid #dfe6dd",
         }}>
           <div style={{ display: "flex", gap: 16, alignItems: "flex-start", marginBottom: 22 }}>
             <div style={{

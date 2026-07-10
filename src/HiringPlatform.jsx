@@ -224,7 +224,7 @@ const LEGACY_FIELDS = [
   ["total_score", "Итоговый балл"], ["score", "Балл"], ["level", "Уровень"],
 ];
 
-function LegacyArchive({ archive }) {
+function LegacyArchive({ archive, onRefresh }) {
   const [search, setSearch] = useState("");
   const [type, setType] = useState("all");
   if (archive.loading) return <div className="eh-empty">Загружаем прежние результаты…</div>;
@@ -233,7 +233,7 @@ function LegacyArchive({ archive }) {
   const items = archive.items.filter((item) => (type === "all" || item.type === type) && (!query || `${item.candidateName} ${item.email} ${item.phone} ${item.label}`.toLowerCase().includes(query)));
   const types = [...new Map(archive.items.map((item) => [item.type, item.label])).entries()];
   return <>
-    <div className="eh-toolbar"><div><h2>Архив прежних тестов</h2><p>{archive.items.length} сохранённых результатов · только чтение</p></div><div className="eh-actions"><div className="eh-search"><label className="eh-label" htmlFor="legacy-search">Найти кандидата</label><input id="legacy-search" className="eh-input" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Имя, email или телефон" /></div><div><label className="eh-label" htmlFor="legacy-type">Методика</label><select id="legacy-type" className="eh-select" value={type} onChange={(event) => setType(event.target.value)}><option value="all">Все методики</option>{types.map(([id, label]) => <option key={id} value={id}>{label}</option>)}</select></div></div></div>
+    <div className="eh-toolbar"><div><h2>Архив прежних тестов</h2><p>{archive.items.length} сохранённых результатов · обновляется автоматически</p></div><div className="eh-actions"><button type="button" className="eh-btn eh-btn-secondary" onClick={onRefresh}>Обновить</button><div className="eh-search"><label className="eh-label" htmlFor="legacy-search">Найти кандидата</label><input id="legacy-search" className="eh-input" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Имя, email или телефон" /></div><div><label className="eh-label" htmlFor="legacy-type">Методика</label><select id="legacy-type" className="eh-select" value={type} onChange={(event) => setType(event.target.value)}><option value="all">Все методики</option>{types.map(([id, label]) => <option key={id} value={id}>{label}</option>)}</select></div></div></div>
     <div className="eh-callout" style={{ marginBottom: 18 }}>Старые результаты показаны отдельно и не входят автоматически в новый итоговый балл: для них использовались другие вопросы, шкалы и правила интерпретации.</div>
     {archive.warnings.length > 0 && <div className="eh-callout" style={{ marginBottom: 18 }}>Часть таблиц временно недоступна: {archive.warnings.map((item) => item.table).join(", ")}.</div>}
     {!items.length ? <div className="eh-empty"><h3>Ничего не найдено</h3><p>Измените поиск или фильтр методики.</p></div> : <div className="eh-candidates">{items.map((item) => {
@@ -287,6 +287,16 @@ export default function HiringPlatform() {
   const [legacyArchive, setLegacyArchive] = useState({ loading: true, items: [], warnings: [], error: "" });
   const [saveState, setSaveState] = useState("idle");
 
+  const refreshLegacyArchive = async () => {
+    setLegacyArchive((current) => ({ ...current, loading: true, error: "" }));
+    try {
+      const legacy = await listLegacyResults();
+      setLegacyArchive({ loading: false, items: legacy.items || [], warnings: legacy.warnings || [], error: "" });
+    } catch (reason) {
+      setLegacyArchive((current) => ({ ...current, loading: false, error: reason?.message || "Ошибка архива" }));
+    }
+  };
+
   const loadAccount = async (user) => {
     const membership = await getMembership(user.id);
     if (!membership) throw new Error("Для пользователя не настроено членство в организации. Добавьте запись organization_members.");
@@ -313,6 +323,11 @@ export default function HiringPlatform() {
     window.addEventListener("beforeunload", warn);
     return () => window.removeEventListener("beforeunload", warn);
   }, [saveState]);
+  useEffect(() => {
+    if (!auth.user || !["owner", "admin"].includes(auth.membership?.role)) return undefined;
+    const timer = window.setInterval(() => { listLegacyResults().then((legacy) => setLegacyArchive({ loading: false, items: legacy.items || [], warnings: legacy.warnings || [], error: "" })).catch(() => {}); }, 30000);
+    return () => window.clearInterval(timer);
+  }, [auth.user, auth.membership?.role]);
   const profiles = useMemo(() => [...customProfiles, ...JOB_PROFILES], [customProfiles]);
   const resolveProfile = (id) => profiles.find((item) => item.id === id) || getJobProfile(id);
   const profile = candidate ? resolveProfile(candidate.profileId) : selectedProfile;
@@ -337,7 +352,7 @@ export default function HiringPlatform() {
   else if (buildingProfile) content = <ProfileBuilder onCancel={() => setBuildingProfile(false)} onCreate={async (created) => { if (!auth.demo) await createCustomProfile(auth.membership.organization_id, auth.user.id, created); setCustomProfiles((items) => [created, ...items]); setBuildingProfile(false); setSelectedProfile(created); }} />;
   else if (selectedProfile) content = <CandidateForm profile={selectedProfile} onCancel={() => setSelectedProfile(null)} onCreate={async (created) => { const stored = auth.demo ? created : await createAssessment(auth.membership.organization_id, auth.user.id, created); setCandidates((items) => [stored, ...items]); setCandidate(stored); }} />;
   else if (view === "candidates") content = <Candidates candidates={candidates} onOpen={setCandidate} onNew={() => navigate("profiles")} resolveProfile={resolveProfile} />;
-  else if (view === "legacy") content = <LegacyArchive archive={legacyArchive} />;
+  else if (view === "legacy") content = <LegacyArchive archive={legacyArchive} onRefresh={refreshLegacyArchive} />;
   else if (view === "method") content = <Method />;
   else if (view === "research") content = <Research candidates={candidates} resolveProfile={resolveProfile} />;
   else content = <Profiles profiles={profiles} onSelect={setSelectedProfile} onCreateCustom={() => setBuildingProfile(true)} />;

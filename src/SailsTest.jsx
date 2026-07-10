@@ -65,14 +65,14 @@ function StartScreen({ onStart, onBack, initialName = "", initialEmail = "", ini
 
 function ResultScreen({ name, onBack }) {
   return (
-    <div style={{ minHeight: "100vh", background: "linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}>
-      <div style={{ background: "rgba(255,255,255,0.05)", backdropFilter: "blur(20px)", borderRadius: "24px", padding: "48px", maxWidth: "480px", width: "100%", border: "1px solid rgba(255,255,255,0.1)", textAlign: "center" }}>
+    <div style={{ minHeight: "100vh", background: "radial-gradient(circle at 80% 0, #e3efe7 0, transparent 28rem), #f4f6f2", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}>
+      <div style={{ background: "#fff", borderRadius: "24px", padding: "48px", maxWidth: "480px", width: "100%", border: "1px solid #dfe6dd", boxShadow: "0 14px 38px rgba(22,69,47,.08)", textAlign: "center" }}>
         <div style={{ fontSize: "64px", marginBottom: "16px" }}>✅</div>
-        <h2 style={{ color: "#fff", fontSize: "26px", fontWeight: "700", marginBottom: "8px" }}>Тест завершён!</h2>
-        <p style={{ color: "rgba(255,255,255,0.6)", fontSize: "15px", marginBottom: "32px", lineHeight: "1.7" }}>
+        <h2 style={{ color: "#17211b", fontSize: "26px", fontWeight: "700", marginBottom: "8px" }}>Тест завершён!</h2>
+        <p style={{ color: "#647068", fontSize: "15px", marginBottom: "32px", lineHeight: "1.7" }}>
           Спасибо, {name}!<br />Ваши ответы сохранены.
         </p>
-        <button onClick={onBack} style={{ width: "100%", padding: "14px", background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", borderRadius: "12px", color: "#fff", fontSize: "16px", cursor: "pointer" }}>
+        <button onClick={onBack} style={{ width: "100%", padding: "14px", background: "#e8eee9", border: "1px solid #d7dfd6", borderRadius: "12px", color: "#213128", fontSize: "16px", cursor: "pointer", fontWeight: 700 }}>
           На главную
         </button>
       </div>
@@ -157,27 +157,27 @@ export default function SailsTest({ onBack, initialName = "", initialEmail = "",
   const isLowTime = timeLeft < 300;
 
   return (
-    <div style={{ minHeight: "100vh", background: "linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)", display: "flex", flexDirection: "column" }}>
+    <div style={{ minHeight: "100vh", background: "radial-gradient(circle at 80% 0, #e3efe7 0, transparent 28rem), #f4f6f2", color: "#17211b", display: "flex", flexDirection: "column" }}>
       {/* Header */}
-      <div style={{ padding: "16px 24px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid rgba(255,255,255,0.1)" }}>
-        <button onClick={onBack} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.5)", cursor: "pointer", fontSize: "14px", padding: "4px 8px" }}>← Выход</button>
-        <span style={{ color: "rgba(255,255,255,0.8)", fontSize: "14px", fontWeight: "600" }}>💎 Тест Продажник</span>
-        <span style={{ color: isLowTime ? "#f44336" : "rgba(255,255,255,0.7)", fontSize: "16px", fontWeight: "700", fontFamily: "monospace" }}>{formatTime(timeLeft)}</span>
+      <div style={{ padding: "16px 24px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid #dfe6dd", background: "rgba(250,251,248,.96)" }}>
+        <button onClick={onBack} style={{ background: "none", border: "none", color: "#536057", cursor: "pointer", fontSize: "14px", padding: "4px 8px" }}>← Выход</button>
+        <span style={{ color: "#1f6f4e", fontSize: "14px", fontWeight: "700" }}>💎 Оценка продаж</span>
+        <span style={{ color: isLowTime ? "#9d332c" : "#1f6f4e", fontSize: "16px", fontWeight: "700", fontFamily: "monospace" }}>{formatTime(timeLeft)}</span>
       </div>
 
       {/* Progress bar */}
-      <div style={{ height: "3px", background: "rgba(255,255,255,0.1)" }}>
-        <div style={{ height: "100%", width: `${progress}%`, background: "linear-gradient(90deg, #e040fb, #9c27b0)", transition: "width 0.3s" }} />
+      <div style={{ height: "4px", background: "#dfe6dd" }}>
+        <div style={{ height: "100%", width: `${progress}%`, background: "#1f6f4e", transition: "width 0.3s" }} />
       </div>
 
       {/* Question */}
       <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "24px" }}>
         <div style={{ maxWidth: "640px", width: "100%" }}>
           <div style={{ textAlign: "center", marginBottom: "12px" }}>
-            <span style={{ color: "rgba(255,255,255,0.4)", fontSize: "13px" }}>Вопрос {current + 1} из {SAILS_QUESTIONS.length}</span>
+            <span style={{ color: "#748077", fontSize: "13px" }}>Вопрос {current + 1} из {SAILS_QUESTIONS.length}</span>
           </div>
-          <div style={{ background: "rgba(255,255,255,0.05)", borderRadius: "20px", padding: "32px", border: "1px solid rgba(255,255,255,0.1)", marginBottom: "24px", textAlign: "center" }}>
-            <p style={{ color: "#fff", fontSize: "18px", lineHeight: "1.7", margin: 0, fontWeight: "500" }}>{q.text}</p>
+          <div style={{ background: "#fff", borderRadius: "20px", padding: "32px", border: "1px solid #dfe6dd", boxShadow: "0 14px 38px rgba(22,69,47,.07)", marginBottom: "24px", textAlign: "center" }}>
+            <p style={{ color: "#17211b", fontSize: "18px", lineHeight: "1.7", margin: 0, fontWeight: "500" }}>{q.text}</p>
           </div>
 
           {/* Options */}
@@ -188,10 +188,10 @@ export default function SailsTest({ onBack, initialName = "", initialEmail = "",
                 onClick={() => handleAnswer(opt.value)}
                 style={{
                   padding: "18px 12px",
-                  background: answers[q.id] === opt.value ? "linear-gradient(135deg, #e040fb, #9c27b0)" : "rgba(255,255,255,0.07)",
-                  border: answers[q.id] === opt.value ? "none" : "1px solid rgba(255,255,255,0.15)",
+                  background: answers[q.id] === opt.value ? "#1f6f4e" : "#fff",
+                  border: answers[q.id] === opt.value ? "1px solid #1f6f4e" : "1px solid #cfd8cf",
                   borderRadius: "14px",
-                  color: "#fff",
+                  color: answers[q.id] === opt.value ? "#fff" : "#213128",
                   fontSize: "15px",
                   fontWeight: "600",
                   cursor: "pointer",
@@ -206,7 +206,7 @@ export default function SailsTest({ onBack, initialName = "", initialEmail = "",
       </div>
 
       {/* Navigation grid */}
-      <div style={{ padding: "16px 24px", borderTop: "1px solid rgba(255,255,255,0.1)" }}>
+      <div style={{ padding: "16px 24px", borderTop: "1px solid #dfe6dd", background: "rgba(250,251,248,.9)" }}>
         <div style={{ display: "flex", flexWrap: "wrap", gap: "4px", justifyContent: "center", maxWidth: "640px", margin: "0 auto" }}>
           {SAILS_QUESTIONS.map((_, i) => (
             <button
@@ -218,8 +218,8 @@ export default function SailsTest({ onBack, initialName = "", initialEmail = "",
                 border: "none",
                 fontSize: "9px",
                 cursor: "pointer",
-                background: i === current ? "#e040fb" : answers[SAILS_QUESTIONS[i].id] ? "#4caf50" : "rgba(255,255,255,0.1)",
-                color: "#fff",
+                background: i === current ? "#1f6f4e" : answers[SAILS_QUESTIONS[i].id] ? "#9fc8aa" : "#dfe6dd",
+                color: i === current ? "#fff" : "#213128",
                 fontWeight: i === current ? "700" : "400",
               }}
             >
@@ -231,7 +231,7 @@ export default function SailsTest({ onBack, initialName = "", initialEmail = "",
           {answered >= SAILS_QUESTIONS.length - 1 && (
             <button
               onClick={() => handleSubmit(false)}
-              style={{ padding: "10px 32px", background: "linear-gradient(135deg, #e040fb, #9c27b0)", border: "none", borderRadius: "12px", color: "#fff", fontSize: "14px", fontWeight: "600", cursor: "pointer" }}
+              style={{ padding: "10px 32px", background: "#1f6f4e", border: "none", borderRadius: "12px", color: "#fff", fontSize: "14px", fontWeight: "700", cursor: "pointer" }}
             >
               Завершить тест
             </button>

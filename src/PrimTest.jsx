@@ -40,7 +40,7 @@ function formatTime(sec) {
 }
 
 const S = {
-  page: { minHeight: "100vh", background: "#F6F5F2", color: "#1C1B1A", fontFamily: "'Golos Text', system-ui, sans-serif" },
+  page: { minHeight: "100vh", background: "radial-gradient(circle at 80% 0, #e3efe7 0, transparent 28rem), #f4f6f2", color: "#17211b", fontFamily: "'Golos Text', system-ui, sans-serif" },
   wrap: { maxWidth: 640, margin: "0 auto", padding: "32px 20px 80px" },
   display: { fontFamily: "'Unbounded', 'Golos Text', sans-serif" },
   card: { background: "#fff", borderRadius: 16, padding: 24, boxShadow: "0 1px 3px rgba(28,27,26,.07)", marginBottom: 16 },
@@ -50,7 +50,7 @@ const S = {
 function ProgressBar({ pct }) {
   return (
     <div style={{ height: 4, background: "#EEECE7", borderRadius: 99, overflow: "hidden", marginBottom: 24 }}>
-      <div style={{ width: `${pct}%`, height: "100%", background: "#1C1B1A", borderRadius: 99, transition: "width .3s ease" }} />
+      <div style={{ width: `${pct}%`, height: "100%", background: "#1f6f4e", borderRadius: 99, transition: "width .3s ease" }} />
     </div>
   );
 }

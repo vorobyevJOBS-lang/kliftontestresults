@@ -412,7 +412,7 @@ export default function RezultTest({ onBack, initialName = "", initialEmail = ""
   // ── DONE ──
   if (stage === "done") {
     return (
-      <div style={{ minHeight: "100vh", background: "#F5F6FA", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
+      <div style={{ minHeight: "100vh", background: "radial-gradient(circle at 80% 0, #e3efe7 0, transparent 28rem), #f4f6f2", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
         <div style={{ background: "#fff", borderRadius: 20, padding: "48px 40px", maxWidth: 440, width: "100%", textAlign: "center", boxShadow: "0 2px 16px rgba(0,0,0,0.08)" }}>
           <div style={{ fontSize: 52, marginBottom: 16 }}>✅</div>
           <h2 style={{ fontSize: 24, fontWeight: 700, marginBottom: 12 }}>Тест завершён!</h2>
@@ -444,7 +444,7 @@ export default function RezultTest({ onBack, initialName = "", initialEmail = ""
   }
 
   return (
-    <div style={{ minHeight: "100vh", background: "#F5F6FA", display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "40px 16px" }}>
+    <div style={{ minHeight: "100vh", background: "radial-gradient(circle at 80% 0, #e3efe7 0, transparent 28rem), #f4f6f2", display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "40px 16px" }}>
       <div style={{ background: "#fff", borderRadius: 20, padding: "36px 40px", maxWidth: 620, width: "100%", boxShadow: "0 2px 16px rgba(0,0,0,0.08)" }}>
 
         {/* Header */}
@@ -463,7 +463,7 @@ export default function RezultTest({ onBack, initialName = "", initialEmail = ""
 
         {/* Progress bar */}
         <div style={{ height: 4, background: "#E8EAED", borderRadius: 4, marginBottom: 28 }}>
-          <div style={{ height: "100%", width: `${progress}%`, background: "#3B7BF6", borderRadius: 4, transition: "width 0.3s" }} />
+          <div style={{ height: "100%", width: `${progress}%`, background: "#1f6f4e", borderRadius: 4, transition: "width 0.3s" }} />
         </div>
 
         {/* Question */}
