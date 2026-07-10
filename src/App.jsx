@@ -9,7 +9,6 @@ import AudienceFields from "./AudienceFields";
 import { BRANCHES, branchById } from "./org";
 import TestStartLayout, { StartButton, startInputStyle, startLabelStyle } from "./TestStartLayout";
 import { getCandidateKey } from "./candidateIdentity";
-import { getRouteSummary, getTestRouteForRole, TEST_ROUTE_META } from "./testRoutes";
 
 const RezultTest = lazy(() => import("./RezultTest"));
 const ToolsTest = lazy(() => import("./ToolsTest"));
@@ -63,6 +62,7 @@ function getInitialRouteContext() {
     email: params.get("email") || "",
     role: params.get("role") || "",
     branch: params.get("branch") || "",
+    tests: (params.get("tests") || "").split(",").filter((id) => TEST_CARDS.some((test) => test.id === id)),
     applicantType: type === "employee" ? "employee" : "candidate",
   };
 }
@@ -447,8 +447,9 @@ export default function App() {
   const [submitting, setSubmitting] = useState(false);
 
   const availablePositions = positionsForSchool(branchById(branchId).school);
-  const selectedRoute = getTestRouteForRole(positionId);
-  const selectedRouteSummary = getRouteSummary(selectedRoute);
+  const visibleTests = initialRouteContext.tests?.length
+    ? TEST_CARDS.filter((test) => initialRouteContext.tests.includes(test.id))
+    : TEST_CARDS.filter((test) => ["rezultat", "clifton"].includes(test.id));
 
   useEffect(() => {
     // если текущая должность недоступна для выбранного филиала (например тьютор для Клячки) — сбросить на первую доступную
@@ -649,62 +650,14 @@ export default function App() {
           <div style={{ ...S.display, fontSize: 13, fontWeight: 700, textTransform: "uppercase", color: "#8A867E" }}>Оценка кандидатов</div>
           <a href="/hr" style={{ color: "#1C1B1A", fontSize: 13, fontWeight: 700, textDecoration: "none", padding: "8px 12px", border: "1px solid #D8D5CF", borderRadius: 10, whiteSpace: "nowrap" }}>Вход для HR</a>
         </div>
-        <h1 style={{ ...S.display, fontSize: 30, lineHeight: 1.15, margin: 0, fontWeight: 700 }}>Выберите тест</h1>
+        <h1 style={{ ...S.display, fontSize: 30, lineHeight: 1.15, margin: 0, fontWeight: 700 }}>{initialRouteContext.tests?.length ? "Ваши этапы оценки" : "Начните оценку"}</h1>
         <p style={{ color: "#6B675F", fontSize: 16, lineHeight: 1.55, marginTop: 12 }}>
-          Единая точка входа для оценки сильных сторон, опыта, логики, продаж и личностного профиля.
+          {initialRouteContext.tests?.length ? "Пройдите только назначенные этапы. Можно делать паузу между тестами." : "Два базовых этапа для начала. Остальные задания руководитель отправит отдельной персональной ссылкой, если они понадобятся."}
         </p>
       </div>
 
-      <div style={{ ...S.card, padding: 18, marginBottom: 18 }}>
-        <label style={{ ...startLabelStyle }}>Должность для маршрута оценки</label>
-        <select value={positionId} onChange={(e) => setPositionId(e.target.value)}
-          style={startInputStyle}>
-          {availablePositions.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-        </select>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12 }}>
-          <span style={{ fontSize: 12, fontWeight: 800, color: selectedRouteSummary.color, background: `${selectedRouteSummary.color}14`, borderRadius: 99, padding: "6px 10px" }}>
-            {selectedRouteSummary.level}
-          </span>
-          <span style={{ fontSize: 12, fontWeight: 800, color: "#6B675F", background: "#F1EFEA", borderRadius: 99, padding: "6px 10px" }}>
-            Обязательно: ≈ {selectedRouteSummary.requiredMinutes} мин
-          </span>
-          {selectedRouteSummary.optionalCount > 0 && (
-            <span style={{ fontSize: 12, fontWeight: 800, color: "#8A867E", background: "#F8F7F4", borderRadius: 99, padding: "6px 10px" }}>
-              Дополнительно: ≈ {selectedRouteSummary.optionalMinutes} мин
-            </span>
-          )}
-        </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 8, marginTop: 14 }}>
-          {selectedRoute.required.map((testId) => {
-            const meta = TEST_ROUTE_META[testId];
-            return (
-              <button key={testId} onClick={() => setActiveTest(testId)}
-                style={{ border: "1.5px solid #D8D5CF", background: "#F8F7F4", borderRadius: 12, padding: "11px 12px", cursor: "pointer", textAlign: "left", fontFamily: "inherit" }}>
-                <div style={{ fontSize: 18 }}>{meta.icon}</div>
-                <div style={{ fontWeight: 800, marginTop: 4 }}>{meta.label}</div>
-                <div style={{ fontSize: 12, color: "#2E9E87", marginTop: 3 }}>Обязательный · ≈ {meta.minutes} мин</div>
-              </button>
-            );
-          })}
-          {selectedRoute.optional.map((testId) => {
-            const meta = TEST_ROUTE_META[testId];
-            return (
-              <button key={testId} onClick={() => setActiveTest(testId)}
-                style={{ border: "1.5px solid #EEECE7", background: "#fff", borderRadius: 12, padding: "11px 12px", cursor: "pointer", textAlign: "left", fontFamily: "inherit" }}>
-                <div style={{ fontSize: 18 }}>{meta.icon}</div>
-                <div style={{ fontWeight: 800, marginTop: 4 }}>{meta.label}</div>
-                <div style={{ fontSize: 12, color: "#8A867E", marginTop: 3 }}>Дополнительно · ≈ {meta.minutes} мин</div>
-              </button>
-            );
-          })}
-        </div>
-        <div style={{ marginTop: 12, fontSize: 13, color: "#6B675F", lineHeight: 1.5 }}>
-          {selectedRoute.reason}
-        </div>
-      </div>
-
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(210px,1fr))", gap: 12, marginBottom: 24 }}>
-        {TEST_CARDS.map((item) => (
+        {visibleTests.map((item) => (
           <HomeTestCard
             key={item.id}
             item={item}
@@ -714,13 +667,6 @@ export default function App() {
         ))}
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 24 }}>
-        {Object.entries(DOMAINS).map(([dname, d]) => (
-          <div key={dname} style={{ background: d.soft, borderRadius: 14, padding: "14px 16px" }}>
-            <div style={{ fontWeight: 700, color: d.color, fontSize: 14 }}>{dname}</div>
-          </div>
-        ))}
-      </div>
     </div></div>
   );
 

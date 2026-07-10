@@ -3,6 +3,7 @@ import { COMPETENCIES, getJobProfile, JOB_PROFILES, PROFILE_STATUS } from "./hir
 import { calculateAssessment, createCandidateRecord } from "./hiring/assessmentEngine";
 import { configureValidationCalculator, summarizeValidation } from "./hiring/validationMetrics";
 import { createAssessment, createCandidateInvite, createCustomProfile, deleteAssessment, getMembership, getSessionUser, listAssessments, listCustomProfiles, listLegacyResults, saveAssessment, saveOutcome, signIn, signOut } from "./hiring/secureRepository";
+import { BRANCHES } from "./org";
 import "./hiring/hiring.css";
 
 configureValidationCalculator(calculateAssessment);
@@ -45,7 +46,7 @@ function Header({ view, setView, account, onSignOut }) {
       <nav className="eh-nav" aria-label="Основная навигация">
         <button type="button" aria-current={view === "profiles" ? "page" : undefined} onClick={() => setView("profiles")}>Должности</button>
         <button type="button" aria-current={view === "candidates" ? "page" : undefined} onClick={() => setView("candidates")}>Кандидаты</button>
-        <button type="button" aria-current={view === "legacy" ? "page" : undefined} onClick={() => setView("legacy")}>Архив тестов</button>
+        <button type="button" aria-current={view === "legacy" ? "page" : undefined} onClick={() => setView("legacy")}>CRM</button>
         <button type="button" aria-current={view === "method" ? "page" : undefined} onClick={() => setView("method")}>Методика</button>
         <button type="button" aria-current={view === "research" ? "page" : undefined} onClick={() => setView("research")}>Исследования</button>
         {account && <button type="button" onClick={onSignOut}>Выйти</button>}
@@ -224,6 +225,29 @@ const LEGACY_FIELDS = [
   ["total_score", "Итоговый балл"], ["score", "Балл"], ["level", "Уровень"],
 ];
 
+const ASSIGNABLE_TESTS = [
+  ["rezultat", "Опыт", "8–12 мин"], ["clifton", "Рабочие предпочтения", "45–50 мин"],
+  ["tools", "Профиль", "35 мин"], ["logis", "Логика", "30 мин"],
+  ["sails", "Продажи", "30 мин"], ["prim", "Первичный анализ", "30–36 мин"],
+];
+
+function AssignmentBuilder() {
+  const [form, setForm] = useState({ name: "", email: "", branch: BRANCHES[0].id });
+  const [selected, setSelected] = useState(["rezultat", "clifton"]);
+  const [copied, setCopied] = useState(false);
+  const toggle = (id) => setSelected((items) => items.includes(id) ? items.filter((item) => item !== id) : [...items, id]);
+  const createLink = () => {
+    const params = new URLSearchParams({ name: form.name.trim(), email: form.email.trim(), branch: form.branch, tests: selected.join(","), type: "candidate" });
+    return `${window.location.origin}/?${params.toString()}`;
+  };
+  const copy = async () => {
+    if (!form.name.trim() || !form.email.trim() || !selected.length) return;
+    await navigator.clipboard.writeText(createLink());
+    setCopied(true); window.setTimeout(() => setCopied(false), 1800);
+  };
+  return <section className="eh-panel" style={{ marginBottom: 22 }}><div className="eh-role-head" style={{ marginBottom: 18 }}><div><span className="eh-family">Новое приглашение</span><h2 style={{ margin: "8px 0 5px" }}>Назначить тесты кандидату</h2><p>Кандидат увидит только выбранные этапы. Имя, email и школа уже будут заполнены.</p></div></div><div className="eh-form-grid"><div><label className="eh-label" htmlFor="assign-name">Имя кандидата</label><input id="assign-name" className="eh-input" value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} /></div><div><label className="eh-label" htmlFor="assign-email">Email</label><input id="assign-email" className="eh-input" type="email" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} /></div><div className="eh-form-field-full"><label className="eh-label" htmlFor="assign-branch">Школа</label><select id="assign-branch" className="eh-select" value={form.branch} onChange={(event) => setForm({ ...form, branch: event.target.value })}>{BRANCHES.map((branch) => <option key={branch.id} value={branch.id}>{branch.name}</option>)}</select></div><div className="eh-form-field-full"><span className="eh-label">Этапы оценки</span><div className="eh-test-picker">{ASSIGNABLE_TESTS.map(([id, label, minutes]) => <label key={id} className={selected.includes(id) ? "is-selected" : ""}><input type="checkbox" checked={selected.includes(id)} onChange={() => toggle(id)} /><span><strong>{label}</strong><small>{minutes}</small></span></label>)}</div></div></div><div className="eh-actions" style={{ marginTop: 18 }}><button type="button" className="eh-btn eh-btn-primary" disabled={!form.name.trim() || !form.email.trim() || !selected.length} onClick={copy}>{copied ? "Ссылка скопирована ✓" : "Скопировать персональную ссылку"}</button></div></section>;
+}
+
 function LegacyArchive({ archive, onRefresh }) {
   const [search, setSearch] = useState("");
   const [type, setType] = useState("all");
@@ -231,16 +255,24 @@ function LegacyArchive({ archive, onRefresh }) {
   if (archive.error) return <div className="eh-panel"><h2>Не удалось открыть архив</h2><p>{archive.error}</p><p className="eh-helper">Проверьте SUPABASE_SERVICE_ROLE_KEY в Vercel. Старые данные остаются в базе и доступны в прежнем кабинете.</p></div>;
   const query = search.trim().toLowerCase();
   const items = archive.items.filter((item) => (type === "all" || item.type === type) && (!query || `${item.candidateName} ${item.email} ${item.phone} ${item.label}`.toLowerCase().includes(query)));
+  const peopleMap = new Map();
+  items.forEach((item) => {
+    const key = item.email?.trim().toLowerCase() || item.raw?.candidate_key || `${item.candidateName.trim().toLowerCase()}:${item.branchId}`;
+    const person = peopleMap.get(key) || { key, name: item.candidateName, email: item.email, phone: item.phone, branchId: item.branchId, results: [] };
+    person.results.push(item); peopleMap.set(key, person);
+  });
+  const people = [...peopleMap.values()].sort((a, b) => new Date(b.results[0]?.createdAt || 0) - new Date(a.results[0]?.createdAt || 0));
   const types = [...new Map(archive.items.map((item) => [item.type, item.label])).entries()];
   return <>
-    <div className="eh-toolbar"><div><h2>Архив прежних тестов</h2><p>{archive.items.length} сохранённых результатов · обновляется автоматически</p></div><div className="eh-actions"><button type="button" className="eh-btn eh-btn-secondary" onClick={onRefresh}>Обновить</button><div className="eh-search"><label className="eh-label" htmlFor="legacy-search">Найти кандидата</label><input id="legacy-search" className="eh-input" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Имя, email или телефон" /></div><div><label className="eh-label" htmlFor="legacy-type">Методика</label><select id="legacy-type" className="eh-select" value={type} onChange={(event) => setType(event.target.value)}><option value="all">Все методики</option>{types.map(([id, label]) => <option key={id} value={id}>{label}</option>)}</select></div></div></div>
+    <AssignmentBuilder />
+    <div className="eh-toolbar"><div><h2>CRM кандидатов</h2><p>{peopleMap.size} кандидатов · {archive.items.length} результатов · обновляется автоматически</p></div><div className="eh-actions"><button type="button" className="eh-btn eh-btn-secondary" onClick={onRefresh}>Обновить</button><div className="eh-search"><label className="eh-label" htmlFor="legacy-search">Найти кандидата</label><input id="legacy-search" className="eh-input" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Имя, email или телефон" /></div><div><label className="eh-label" htmlFor="legacy-type">Результат</label><select id="legacy-type" className="eh-select" value={type} onChange={(event) => setType(event.target.value)}><option value="all">Все результаты</option>{types.map(([id, label]) => <option key={id} value={id}>{label}</option>)}</select></div></div></div>
     <div className="eh-callout" style={{ marginBottom: 18 }}>Старые результаты показаны отдельно и не входят автоматически в новый итоговый балл: для них использовались другие вопросы, шкалы и правила интерпретации.</div>
     {archive.warnings.length > 0 && <div className="eh-callout" style={{ marginBottom: 18 }}>Часть таблиц временно недоступна: {archive.warnings.map((item) => item.table).join(", ")}.</div>}
-    {!items.length ? <div className="eh-empty"><h3>Ничего не найдено</h3><p>Измените поиск или фильтр методики.</p></div> : <div className="eh-candidates">{items.map((item) => {
+    {!people.length ? <div className="eh-empty"><h3>Ничего не найдено</h3><p>Измените поиск или фильтр методики.</p></div> : <div className="eh-candidates">{people.map((person) => <article className="eh-candidate" key={person.key} style={{ alignItems: "flex-start" }}><div style={{ minWidth: 0, width: "100%" }}><span className="eh-family">Карточка кандидата</span><h3 style={{ marginTop: 8 }}>{person.name}</h3><p>{person.email || "Email не указан"}{person.phone ? ` · ${person.phone}` : ""}</p><div className="eh-card-meta">{person.results.map((item) => <span className="eh-chip" key={item.id}>{item.label} ✓</span>)}</div>{person.results.map((item) => {
       const visibleFields = LEGACY_FIELDS.map(([key, label]) => [label, item.raw?.[key]]).filter(([, value]) => value !== null && value !== undefined && value !== "");
       const report = item.raw?.report || item.raw?.summary || item.raw?.analysis || item.raw?.recommendation || "";
-      return <article className="eh-candidate" key={item.id} style={{ alignItems: "flex-start" }}><div style={{ minWidth: 0, width: "100%" }}><span className="eh-family">{item.label}</span><h3 style={{ marginTop: 8 }}>{item.candidateName}</h3><p>{item.createdAt ? new Date(item.createdAt).toLocaleString("ru-RU") : "Дата не указана"}{item.email ? ` · ${item.email}` : ""}{item.phone ? ` · ${item.phone}` : ""}</p>{visibleFields.length > 0 && <div className="eh-card-meta">{visibleFields.map(([label, value]) => <span className="eh-chip" key={label}>{label}: {String(value)}</span>)}</div>}<details style={{ marginTop: 14 }}><summary style={{ cursor: "pointer", fontWeight: 700 }}>Сохранённый результат</summary><pre className="eh-legacy-report">{report ? (typeof report === "string" ? report : JSON.stringify(report, null, 2)) : JSON.stringify(item.raw, null, 2)}</pre></details></div></article>;
-    })}</div>}
+      return <details key={item.id} style={{ marginTop: 14 }}><summary style={{ cursor: "pointer", fontWeight: 700 }}>{item.label} · {item.createdAt ? new Date(item.createdAt).toLocaleDateString("ru-RU") : "без даты"}</summary>{visibleFields.length > 0 && <div className="eh-card-meta">{visibleFields.map(([label, value]) => <span className="eh-chip" key={label}>{label}: {String(value)}</span>)}</div>}<pre className="eh-legacy-report">{report ? (typeof report === "string" ? report : JSON.stringify(report, null, 2)) : JSON.stringify(item.raw, null, 2)}</pre></details>;
+    })}</div></article>)}</div>}
   </>;
 }
 
@@ -339,7 +371,7 @@ export default function HiringPlatform() {
 
   let content;
   if (auth.loading) return <div className="eh-shell"><main className="eh-main"><div className="eh-empty">Проверяем защищённую сессию…</div></main></div>;
-  if (!auth.user && !auth.demo) return <Login onReady={loadAccount} onDemo={() => setAuth({ loading: false, user: null, membership: null, demo: true, error: "" })} />;
+  if (!auth.user && !auth.demo) return <Login onReady={loadAccount} onDemo={() => { setLegacyArchive({ loading: false, items: [], warnings: [], error: "" }); setAuth({ loading: false, user: null, membership: null, demo: true, error: "" }); }} />;
 
   const persistCandidate = async () => {
     if (auth.demo) { setSaveState("saved"); setTimeout(() => setSaveState("idle"), 1200); return; }

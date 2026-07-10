@@ -140,6 +140,14 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 }
 
 .eh-legacy-report { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 420px; overflow: auto; background: #f6f7f5; border: 1px solid var(--eh-line); border-radius: 12px; padding: 14px; font: 13px/1.55 ui-monospace, SFMono-Regular, Menlo, monospace; color: #28312c; }
+.eh-test-picker { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 9px; }
+.eh-test-picker label { display: flex; gap: 10px; align-items: center; min-height: 64px; padding: 11px 12px; border: 1px solid #dfe6dd; border-radius: 12px; background: #fff; cursor: pointer; }
+.eh-test-picker label.is-selected { border-color: #1f6f4e; background: #e8f3eb; }
+.eh-test-picker input { accent-color: #1f6f4e; }
+.eh-test-picker span { display: grid; gap: 3px; }
+.eh-test-picker small { color: #748077; }
+
+@media (max-width: 720px) { .eh-test-picker { grid-template-columns: 1fr 1fr; } }
 
 @media print {
   .eh-header, .eh-back, .eh-actions, .eh-stage-summary > span:last-child, .eh-callout, .eh-helper { display: none !important; }
