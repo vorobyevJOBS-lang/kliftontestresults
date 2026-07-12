@@ -118,8 +118,16 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .eh-pipeline-column > p { color: #829087; font-size: 12px; }
 .eh-pipeline-card { width: 100%; display: grid; gap: 5px; margin-bottom: 8px; padding: 13px; border: 1px solid #dbe3da; border-radius: 12px; background: white; color: inherit; text-align: left; cursor: pointer; box-shadow: 0 4px 13px rgba(24,55,36,.04); }
 .eh-pipeline-card:hover { border-color: #8eaa96; }
+.eh-pipeline-card.is-selected { border-color: #1f6f4e; box-shadow: 0 0 0 2px rgba(31,111,78,.12); }
+.eh-card-select { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.eh-card-select label { color: #647068; font-size: 11px; }
 .eh-pipeline-card span, .eh-pipeline-card small { color: #68756c; }
 .eh-pipeline-card .is-overdue { color: #a23b32; font-weight: 750; }
+.eh-compare { margin-bottom: 16px; }
+.eh-compare-grid { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 10px; }
+.eh-compare-grid article { display: grid; gap: 6px; padding: 14px; border: 1px solid #dfe6dd; border-radius: 12px; }
+.eh-compare-grid article > span, .eh-compare-grid article > small { color: #68756c; font-size: 12px; }
+.eh-compare-grid article > b { margin: 6px 0; color: #1f6f4e; font-size: 24px; }
 .eh-method { max-width: 840px; }
 .eh-method section { padding: 22px 0; border-bottom: 1px solid #dfe6dd; }
 .eh-method h2, .eh-method h3 { letter-spacing: -.025em; }
@@ -149,6 +157,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   .eh-panel { padding: 18px; }
   .eh-candidate { grid-template-columns: 1fr; }
   .eh-crm-strip, .eh-crm-filters { grid-template-columns: 1fr; }
+  .eh-compare-grid { grid-template-columns: 1fr; }
   .eh-actions .eh-btn { flex: 1; }
 }
 
