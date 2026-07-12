@@ -105,6 +105,21 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .eh-candidate { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 20px; align-items: center; border: 1px solid #dfe6dd; border-radius: 15px; padding: 16px 18px; background: white; }
 .eh-candidate h3 { margin: 0; font-size: 16px; }
 .eh-candidate p { margin: 5px 0 0; color: #6d786f; font-size: 13px; }
+.eh-crm-strip { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin-bottom: 18px; }
+.eh-note-composer > div { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
+.eh-note-list { display: grid; gap: 8px; margin: 12px 0 0; padding: 0; list-style: none; }
+.eh-note-list li { padding: 10px 12px; border-radius: 10px; background: #f4f7f3; color: #48554c; font-size: 13px; line-height: 1.5; }
+.eh-note-list span { display: block; margin-bottom: 3px; color: #78847b; font-size: 11px; }
+.eh-crm-filters { display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+.eh-pipeline-board { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(245px, 1fr); gap: 12px; overflow-x: auto; padding-bottom: 12px; scroll-snap-type: x proximity; }
+.eh-pipeline-column { min-height: 210px; padding: 12px; border: 1px solid #dfe6dd; border-radius: 16px; background: #eef2ed; scroll-snap-align: start; }
+.eh-pipeline-column > header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+.eh-pipeline-column > header span { min-width: 25px; padding: 3px 7px; border-radius: 999px; background: #dce6dd; text-align: center; font-size: 12px; font-weight: 800; }
+.eh-pipeline-column > p { color: #829087; font-size: 12px; }
+.eh-pipeline-card { width: 100%; display: grid; gap: 5px; margin-bottom: 8px; padding: 13px; border: 1px solid #dbe3da; border-radius: 12px; background: white; color: inherit; text-align: left; cursor: pointer; box-shadow: 0 4px 13px rgba(24,55,36,.04); }
+.eh-pipeline-card:hover { border-color: #8eaa96; }
+.eh-pipeline-card span, .eh-pipeline-card small { color: #68756c; }
+.eh-pipeline-card .is-overdue { color: #a23b32; font-weight: 750; }
 .eh-method { max-width: 840px; }
 .eh-method section { padding: 22px 0; border-bottom: 1px solid #dfe6dd; }
 .eh-method h2, .eh-method h3 { letter-spacing: -.025em; }
@@ -120,8 +135,9 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 @media (max-width: 640px) {
   .eh-header-inner { min-height: 52px; padding: 0 10px; }
   .eh-header .eh-brand { display: none; }
-  .eh-nav { width: 100%; min-width: 0; gap: 2px; justify-content: space-between; }
-  .eh-nav button { padding: 9px 6px; font-size: 11px; }
+  .eh-nav { width: 100%; min-width: 0; gap: 3px; justify-content: flex-start; overflow-x: auto; scrollbar-width: none; }
+  .eh-nav::-webkit-scrollbar { display: none; }
+  .eh-nav button { min-height: 44px; flex: 0 0 auto; padding: 10px 8px; font-size: 11px; }
   .eh-main { width: min(100% - 24px, 1180px); padding-top: 20px; }
   .eh-hero-copy { padding: 25px 20px; }
   .eh-hero-copy > p { font-size: 15px; }
@@ -132,6 +148,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   .eh-role-head h1 { font-size: 27px; }
   .eh-panel { padding: 18px; }
   .eh-candidate { grid-template-columns: 1fr; }
+  .eh-crm-strip, .eh-crm-filters { grid-template-columns: 1fr; }
   .eh-actions .eh-btn { flex: 1; }
 }
 

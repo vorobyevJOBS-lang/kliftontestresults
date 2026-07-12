@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { COMPETENCIES, getJobProfile, JOB_PROFILES, PROFILE_STATUS } from "./hiring/jobProfiles";
 import { calculateAssessment, createCandidateRecord } from "./hiring/assessmentEngine";
 import { configureValidationCalculator, summarizeValidation } from "./hiring/validationMetrics";
-import { createAssessment, createCandidateInvite, createCustomProfile, deleteAssessment, getMembership, getSessionUser, listAssessments, listCustomProfiles, listLegacyResults, saveAssessment, saveOutcome, signIn, signOut } from "./hiring/secureRepository";
+import { addCandidateNote, createAssessment, createCandidateInvite, createCustomProfile, deleteAssessment, getMembership, getSessionUser, listAssessments, listCustomProfiles, listLegacyResults, saveAssessment, saveOutcome, signIn, signOut } from "./hiring/secureRepository";
 import { BRANCHES } from "./org";
 import "./hiring/hiring.css";
 
@@ -94,6 +94,13 @@ const GENERIC_ANCHORS = {
   5: "Пример сложный и релевантный; действия осознанны, результат измерим, кандидат показывает выводы и границы своего вклада.",
 };
 
+const PIPELINE_STAGES = [
+  ["new", "Новый"], ["screening", "Первичный отбор"], ["testing", "Тестирование"],
+  ["interview", "Интервью"], ["work_sample", "Ролевая / проба"], ["references", "Рекомендации"],
+  ["offer", "Оффер"], ["hired", "Нанят"], ["reserve", "Резерв"], ["declined", "Отказ"],
+];
+const PIPELINE_LABELS = Object.fromEntries(PIPELINE_STAGES);
+
 function ProfileBuilder({ onCancel, onCreate }) {
   const competencyIds = Object.keys(COMPETENCIES);
   const [form, setForm] = useState({ name: "", family: "", summary: "", prompt: "", selected: ["results", "ownership", "problemSolving"] });
@@ -168,9 +175,10 @@ function Scorecard({ candidate, profile }) {
   </aside>;
 }
 
-function Assessment({ candidate, profile, onChange, onBack, onDelete, onSave, onSaveOutcome, onCreateInvite, saveState, canManageOutcomes, canDelete, canDecide, demo }) {
+function Assessment({ candidate, profile, onChange, onBack, onDelete, onSave, onSaveOutcome, onCreateInvite, onAddNote, saveState, canManageOutcomes, canDelete, canDecide, demo }) {
   const [open, setOpen] = useState({ sample: true, interview: false, decision: false, outcome: false });
   const [inviteState, setInviteState] = useState("");
+  const [note, setNote] = useState("");
   const setRating = (field, id, value) => onChange({ ...candidate, [field]: { ...candidate[field], [id]: value } });
   return <>
     <button type="button" className="eh-btn eh-btn-ghost eh-back" onClick={onBack}>← К кандидатам</button>
@@ -179,6 +187,14 @@ function Assessment({ candidate, profile, onChange, onBack, onDelete, onSave, on
     {inviteState === "error" && <div role="alert" className="eh-callout" style={{ marginBottom: 16 }}>Не удалось создать ссылку кандидату.</div>}
     {demo && <p className="eh-helper" style={{ marginTop: -12, marginBottom: 16 }}>Защищённые ссылки доступны после входа и применения целевой схемы базы данных.</p>}
     {saveState === "error" && <div role="alert" className="eh-callout" style={{ marginBottom: 16 }}>Не удалось сохранить изменения. Проверьте соединение и права доступа.</div>}
+    <section className="eh-panel eh-crm-strip" aria-label="Управление кандидатом">
+      <div><label className="eh-label" htmlFor="pipeline-stage">Этап воронки</label><select id="pipeline-stage" className="eh-select" value={candidate.pipelineStage || "new"} onChange={(event) => onChange({ ...candidate, pipelineStage: event.target.value })}>{PIPELINE_STAGES.map(([id, label]) => <option key={id} value={id}>{label}</option>)}</select></div>
+      <div><label className="eh-label" htmlFor="next-action">Следующее действие</label><input id="next-action" className="eh-input" value={candidate.nextAction || ""} onChange={(event) => onChange({ ...candidate, nextAction: event.target.value })} placeholder="Позвонить, назначить интервью…" /></div>
+      <div><label className="eh-label" htmlFor="next-action-at">Срок</label><input id="next-action-at" className="eh-input" type="datetime-local" value={candidate.nextActionAt || ""} onChange={(event) => onChange({ ...candidate, nextActionAt: event.target.value })} /></div>
+      <div><label className="eh-label" htmlFor="candidate-source">Источник</label><input id="candidate-source" className="eh-input" value={candidate.source || ""} onChange={(event) => onChange({ ...candidate, source: event.target.value })} placeholder="HH, рекомендация, соцсети…" /></div>
+      {(candidate.pipelineStage === "declined" || candidate.finalDecision === "decline") && <div className="eh-form-field-full"><label className="eh-label" htmlFor="rejection-reason">Причина отказа</label><input id="rejection-reason" className="eh-input" value={candidate.rejectionReason || ""} onChange={(event) => onChange({ ...candidate, rejectionReason: event.target.value })} placeholder="Только рабочие критерии, без личных характеристик" /></div>}
+      <div className="eh-form-field-full eh-note-composer"><label className="eh-label" htmlFor="candidate-note">Комментарий команды</label><div><input id="candidate-note" className="eh-input" value={note} onChange={(event) => setNote(event.target.value)} placeholder="Факт разговора, договорённость или наблюдение" /><button type="button" className="eh-btn eh-btn-secondary" disabled={note.trim().length < 2} onClick={async () => { await onAddNote(note); setNote(""); }}>Добавить</button></div>{candidate.notes?.length > 0 && <ul className="eh-note-list">{candidate.notes.slice(0, 5).map((item) => <li key={item.id}><span>{new Date(item.created_at).toLocaleString("ru-RU")}</span>{item.body}</li>)}</ul>}</div>
+    </section>
     <div className="eh-score-layout">
       <div className="eh-stack">
         <Stage index="1" title={profile.workSample.title} subtitle={`Рабочая проба · около ${profile.workSample.minutes} минут`} open={open.sample} onToggle={() => setOpen({ ...open, sample: !open.sample })}>
@@ -214,9 +230,18 @@ function Assessment({ candidate, profile, onChange, onBack, onDelete, onSave, on
 }
 
 function Candidates({ candidates, onOpen, onNew, resolveProfile }) {
+  const [search, setSearch] = useState(""); const [stage, setStage] = useState("active"); const [profileId, setProfileId] = useState("all");
+  const active = new Set(["new","screening","testing","interview","work_sample","references","offer"]);
+  const filtered = candidates.filter((candidate) => {
+    const profile = resolveProfile(candidate.profileId); const current = candidate.pipelineStage || "new";
+    return (!search || `${candidate.name} ${candidate.email} ${profile.name}`.toLowerCase().includes(search.toLowerCase())) && (profileId === "all" || candidate.profileId === profileId) && (stage === "all" || (stage === "active" ? active.has(current) : current === stage));
+  });
+  const profiles = [...new Map(candidates.map((item) => [item.profileId, resolveProfile(item.profileId).name])).entries()];
+  const overdue = candidates.filter((item) => item.nextActionAt && new Date(item.nextActionAt) < new Date() && active.has(item.pipelineStage || "new")).length;
   return <>
-    <div className="eh-toolbar"><div><h2>Кандидаты</h2><p>Единый реестр структурированных оценок</p></div><button type="button" className="eh-btn eh-btn-primary" onClick={onNew}>Новая оценка</button></div>
-    {!candidates.length ? <div className="eh-empty"><h3>Оценок пока нет</h3><p>Выберите профиль должности и создайте первую оценку кандидата.</p><button type="button" className="eh-btn eh-btn-primary" onClick={onNew}>Выбрать должность</button></div> : <div className="eh-candidates">{candidates.map((candidate) => { const profile = resolveProfile(candidate.profileId); const result = calculateAssessment(profile, candidate.interviewRatings, candidate.workSampleRatings); return <article className="eh-candidate" key={candidate.id}><div><h3>{candidate.name}</h3><p>{profile.name} · покрытие {result.completion}% · {result.decision}</p></div><button type="button" className="eh-btn eh-btn-secondary" onClick={() => onOpen(candidate)}>Открыть оценку</button></article>; })}</div>}
+    <div className="eh-toolbar"><div><h2>Кандидаты</h2><p>{candidates.length} всего · {filtered.length} в выборке · {overdue} просроченных действий</p></div><button type="button" className="eh-btn eh-btn-primary" onClick={onNew}>Новая оценка</button></div>
+    <div className="eh-panel eh-crm-filters"><div><label className="eh-label" htmlFor="candidate-search">Поиск</label><input id="candidate-search" className="eh-input" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Имя, email или должность" /></div><div><label className="eh-label" htmlFor="candidate-stage">Этап</label><select id="candidate-stage" className="eh-select" value={stage} onChange={(event) => setStage(event.target.value)}><option value="active">Активные</option><option value="all">Все</option>{PIPELINE_STAGES.map(([id,label]) => <option key={id} value={id}>{label}</option>)}</select></div><div><label className="eh-label" htmlFor="candidate-role">Должность</label><select id="candidate-role" className="eh-select" value={profileId} onChange={(event) => setProfileId(event.target.value)}><option value="all">Все должности</option>{profiles.map(([id,name]) => <option key={id} value={id}>{name}</option>)}</select></div></div>
+    {!filtered.length ? <div className="eh-empty"><h3>Кандидаты не найдены</h3><p>Измените фильтры или создайте новую оценку.</p><button type="button" className="eh-btn eh-btn-primary" onClick={onNew}>Выбрать должность</button></div> : <div className="eh-pipeline-board">{PIPELINE_STAGES.filter(([id]) => stage === "all" || stage === "active" ? (stage === "all" || active.has(id)) : id === stage).map(([id,label]) => { const rows = filtered.filter((item) => (item.pipelineStage || "new") === id); return <section className="eh-pipeline-column" key={id}><header><strong>{label}</strong><span>{rows.length}</span></header>{rows.length ? rows.map((candidate) => { const profile = resolveProfile(candidate.profileId); const result = calculateAssessment(profile, candidate.interviewRatings, candidate.workSampleRatings); const isOverdue = candidate.nextActionAt && new Date(candidate.nextActionAt) < new Date(); return <button type="button" className="eh-pipeline-card" key={candidate.id} onClick={() => onOpen(candidate)}><strong>{candidate.name}</strong><span>{profile.name}</span><small>Покрытие {result.completion}%</small>{candidate.nextAction && <small className={isOverdue ? "is-overdue" : ""}>{candidate.nextAction}{candidate.nextActionAt ? ` · ${new Date(candidate.nextActionAt).toLocaleDateString("ru-RU")}` : ""}</small>}</button>; }) : <p>Нет кандидатов</p>}</section>; })}</div>}
   </>;
 }
 
@@ -390,7 +415,7 @@ export default function HiringPlatform() {
     catch { setSaveState("error"); }
   };
 
-  if (candidate && profile) content = <Assessment candidate={candidate} profile={profile} onChange={updateCandidate} onBack={() => navigate("candidates")} onSave={persistCandidate} saveState={saveState} demo={auth.demo} onCreateInvite={() => createCandidateInvite(candidate.id)} canManageOutcomes={auth.demo || ["owner","admin"].includes(auth.membership?.role)} canDelete={auth.demo || ["owner","admin"].includes(auth.membership?.role)} canDecide={auth.demo || ["owner","admin"].includes(auth.membership?.role)} onSaveOutcome={async (days, outcome) => { if (auth.demo) { setSaveState("saved"); return; } setSaveState("saving"); try { await saveOutcome(auth.membership.organization_id, auth.user.id, candidate.id, days, outcome); setSaveState("saved"); } catch { setSaveState("error"); } }} onDelete={async () => { if (!window.confirm("Удалить оценку кандидата?")) return; try { if (!auth.demo) await deleteAssessment(auth.membership.organization_id, candidate); setCandidates((items) => items.filter((item) => item.id !== candidate.id)); setSaveState("idle"); setCandidate(null); setView("candidates"); } catch { setSaveState("error"); } }} />;
+  if (candidate && profile) content = <Assessment candidate={candidate} profile={profile} onChange={updateCandidate} onBack={() => navigate("candidates")} onSave={persistCandidate} saveState={saveState} demo={auth.demo} onCreateInvite={() => createCandidateInvite(candidate.id)} onAddNote={async (body) => { const created = auth.demo ? { id: crypto.randomUUID(), body, created_at: new Date().toISOString() } : await addCandidateNote(auth.membership.organization_id, auth.user.id, candidate.id, body); updateCandidate({ ...candidate, notes: [created, ...(candidate.notes || [])] }); }} canManageOutcomes={auth.demo || ["owner","admin"].includes(auth.membership?.role)} canDelete={auth.demo || ["owner","admin"].includes(auth.membership?.role)} canDecide={auth.demo || ["owner","admin"].includes(auth.membership?.role)} onSaveOutcome={async (days, outcome) => { if (auth.demo) { setSaveState("saved"); return; } setSaveState("saving"); try { await saveOutcome(auth.membership.organization_id, auth.user.id, candidate.id, days, outcome); setSaveState("saved"); } catch { setSaveState("error"); } }} onDelete={async () => { if (!window.confirm("Удалить оценку кандидата?")) return; try { if (!auth.demo) await deleteAssessment(auth.membership.organization_id, candidate); setCandidates((items) => items.filter((item) => item.id !== candidate.id)); setSaveState("idle"); setCandidate(null); setView("candidates"); } catch { setSaveState("error"); } }} />;
   else if (buildingProfile) content = <ProfileBuilder onCancel={() => setBuildingProfile(false)} onCreate={async (created) => { if (!auth.demo) await createCustomProfile(auth.membership.organization_id, auth.user.id, created); setCustomProfiles((items) => [created, ...items]); setBuildingProfile(false); setSelectedProfile(created); }} />;
   else if (selectedProfile) content = <CandidateForm profile={selectedProfile} onCancel={() => setSelectedProfile(null)} onCreate={async (created) => { const stored = auth.demo ? created : await createAssessment(auth.membership.organization_id, auth.user.id, created); setCandidates((items) => [stored, ...items]); setCandidate(stored); }} />;
   else if (view === "candidates") content = <Candidates candidates={candidates} onOpen={setCandidate} onNew={() => navigate("profiles")} resolveProfile={resolveProfile} />;

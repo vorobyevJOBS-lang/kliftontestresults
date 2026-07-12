@@ -83,9 +83,15 @@ function mapRemoteAssessment(row, currentUserId) {
     branchId: row.branch_id || row.candidates?.branch_id || "",
     profileId: row.profile_key,
     status: row.status,
+    pipelineStage: row.pipeline_stage || "new",
+    nextAction: row.next_action || "",
+    nextActionAt: row.next_action_at ? row.next_action_at.slice(0, 16) : "",
+    rejectionReason: row.rejection_reason || "",
+    source: row.source || "",
     createdAt: row.created_at,
     finalDecision: row.final_decision || "pending",
     decisionReason: row.decision_reason || "",
+    notes: (row.candidate_notes || []).sort((a, b) => new Date(b.created_at) - new Date(a.created_at)),
     interviewRatings, interviewNotes, workSampleRatings, workSampleNotes,
     outcomes: Object.fromEntries((row.outcome_followups || []).map((item) => [item.checkpoint_days, {
       retained: item.retained == null ? "" : String(item.retained),
@@ -99,7 +105,7 @@ function mapRemoteAssessment(row, currentUserId) {
 
 export async function listAssessments(organizationId, currentUserId) {
   const { data, error } = await supabase.from("assessments")
-    .select("id, candidate_id, profile_key, branch_id, status, final_decision, decision_reason, created_at, candidates(full_name,email,branch_id), assessment_evidence(rater_id,method,item_id,rating,notes), outcome_followups(checkpoint_days,retained,manager_rating,kpi_value,kpi_definition,notes), assessment_invites(candidate_response,submitted_at)")
+    .select("id, candidate_id, profile_key, branch_id, status, pipeline_stage, next_action, next_action_at, rejection_reason, source, final_decision, decision_reason, created_at, candidates(full_name,email,branch_id), assessment_evidence(rater_id,method,item_id,rating,notes), outcome_followups(checkpoint_days,retained,manager_rating,kpi_value,kpi_definition,notes), assessment_invites(candidate_response,submitted_at), candidate_notes(id,body,created_at,author_id)")
     .eq("organization_id", organizationId)
     .order("created_at", { ascending: false });
   if (error) throw error;
@@ -123,6 +129,8 @@ export async function createAssessment(organizationId, userId, candidate) {
     profile_key: candidate.profileId,
     branch_id: candidate.branchId || null,
     status: "assessment",
+    pipeline_stage: candidate.pipelineStage || "new",
+    source: candidate.source || null,
     created_by: userId,
   }).select("id, created_at").single();
   if (assessmentError) {
@@ -138,6 +146,11 @@ export async function saveAssessment(organizationId, userId, candidate) {
     final_decision: finalDecision,
     decision_reason: candidate.decisionReason || null,
     status: finalDecision ? "decision" : "assessment",
+    pipeline_stage: candidate.pipelineStage || "new",
+    next_action: candidate.nextAction || null,
+    next_action_at: candidate.nextActionAt ? new Date(candidate.nextActionAt).toISOString() : null,
+    rejection_reason: candidate.rejectionReason || null,
+    source: candidate.source || null,
     updated_at: new Date().toISOString(),
   }).eq("id", candidate.id).eq("organization_id", organizationId);
   if (assessmentError) throw assessmentError;
@@ -161,6 +174,14 @@ export async function saveAssessment(organizationId, userId, candidate) {
     const { error } = await supabase.from("assessment_evidence").upsert(evidence, { onConflict: "assessment_id,rater_id,method,item_id" });
     if (error) throw error;
   }
+}
+
+export async function addCandidateNote(organizationId, userId, assessmentId, body) {
+  const { data, error } = await supabase.from("candidate_notes").insert({
+    organization_id: organizationId, assessment_id: assessmentId, author_id: userId, body: body.trim(),
+  }).select("id,body,created_at,author_id").single();
+  if (error) throw error;
+  return data;
 }
 
 export async function deleteAssessment(organizationId, candidate) {
@@ -202,4 +223,10 @@ export async function submitCandidateAssignment(token, response, consent) {
   const { data, error } = await supabase.rpc("submit_candidate_assignment", { raw_token: token, response_text: response, consent_given: consent });
   if (error) throw error;
   if (!data) throw new Error("Ссылка истекла, ответ уже отправлен или текст слишком короткий.");
+}
+
+export async function saveCandidateAssignmentDraft(token, response) {
+  const { data, error } = await supabase.rpc("save_candidate_assignment_draft", { raw_token: token, response_text: response });
+  if (error) throw error;
+  if (!data) throw new Error("Черновик не сохранён: ссылка истекла или ответ уже отправлен.");
 }
