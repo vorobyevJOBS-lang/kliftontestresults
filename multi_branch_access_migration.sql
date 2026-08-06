@@ -11,7 +11,7 @@ create table if not exists public.organization_member_branches (
 );
 
 alter table public.organization_member_branches enable row level security;
-grant select on public.organization_member_branches to authenticated;
+grant select, insert, update, delete on public.organization_member_branches to authenticated;
 
 create or replace function public.is_org_owner(target_org uuid)
 returns boolean language sql stable security definer set search_path = public
@@ -35,10 +35,21 @@ using (
 );
 
 drop policy if exists "owners manage branch grants" on public.organization_member_branches;
-create policy "owners manage branch grants"
-on public.organization_member_branches for all to authenticated
+drop policy if exists "owners insert branch grants" on public.organization_member_branches;
+create policy "owners insert branch grants"
+on public.organization_member_branches for insert to authenticated
+with check (public.is_org_owner(organization_id));
+
+drop policy if exists "owners update branch grants" on public.organization_member_branches;
+create policy "owners update branch grants"
+on public.organization_member_branches for update to authenticated
 using (public.is_org_owner(organization_id))
 with check (public.is_org_owner(organization_id));
+
+drop policy if exists "owners delete branch grants" on public.organization_member_branches;
+create policy "owners delete branch grants"
+on public.organization_member_branches for delete to authenticated
+using (public.is_org_owner(organization_id));
 
 create index if not exists organization_member_branches_user_idx
 on public.organization_member_branches(user_id, organization_id, branch_id);
