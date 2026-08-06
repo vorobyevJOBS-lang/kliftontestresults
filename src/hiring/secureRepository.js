@@ -24,7 +24,19 @@ export async function getMembership(userId) {
     .limit(1)
     .maybeSingle();
   if (error) throw error;
-  return data;
+  if (!data) return null;
+  const { data: grants, error: grantsError } = await supabase.from("organization_member_branches")
+    .select("branch_id")
+    .eq("organization_id", data.organization_id)
+    .eq("user_id", userId);
+  if (grantsError) throw grantsError;
+  return {
+    ...data,
+    branch_ids: [...new Set([
+      ...(data.branch_id ? [data.branch_id] : []),
+      ...(grants || []).map((item) => item.branch_id),
+    ])],
+  };
 }
 
 export async function listLegacyResults() {

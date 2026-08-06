@@ -134,8 +134,8 @@ function ProfileBuilder({ onCancel, onCreate }) {
   </div>;
 }
 
-function CandidateForm({ profile, onCancel, onCreate }) {
-  const [form, setForm] = useState({ name: "", email: "", branchId: BRANCHES[0].id });
+function CandidateForm({ profile, branches, onCancel, onCreate }) {
+  const [form, setForm] = useState({ name: "", email: "", branchId: branches[0]?.id || "" });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const create = async () => { setSubmitting(true); setError(""); try { await onCreate(createCandidateRecord({ ...form, profileId: profile.id })); } catch (reason) { setError(reason?.message || "Не удалось создать оценку"); } finally { setSubmitting(false); } };
@@ -146,7 +146,7 @@ function CandidateForm({ profile, onCancel, onCreate }) {
     <div className="eh-form-grid">
       <div><label className="eh-label" htmlFor="candidate-name">Имя кандидата</label><input id="candidate-name" className="eh-input" value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} autoComplete="name" /></div>
       <div><label className="eh-label" htmlFor="candidate-email">Email — необязательно</label><input id="candidate-email" className="eh-input" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} type="email" autoComplete="email" /></div>
-      <div className="eh-form-field-full"><label className="eh-label" htmlFor="candidate-branch">Школа</label><select id="candidate-branch" className="eh-select" value={form.branchId} onChange={(event) => setForm({ ...form, branchId: event.target.value })}>{BRANCHES.map((branch) => <option key={branch.id} value={branch.id}>{branch.name}</option>)}</select></div>
+      <div className="eh-form-field-full"><label className="eh-label" htmlFor="candidate-branch">Школа</label><select id="candidate-branch" className="eh-select" value={form.branchId} onChange={(event) => setForm({ ...form, branchId: event.target.value })}>{branches.map((branch) => <option key={branch.id} value={branch.id}>{branch.name}</option>)}</select></div>
       <div className="eh-form-field-full"><p className="eh-helper">Не собирайте возраст, пол, семейное положение и другие данные, не связанные с выполнением работы. Перед отправкой заданий получите согласие на обработку контактных данных.</p></div>
     </div>
     {error && <div role="alert" className="eh-callout" style={{ marginTop: 16 }}>{error}</div>}
@@ -270,8 +270,8 @@ const FOLLOW_UP_LIBRARY = {
   prim: { question: "Какая обратная связь о вашем рабочем поведении повторялась от разных руководителей и что вы с ней сделали?", roleplay: "Сообщите кандидату корректирующую обратную связь по небольшой задаче и попросите улучшить решение.", signal: "Сильный сигнал — спокойное уточнение, принятие фактов и заметное улучшение второй версии." },
 };
 
-function AssignmentBuilder() {
-  const [form, setForm] = useState({ name: "", email: "", branch: BRANCHES[0].id });
+function AssignmentBuilder({ branches }) {
+  const [form, setForm] = useState({ name: "", email: "", branch: branches[0]?.id || "" });
   const [selected, setSelected] = useState(["rezultat", "clifton"]);
   const [copied, setCopied] = useState(false);
   const toggle = (id) => setSelected((items) => items.includes(id) ? items.filter((item) => item !== id) : [...items, id]);
@@ -284,10 +284,10 @@ function AssignmentBuilder() {
     await navigator.clipboard.writeText(createLink());
     setCopied(true); window.setTimeout(() => setCopied(false), 1800);
   };
-  return <section className="eh-panel" style={{ marginBottom: 22 }}><div className="eh-role-head" style={{ marginBottom: 18 }}><div><span className="eh-family">Новое приглашение</span><h2 style={{ margin: "8px 0 5px" }}>Назначить тесты кандидату</h2><p>Кандидат увидит только выбранные этапы. Имя, email и школа уже будут заполнены.</p></div></div><div className="eh-form-grid"><div><label className="eh-label" htmlFor="assign-name">Имя кандидата</label><input id="assign-name" className="eh-input" value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} /></div><div><label className="eh-label" htmlFor="assign-email">Email</label><input id="assign-email" className="eh-input" type="email" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} /></div><div className="eh-form-field-full"><label className="eh-label" htmlFor="assign-branch">Школа</label><select id="assign-branch" className="eh-select" value={form.branch} onChange={(event) => setForm({ ...form, branch: event.target.value })}>{BRANCHES.map((branch) => <option key={branch.id} value={branch.id}>{branch.name}</option>)}</select></div><div className="eh-form-field-full"><span className="eh-label">Этапы оценки</span><div className="eh-test-picker">{ASSIGNABLE_TESTS.map(([id, label, minutes]) => <label key={id} className={selected.includes(id) ? "is-selected" : ""}><input type="checkbox" checked={selected.includes(id)} onChange={() => toggle(id)} /><span><strong>{label}</strong><small>{minutes}</small></span></label>)}</div></div></div><div className="eh-actions" style={{ marginTop: 18 }}><button type="button" className="eh-btn eh-btn-primary" disabled={!form.name.trim() || !form.email.trim() || !selected.length} onClick={copy}>{copied ? "Ссылка скопирована ✓" : "Скопировать персональную ссылку"}</button></div></section>;
+  return <section className="eh-panel" style={{ marginBottom: 22 }}><div className="eh-role-head" style={{ marginBottom: 18 }}><div><span className="eh-family">Новое приглашение</span><h2 style={{ margin: "8px 0 5px" }}>Назначить тесты кандидату</h2><p>Кандидат увидит только выбранные этапы. Имя, email и школа уже будут заполнены.</p></div></div><div className="eh-form-grid"><div><label className="eh-label" htmlFor="assign-name">Имя кандидата</label><input id="assign-name" className="eh-input" value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} /></div><div><label className="eh-label" htmlFor="assign-email">Email</label><input id="assign-email" className="eh-input" type="email" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} /></div><div className="eh-form-field-full"><label className="eh-label" htmlFor="assign-branch">Школа</label><select id="assign-branch" className="eh-select" value={form.branch} onChange={(event) => setForm({ ...form, branch: event.target.value })}>{branches.map((branch) => <option key={branch.id} value={branch.id}>{branch.name}</option>)}</select></div><div className="eh-form-field-full"><span className="eh-label">Этапы оценки</span><div className="eh-test-picker">{ASSIGNABLE_TESTS.map(([id, label, minutes]) => <label key={id} className={selected.includes(id) ? "is-selected" : ""}><input type="checkbox" checked={selected.includes(id)} onChange={() => toggle(id)} /><span><strong>{label}</strong><small>{minutes}</small></span></label>)}</div></div></div><div className="eh-actions" style={{ marginTop: 18 }}><button type="button" className="eh-btn eh-btn-primary" disabled={!form.name.trim() || !form.email.trim() || !selected.length} onClick={copy}>{copied ? "Ссылка скопирована ✓" : "Скопировать персональную ссылку"}</button></div></section>;
 }
 
-function LegacyArchive({ archive, onRefresh }) {
+function LegacyArchive({ archive, branches, onRefresh }) {
   const [search, setSearch] = useState("");
   const [type, setType] = useState("all");
   if (archive.loading) return <div className="eh-empty">Загружаем прежние результаты…</div>;
@@ -303,7 +303,7 @@ function LegacyArchive({ archive, onRefresh }) {
   const people = [...peopleMap.values()].sort((a, b) => new Date(b.results[0]?.createdAt || 0) - new Date(a.results[0]?.createdAt || 0));
   const types = [...new Map(archive.items.map((item) => [item.type, item.label])).entries()];
   return <>
-    <AssignmentBuilder />
+    <AssignmentBuilder branches={branches} />
     <div className="eh-toolbar"><div><h2>CRM кандидатов</h2><p>{peopleMap.size} кандидатов · {archive.items.length} результатов · обновляется автоматически</p></div><div className="eh-actions"><button type="button" className="eh-btn eh-btn-secondary" onClick={onRefresh}>Обновить</button><div className="eh-search"><label className="eh-label" htmlFor="legacy-search">Найти кандидата</label><input id="legacy-search" className="eh-input" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Имя, email или телефон" /></div><div><label className="eh-label" htmlFor="legacy-type">Результат</label><select id="legacy-type" className="eh-select" value={type} onChange={(event) => setType(event.target.value)}><option value="all">Все результаты</option>{types.map(([id, label]) => <option key={id} value={id}>{label}</option>)}</select></div></div></div>
     <div className="eh-callout" style={{ marginBottom: 18 }}>Старые результаты показаны отдельно и не входят автоматически в новый итоговый балл: для них использовались другие вопросы, шкалы и правила интерпретации.</div>
     {archive.warnings.length > 0 && <div className="eh-callout" style={{ marginBottom: 18 }}>Часть таблиц временно недоступна: {archive.warnings.map((item) => item.table).join(", ")}.</div>}
@@ -400,6 +400,11 @@ export default function HiringPlatform() {
     return () => window.clearInterval(timer);
   }, [auth.user, auth.membership?.role]);
   const profiles = useMemo(() => [...customProfiles, ...JOB_PROFILES], [customProfiles]);
+  const accessibleBranches = useMemo(() => {
+    if (auth.demo || !auth.membership || (!auth.membership.branch_id && !auth.membership.branch_ids?.length)) return BRANCHES;
+    const ids = new Set(auth.membership.branch_ids || [auth.membership.branch_id]);
+    return BRANCHES.filter((branch) => ids.has(branch.id));
+  }, [auth.demo, auth.membership]);
   const resolveProfile = (id) => profiles.find((item) => item.id === id) || getJobProfile(id);
   const profile = candidate ? resolveProfile(candidate.profileId) : selectedProfile;
   const updateCandidate = (next) => { setSaveState("dirty"); setCandidate(next); setCandidates((items) => items.map((item) => item.id === next.id ? next : item)); };
@@ -421,9 +426,9 @@ export default function HiringPlatform() {
 
   if (candidate && profile) content = <Assessment candidate={candidate} profile={profile} onChange={updateCandidate} onBack={() => navigate("candidates")} onSave={persistCandidate} saveState={saveState} demo={auth.demo} onCreateInvite={() => createCandidateInvite(candidate.id)} onAddNote={async (body) => { const created = auth.demo ? { id: crypto.randomUUID(), body, created_at: new Date().toISOString() } : await addCandidateNote(auth.membership.organization_id, auth.user.id, candidate.id, body); updateCandidate({ ...candidate, notes: [created, ...(candidate.notes || [])] }); }} canManageOutcomes={auth.demo || ["owner","admin"].includes(auth.membership?.role)} canDelete={auth.demo || ["owner","admin"].includes(auth.membership?.role)} canDecide={auth.demo || ["owner","admin"].includes(auth.membership?.role)} onSaveOutcome={async (days, outcome) => { if (auth.demo) { setSaveState("saved"); return; } setSaveState("saving"); try { await saveOutcome(auth.membership.organization_id, auth.user.id, candidate.id, days, outcome); setSaveState("saved"); } catch { setSaveState("error"); } }} onDelete={async () => { if (!window.confirm("Удалить оценку кандидата?")) return; try { if (!auth.demo) await deleteAssessment(auth.membership.organization_id, candidate); setCandidates((items) => items.filter((item) => item.id !== candidate.id)); setSaveState("idle"); setCandidate(null); setView("candidates"); } catch { setSaveState("error"); } }} />;
   else if (buildingProfile) content = <ProfileBuilder onCancel={() => setBuildingProfile(false)} onCreate={async (created) => { if (!auth.demo) await createCustomProfile(auth.membership.organization_id, auth.user.id, created); setCustomProfiles((items) => [created, ...items]); setBuildingProfile(false); setSelectedProfile(created); }} />;
-  else if (selectedProfile) content = <CandidateForm profile={selectedProfile} onCancel={() => setSelectedProfile(null)} onCreate={async (created) => { const stored = auth.demo ? created : await createAssessment(auth.membership.organization_id, auth.user.id, created); setCandidates((items) => [stored, ...items]); setCandidate(stored); }} />;
+  else if (selectedProfile) content = <CandidateForm profile={selectedProfile} branches={accessibleBranches} onCancel={() => setSelectedProfile(null)} onCreate={async (created) => { const stored = auth.demo ? created : await createAssessment(auth.membership.organization_id, auth.user.id, created); setCandidates((items) => [stored, ...items]); setCandidate(stored); }} />;
   else if (view === "candidates") content = <Candidates candidates={candidates} onOpen={setCandidate} onNew={() => navigate("profiles")} resolveProfile={resolveProfile} />;
-  else if (view === "legacy") content = <LegacyArchive archive={legacyArchive} onRefresh={refreshLegacyArchive} />;
+  else if (view === "legacy") content = <LegacyArchive archive={legacyArchive} branches={accessibleBranches} onRefresh={refreshLegacyArchive} />;
   else if (view === "method") content = <Method />;
   else if (view === "research") content = <Research candidates={candidates} resolveProfile={resolveProfile} />;
   else content = <Profiles profiles={profiles} onSelect={setSelectedProfile} onCreateCustom={() => setBuildingProfile(true)} />;

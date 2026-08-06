@@ -17,6 +17,13 @@ function bearer(req) {
   return header.startsWith("Bearer ") ? header.slice(7) : "";
 }
 
+export function getAllowedBranches(membership, extraBranches = []) {
+  return [...new Set([
+    ...(membership?.branch_id ? [membership.branch_id] : []),
+    ...extraBranches.map((item) => item.branch_id).filter(Boolean),
+  ])];
+}
+
 export default async function handler(req, res) {
   if (req.method !== "GET") return res.status(405).json({ error: "Method not allowed" });
   const token = bearer(req);
@@ -32,9 +39,17 @@ export default async function handler(req, res) {
     .in("role", ["owner", "admin"]).limit(1).maybeSingle();
   if (membershipError || !membership) return res.status(403).json({ error: "Архив доступен только владельцу или администратору" });
 
+  const { data: extraBranches, error: branchesError } = await authenticated
+    .from("organization_member_branches")
+    .select("branch_id")
+    .eq("organization_id", membership.organization_id)
+    .eq("user_id", authData.user.id);
+  if (branchesError) return res.status(500).json({ error: "Не удалось проверить доступы к филиалам" });
+  const allowedBranches = getAllowedBranches(membership, extraBranches || []);
+
   const batches = await Promise.all(TABLES.map(async ([table, type, label, dateColumn]) => {
     let query = reader.from(table).select("*").order(dateColumn, { ascending: false }).limit(1000);
-    if (membership.branch_id) query = query.eq("branch_id", membership.branch_id);
+    if (membership.branch_id && allowedBranches.length) query = query.in("branch_id", allowedBranches);
     const { data, error } = await query;
     if (error) return { table, error: error.message, items: [] };
     return { table, items: (data || []).map((raw) => ({
