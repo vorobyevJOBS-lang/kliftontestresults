@@ -30,7 +30,8 @@ automatic hire/reject decision or present an unvalidated score as a diagnosis.
 
 ## Initial roles
 
-- Klyachka enrollment and sales manager.
+- Klyachka enrollment manager: calls, booking and actual trial attendance.
+- Klyachka trial-lesson and sales manager: conducts the trial and sells training.
 - JOBS enrollment and sales manager.
 - School administrator.
 - Klyachka drawing teacher.

@@ -46,6 +46,16 @@ test("all school profiles use unique stable IDs and cover every competency", () 
   }
 });
 
+test("Klyachka booking and trial-sale roles stay separate", () => {
+  const booking = getJobProfile("klyachka_enrollment_manager");
+  const trialSale = getJobProfile("klyachka_trial_sales_manager");
+  assert.equal(booking.name, "Менеджер записи — Клячка");
+  assert.equal(trialSale.name, "Менеджер пробного урока и продаж — Клячка");
+  assert.equal(booking.kpis.includes("фактический приход"), true);
+  assert.equal(booking.kpis.some((item) => /конверсия после пробного в оплату/i.test(item)), false);
+  assert.equal(trialSale.kpis.some((item) => /конверсия после пробного в оплату/i.test(item)), true);
+});
+
 test("decision readiness requires two fully documented submitted raters", () => {
   const profile = getJobProfile("school_administrator");
   const ratings = {}, notes = {};
