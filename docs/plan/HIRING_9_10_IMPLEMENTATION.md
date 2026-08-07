@@ -42,6 +42,13 @@ automatic hire/reject decision or present an unvalidated score as a diagnosis.
 - Sales/call-center lead.
 - Branch manager.
 
+First pilot target for the Klyachka enrollment manager: at least 60% of valid
+inbound leads are booked and at least 60% of bookings attend the trial lesson.
+The single 90-day validation outcome is attended trials divided by valid inbound
+leads over the latest 30 calendar days (target at least 36%), while both stage
+conversions remain required guardrails. Source: CRM with test leads and confirmed
+duplicates excluded by one documented rule.
+
 Promoter and supervisor profiles remain out of the default catalog until actively
 needed. Generic developer, analyst, marketing and support profiles are not part of
 this product.

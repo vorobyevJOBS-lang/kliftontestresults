@@ -55,10 +55,26 @@ test("booking and trial-sale roles stay separate in both schools", () => {
     const trialSale = getJobProfile(trialId);
     assert.equal(booking.name, `Менеджер записи — ${schoolName}`);
     assert.equal(trialSale.name, `Менеджер пробного урока и продаж — ${schoolName}`);
-    assert.equal(booking.kpis.includes("фактический приход"), true);
+    assert.equal(booking.kpis.some((item) => /60% входящих заявок записаны/i.test(item)), true);
+    assert.equal(booking.kpis.some((item) => /60% записанных дошли/i.test(item)), true);
+    assert.deepEqual(booking.kpiTargets.map((item) => item.target), [60, 60, 36]);
+    assert.equal(booking.competencies.learning, 15);
+    assert.equal(booking.interview.some((item) => item.id === "learning_feedback"), true);
+    assert.equal(booking.workSample.rubric.some((item) => item.id === "booking_sample_learning"), true);
+    assert.match(booking.workSample.observedFormat, /обратн.*связ|повтор/i);
+    assert.match(booking.screening.find((item) => item.id === "attendance_result").label, /если опыта нет/i);
     assert.equal(booking.kpis.some((item) => /конверсия после пробного в оплату/i.test(item)), false);
     assert.equal(trialSale.kpis.some((item) => /конверсия после пробного в оплату/i.test(item)), true);
   }
+});
+
+test("Klyachka booking pilot draft contains the owner-confirmed 90-day standard", () => {
+  const profile = getJobProfile("klyachka_enrollment_manager");
+  assert.match(profile.jobAnalysisDraft.outcomeDefinition, /цель не ниже 36%/i);
+  assert.match(profile.jobAnalysisDraft.outcomeDefinition, /запись \/ валидные входящие заявки ≥ 60%/i);
+  assert.match(profile.jobAnalysisDraft.outcomeDefinition, /пришедшие \/ записи.*≥ 60%/i);
+  assert.match(profile.jobAnalysisDraft.entryRequirements, /опыт.*не обязателен/i);
+  assert.equal(profile.jobAnalysisDraft.reviewers.split("\n").length, 4);
 });
 
 test("school operations roles reflect real ownership boundaries", () => {
