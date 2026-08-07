@@ -38,6 +38,7 @@ export function buildWorkPreferenceMap(answers) {
   return {
     schema: WORK_PREFERENCE_SCHEMA,
     itemBankSha256: WORK_PREFERENCE_BANK_SHA256,
+    rankedThemes: ranked,
     topThemes: ranked.slice(0, 5),
     note: "Это относительная карта выбранных рабочих предпочтений внутри одного ответа. Она не измеряет способности, не даёт процент соответствия должности и не используется для автоматического отказа.",
   };

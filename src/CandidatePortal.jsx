@@ -3,7 +3,8 @@ import { getJobProfile } from "./hiring/jobProfiles";
 import { getCandidateAssignment, saveCandidateAssignmentDraft, submitCandidateAssignment } from "./hiring/secureRepository";
 import { createSerialDraftQueue, hasCurrentConsent } from "./hiring/candidateDraftQueue";
 import { QUESTIONS } from "./questions";
-import { WORK_PREFERENCE_BANK_SHA256, WORK_PREFERENCE_MODULE, WORK_PREFERENCE_QUESTION_COUNT, WORK_PREFERENCE_SCHEMA, validWorkPreferenceAnswers } from "./hiring/workPreferenceMap";
+import { buildWorkPreferenceMap, WORK_PREFERENCE_BANK_SHA256, WORK_PREFERENCE_MODULE, WORK_PREFERENCE_QUESTION_COUNT, WORK_PREFERENCE_SCHEMA, validWorkPreferenceAnswers } from "./hiring/workPreferenceMap";
+import { buildRoleRelevance } from "./hiring/roleRelevance";
 import "./hiring/hiring.css";
 
 const RESPONSE_SCHEMA = "evidencehire-candidate-v1";
@@ -89,7 +90,7 @@ function workSampleIsComplete(response) {
 function assignmentSteps(profile, assignment) {
   return [
     ...((profile.screening || []).length ? ["screening"] : []),
-    ...((assignment?.candidate_modules || []).includes(WORK_PREFERENCE_MODULE) ? ["preferences"] : []),
+    ...((assignment?.candidate_modules || []).includes(WORK_PREFERENCE_MODULE) ? ["preferences", "preferenceResult"] : []),
     "workSample",
   ];
 }
@@ -98,6 +99,16 @@ function getSchoolName(profile, assignment) {
   if (assignment.branch_id?.startsWith("jobs")) return SCHOOL_NAMES.jobs;
   if (assignment.branch_id?.startsWith("klyachka")) return SCHOOL_NAMES.klyachka;
   return SCHOOL_NAMES[profile.school] || "Школа";
+}
+
+function CandidateRoleRelevance({ result }) {
+  return <div className="eh-role-relevance-grid">
+    {result.roles.map((role) => <article key={role.profileId} className={role.current ? "is-current" : ""}>
+      <div className="eh-card-select"><span>{role.current ? "Текущая вакансия" : role.signal}</span><strong>{role.rank} место из {result.comparedRoleCount}</strong></div>
+      <h3>{role.name}</h3>
+      <p><strong>Совпавшие темы:</strong> {role.matchedThemes.map((theme) => theme.name).join(", ")}.</p>
+    </article>)}
+  </div>;
 }
 
 export default function CandidatePortal() {
@@ -296,6 +307,8 @@ export default function CandidatePortal() {
   const currentStep = step + 1;
   const preferenceQuestion = QUESTIONS[preferenceIndex];
   const answeredPreferences = response.workPreferenceAnswers.filter((answer) => answer === "A" || answer === "B").length;
+  const workPreferenceMap = buildWorkPreferenceMap(response.workPreferenceAnswers);
+  const roleRelevance = buildRoleRelevance(response.workPreferenceAnswers, profile.id);
   const schoolName = getSchoolName(profile, assignment);
   const expiresAt = assignment.expires_at
     ? new Intl.DateTimeFormat("ru-RU", { dateStyle: "long", timeStyle: "short" }).format(new Date(assignment.expires_at))
@@ -326,10 +339,10 @@ export default function CandidatePortal() {
         </p>
         {expiresAt && !done && <p className="eh-helper">Персональная ссылка действует до {expiresAt}. Отправьте ответ до этого времени; при необходимости команда найма выдаст новую ссылку.</p>}
 
-        {done ? <div className="eh-empty">
+        {done ? <><div className="eh-empty">
           <h2>Ответ получен</h2>
           <p>Спасибо. Команда школы рассмотрит рабочую пробу вместе с другими материалами. Решение не принимается автоматически только по этому заданию.</p>
-        </div> : <>
+        </div>{roleRelevance && <section aria-labelledby="submitted-role-result" style={{ marginTop: 24 }}><span className="eh-family">Ваш результат</span><h2 id="submitted-role-result">Предварительное соответствие должностям</h2><p style={{ color: "#647068", lineHeight: 1.55 }}>{roleRelevance.note}</p><CandidateRoleRelevance result={roleRelevance} /></section>}</> : <>
           <div className="eh-callout">
             Здесь нет «ловушек» и медицинских или личностных диагнозов. Опишите, как вы реально действуете в рабочей ситуации. Не указывайте сведения о здоровье, семье и другие данные, не относящиеся к работе.
           </div>
@@ -401,8 +414,15 @@ export default function CandidatePortal() {
             {validationError && <div id="candidate-preference-validation" role="alert" className="eh-callout" style={{ marginTop: 16 }}>{validationError}</div>}
             <div className="eh-actions" style={{ marginTop: 18 }}>
               <button type="button" className="eh-btn eh-btn-secondary" disabled={preferenceIndex === 0} onClick={() => { setValidationError(""); setPreferenceIndex((current) => Math.max(0, current - 1)); }}>Назад</button>
-              {preferenceIndex === WORK_PREFERENCE_QUESTION_COUNT - 1 && <button type="button" className="eh-btn eh-btn-primary" style={{ flex: 1 }} disabled={!response.workPreferenceAnswers[preferenceIndex]} onClick={goToWorkSampleFromPreferences}>Перейти к рабочему заданию</button>}
+              {preferenceIndex === WORK_PREFERENCE_QUESTION_COUNT - 1 && <button type="button" className="eh-btn eh-btn-primary" style={{ flex: 1 }} disabled={!response.workPreferenceAnswers[preferenceIndex]} onClick={goToWorkSampleFromPreferences}>Посмотреть результат</button>}
             </div>
+          </section> : stepKey === "preferenceResult" && workPreferenceMap && roleRelevance ? <section aria-labelledby="preference-result-heading" style={{ marginTop: 24 }}>
+            <span className="eh-family">Карта готова</span>
+            <h2 id="preference-result-heading" style={{ marginBottom: 8 }}>Предварительное соответствие должностям</h2>
+            <p style={{ color: "#647068", lineHeight: 1.55, marginTop: 0 }}>{roleRelevance.note}</p>
+            <CandidateRoleRelevance result={roleRelevance} />
+            <div className="eh-preference-themes" aria-label="Ведущие рабочие предпочтения">{workPreferenceMap.topThemes.map((theme) => <article key={theme.id}><strong>{theme.name}</strong><span>{theme.selections} выборов из {theme.opportunities} возможных</span></article>)}</div>
+            <button type="button" className="eh-btn eh-btn-primary" style={{ width: "100%", marginTop: 20 }} onClick={() => { setStep((current) => current + 1); window.scrollTo({ top: 0, behavior: "smooth" }); }}>Перейти к рабочему заданию</button>
           </section> : <section aria-labelledby="work-sample-heading" style={{ marginTop: 24 }}>
             <h2 id="work-sample-heading" style={{ marginBottom: 8 }}>Подготовка: {profile.workSample.title}</h2>
             <p style={{ color: "#647068", lineHeight: 1.55, marginTop: 0 }}>Нам важны ход мысли, конкретные действия и способ проверки результата. Письменный ответ не оценивается отдельно как тест способностей: на встрече команда проверит решение в одинаковом практическом упражнении.</p>

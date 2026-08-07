@@ -20,3 +20,17 @@ export function parseCandidateResponse(value) {
   }
   return { screening: {}, workSample: String(value), workPreferenceAnswers: [] };
 }
+
+const responseTimestamp = (invite) => new Date(invite?.submitted_at || invite?.draft_updated_at || invite?.created_at || 0).getTime() || 0;
+
+export function latestWorkPreferenceProgress(invites = []) {
+  const latest = [...invites]
+    .filter((invite) => invite?.candidate_response)
+    .sort((first, second) => responseTimestamp(second) - responseTimestamp(first))[0];
+  if (!latest) return { answers: [], updatedAt: "", submitted: false };
+  return {
+    answers: parseCandidateResponse(latest.candidate_response).workPreferenceAnswers,
+    updatedAt: latest.submitted_at || latest.draft_updated_at || latest.created_at || "",
+    submitted: Boolean(latest.submitted_at),
+  };
+}

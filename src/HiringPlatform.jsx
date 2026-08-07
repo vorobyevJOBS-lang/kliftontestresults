@@ -3,10 +3,12 @@ import { COMPETENCIES, getJobProfile, JOB_PROFILES, PROFILE_STATUS } from "./hir
 import { assessmentAccessState, buildDecisionMatrix, calculateAssessment, canCompareCandidates, createCandidateRecord, decisionReadiness, documentedEvidenceStatus } from "./hiring/assessmentEngine";
 import { buildVerificationGuidance } from "./hiring/hrGuidance";
 import { INVITE_STATUS, summarizeInviteFunnel } from "./hiring/inviteStatus";
+import { pipelineMoveBlock } from "./hiring/pipelineMove";
 import { parseReferenceCheck, referenceDispositionComplete, serializeReferenceCheck } from "./hiring/referenceCheck";
 import { refreshCanApply, saveCardThenOutcomes } from "./hiring/saveCoordination";
 import { configureValidationCalculator, summarizeValidation } from "./hiring/validationMetrics";
-import { buildWorkPreferenceMap, WORK_PREFERENCE_MODULE } from "./hiring/workPreferenceMap";
+import { buildWorkPreferenceMap, WORK_PREFERENCE_MODULE, WORK_PREFERENCE_QUESTION_COUNT } from "./hiring/workPreferenceMap";
+import { buildRoleRelevance } from "./hiring/roleRelevance";
 import { addCandidateNote, archiveAssessment, createAssessment, createCandidateInvite, getLegacyResultDetail, getMembership, getSessionUser, listAssessments, listCustomProfiles, listLegacyResults, promoteProfileToPilot, restoreAssessment, saveAssessment, saveOutcome, setAssessmentCandidateModules, signIn, signOut, submitAssessmentEvidence } from "./hiring/secureRepository";
 import { branchById, BRANCHES } from "./org";
 import "./hiring/hiring.css";
@@ -268,6 +270,7 @@ function Assessment({ candidate, profile, onChange, onChangeOutcome, onBack, onA
   const result = calculateAssessment(profile, candidate.interviewRatings, candidate.workSampleRatings);
   const documentation = documentedEvidenceStatus(profile, candidate);
   const workPreferenceMap = buildWorkPreferenceMap(candidate.workPreferenceAnswers || []);
+  const roleRelevance = buildRoleRelevance(candidate.workPreferenceAnswers || [], profile.id);
   const submitted = decisionReadiness(profile, candidate, 2);
   const currentSubmitted = Boolean(candidate.currentRaterSubmittedAt);
   const { decisionReady, decisionViewer, blindRating, ratingLocked } = assessmentAccessState({
@@ -323,6 +326,10 @@ function Assessment({ candidate, profile, onChange, onChangeOutcome, onBack, onA
       <div className="eh-form-field-full eh-note-composer"><label className="eh-label" htmlFor="candidate-note">Комментарий команды</label><div><input id="candidate-note" className="eh-input" value={note} onChange={(event) => setNote(event.target.value)} placeholder="Факт разговора, договорённость или наблюдение" /><button type="button" className="eh-btn eh-btn-secondary" disabled={note.trim().length < 2} onClick={async () => { await onAddNote(note); setNote(""); }}>Добавить</button></div>{candidate.notes?.length > 0 && <ul className="eh-note-list">{candidate.notes.slice(0, 5).map((item) => <li key={item.id}><span>{new Date(item.created_at).toLocaleString("ru-RU")}</span>{item.body}</li>)}</ul>}</div>
       <div className="eh-form-field-full eh-callout"><label style={{ display: "flex", gap: 10, alignItems: "flex-start" }}><input type="checkbox" disabled={!canManageCrm || candidate.hasInvite || moduleState === "saving"} checked={(candidate.candidateModules || []).includes(WORK_PREFERENCE_MODULE)} onChange={async (event) => { const modules = event.target.checked ? [WORK_PREFERENCE_MODULE] : []; setModuleState("saving"); try { await onSetCandidateModules(modules); setModuleState("saved"); } catch { setModuleState("error"); } }} /><span><strong>Карта рабочих предпочтений · 45–50 минут</strong><br /><span className="eh-helper">Необязательная гипотеза для интервью, без проходного балла. {candidate.hasInvite ? "Набор этапов зафиксирован после создания первой ссылки." : moduleState === "saving" ? "Сохраняем выбор…" : moduleState === "error" ? "Не удалось сохранить выбор." : "Можно изменить до создания ссылки кандидату."}</span></span></label></div>
     </section>}
+    {(candidate.candidateModules || []).includes(WORK_PREFERENCE_MODULE) && <section className="eh-panel eh-work-preference-summary" aria-label="Результат карты рабочих предпочтений">
+      <span className="eh-family">Карта рабочих предпочтений</span>
+      {workPreferenceMap && roleRelevance ? <><h2>Карта готова</h2><p>{workPreferenceMap.note}</p><h3>Соответствие должностям</h3><p>{roleRelevance.note}</p><div className="eh-role-relevance-grid">{roleRelevance.roles.map((role) => <article key={role.profileId} className={role.current ? "is-current" : ""}><div className="eh-card-select"><span>{role.current ? "Текущая вакансия" : role.signal}</span><strong>{role.rank} место из {roleRelevance.comparedRoleCount}</strong></div><h4>{role.name}</h4><p><strong>Совпавшие темы:</strong> {role.matchedThemes.map((theme) => theme.name).join(", ")}.</p><p><strong>Уточнить:</strong> {role.interviewQuestion}</p><p><strong>Проверить:</strong> {role.verification}</p></article>)}</div><h3>Ведущие рабочие предпочтения</h3><div className="eh-preference-themes">{workPreferenceMap.topThemes.map((theme) => <article key={theme.id}><strong>{theme.name}</strong><span>{theme.selections} выборов из {theme.opportunities} возможных</span><p>Уточнить на интервью: {theme.interviewQuestion}</p></article>)}</div></> : <><h2>Заполнено {candidate.workPreferenceAnswers?.length || 0} из {WORK_PREFERENCE_QUESTION_COUNT}</h2><p>Итоговые гипотезы появятся после ответа на все пары. Остальные части задания могут быть завершены позже.</p></>}
+    </section>}
     <div className="eh-score-layout">
       <div className="eh-stack">
         <Stage index="1" title={profile.workSample.title} subtitle={`Рабочая проба · около ${profile.workSample.minutes} минут`} open={open.sample} onToggle={() => setOpen({ ...open, sample: !open.sample })}>
@@ -332,7 +339,6 @@ function Assessment({ candidate, profile, onChange, onChangeOutcome, onBack, onA
           {profile.workSample.interviewerBrief && <div className="eh-callout"><strong>Легенда только для интервьюера</strong><br />{profile.workSample.interviewerBrief}</div>}
           {profile.workSample.notAssessed?.length > 0 && <div className="eh-callout"><strong>Не оцениваем</strong><ul>{profile.workSample.notAssessed.map((item) => <li key={item}>{item}</li>)}</ul></div>}
           {profile.screening?.length > 0 && <div className="eh-screening-review"><h4>Короткий фильтр условий</h4>{profile.screening.map((question) => <div key={question.id}><strong>{question.label}</strong><p>{candidate.screeningResponses?.[question.id] || "Кандидат пока не ответил"}</p></div>)}</div>}
-          {(candidate.candidateModules || []).includes(WORK_PREFERENCE_MODULE) && <div className="eh-candidate-response"><strong>Дополнительные гипотезы: карта рабочих предпочтений</strong>{workPreferenceMap ? <><p>{workPreferenceMap.note}</p><ol>{workPreferenceMap.topThemes.map((theme) => <li key={theme.id}><strong>{theme.name}</strong><p>Проверьте примером: {theme.interviewQuestion}</p></li>)}</ol></> : <p>Кандидат ещё не завершил 166 пар. Этот модуль не влияет на готовность решения.</p>}</div>}
           {candidate.candidateWorkSample && <div className="eh-candidate-response"><strong>Ответ кандидата</strong><pre>{candidate.candidateWorkSample}</pre></div>}
           <label className="eh-label" htmlFor="sample-notes">Факты наблюдения{candidate.candidateWorkSample ? "" : " или ссылка на выполненную работу"}</label><textarea id="sample-notes" className="eh-textarea" disabled={ratingLocked} value={candidate.workSampleNotes} onChange={(event) => onChange({ ...candidate, workSampleNotes: event.target.value })} placeholder="Не менее 20 символов: что кандидат сделал и сказал в упражнении до выставления оценок." />
           <label style={{ display: "flex", gap: 10, alignItems: "flex-start", margin: "14px 0", lineHeight: 1.5 }}><input type="checkbox" disabled={ratingLocked} checked={candidate.observedConfirmed === true} onChange={(event) => onChange({ ...candidate, observedConfirmed: event.target.checked })} /><span>Подтверждаю: я наблюдал(а) стандартное практическое упражнение, использовал(а) одинаковые инструкции и время, а отклонения или необходимые адаптации записал(а) выше.</span></label>
@@ -419,13 +425,12 @@ function Today({ candidates, onOpen, onNew, onCandidates, onProfiles, canCreate,
   </>;
 }
 
-function Candidates({ candidates, archive, branches, onRefreshArchive, onOpen, onNew, resolveProfile, canCreate }) {
+function Candidates({ candidates, archive, branches, onRefreshArchive, onOpen, onNew, onMove, resolveProfile, canCreate }) {
   const [source, setSource] = useState("current");
   const [search, setSearch] = useState(""); const [stage, setStage] = useState("active"); const [profileId, setProfileId] = useState("all"); const [branchId, setBranchId] = useState("all");
   const [compareIds, setCompareIds] = useState([]);
   const active = new Set(["new", "assignment", "interview", "decision", "offer"]);
   const profileFor = (item) => item.profileDefinition || resolveProfile(item.profileId);
-  if (canCreate && source === "legacy") return <><div className="eh-source-tabs"><button type="button" onClick={() => setSource("current")}>Текущая воронка</button><button type="button" aria-current="page">Исторические результаты ({archive.items?.length || 0})</button></div><LegacyArchive archive={archive} branches={branches} onRefresh={onRefreshArchive} /></>;
   const filtered = candidates.filter((candidate) => {
     const profile = profileFor(candidate); const current = candidate.pipelineStage || "new";
     const matchesStage = canCreate
@@ -444,7 +449,80 @@ function Candidates({ candidates, archive, branches, onRefreshArchive, onOpen, o
   const canAddToComparison = (item) => comparisonCandidate(item).evidenceComplete
     && (!compared.length || canCompareCandidates(comparisonCandidate(compared[0]), comparisonCandidate(item)));
   const toggleCompare = (item) => setCompareIds((items) => items.includes(item.id) ? items.filter((id) => id !== item.id) : items.length < 4 && canAddToComparison(item) ? [...items, item.id] : items);
+  const moveCandidate = async (moved, targetStage) => {
+    if (!moved || (moved.pipelineStage || "new") === targetStage) return;
+    const blocked = pipelineMoveBlock(moved, profileFor(moved), targetStage);
+    if (blocked) {
+      window.alert(blocked);
+      return;
+    }
+    try {
+      await onMove(moved, targetStage);
+    } catch (reason) {
+      window.alert(reason?.message || "Не удалось изменить этап.");
+    }
+  };
   const visibleStages = stage === "all" ? PIPELINE_STAGES : stage === "active" ? PIPELINE_STAGES.filter(([id]) => active.has(id)) : PIPELINE_STAGES.filter(([id]) => id === stage);
+  useEffect(() => {
+    if (!canCreate || source !== "current") return undefined;
+    const board = document.querySelector(".eh-pipeline-board");
+    if (!board) return undefined;
+    const controller = new AbortController();
+    const options = { signal: controller.signal };
+    [...board.querySelectorAll(".eh-pipeline-column")].forEach((column, columnIndex) => {
+      const targetStage = visibleStages[columnIndex]?.[0];
+      column.dataset.pipelineStage = targetStage;
+      const rows = filtered.filter((item) => (item.pipelineStage || "new") === targetStage);
+      [...column.querySelectorAll(".eh-pipeline-card")].forEach((card, cardIndex) => {
+        const moved = rows[cardIndex];
+        if (!moved) return;
+        card.dataset.candidateId = moved.id;
+        card.classList.add("is-draggable");
+        card.title = "Перетащите карточку мышкой в нужный этап";
+        if ((moved.candidateModules || []).includes(WORK_PREFERENCE_MODULE)) {
+          const answerCount = moved.workPreferenceAnswers?.length || 0;
+          const complete = answerCount === WORK_PREFERENCE_QUESTION_COUNT;
+          card.dataset.workPreferenceStatus = complete ? "Карта предпочтений готова — откройте карточку" : `Карта предпочтений: ${answerCount} из ${WORK_PREFERENCE_QUESTION_COUNT}`;
+          card.dataset.workPreferenceComplete = String(complete);
+        }
+      });
+    });
+
+    let pointerDrag = null;
+    const clearPointerDrag = () => {
+      pointerDrag?.card.classList.remove("is-dragging");
+      board.querySelectorAll(".is-drop-target").forEach((column) => column.classList.remove("is-drop-target"));
+      pointerDrag = null;
+    };
+    board.addEventListener("pointerdown", (event) => {
+      if (event.button !== 0 || event.target.closest("button, input, label, a, select, textarea")) return;
+      const card = event.target.closest(".eh-pipeline-card");
+      if (!card) return;
+      pointerDrag = { card, pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, active: false };
+      card.setPointerCapture?.(event.pointerId);
+    }, options);
+    board.addEventListener("pointermove", (event) => {
+      if (!pointerDrag || pointerDrag.pointerId !== event.pointerId) return;
+      if (!pointerDrag.active && Math.hypot(event.clientX - pointerDrag.startX, event.clientY - pointerDrag.startY) < 8) return;
+      event.preventDefault();
+      pointerDrag.active = true;
+      pointerDrag.card.classList.add("is-dragging");
+      const targetColumn = document.elementFromPoint(event.clientX, event.clientY)?.closest(".eh-pipeline-column");
+      board.querySelectorAll(".is-drop-target").forEach((column) => column.classList.toggle("is-drop-target", column === targetColumn));
+    }, { signal: controller.signal, passive: false });
+    board.addEventListener("pointerup", (event) => {
+      if (!pointerDrag || pointerDrag.pointerId !== event.pointerId) return;
+      const activeDrag = pointerDrag;
+      const targetColumn = activeDrag.active ? document.elementFromPoint(event.clientX, event.clientY)?.closest(".eh-pipeline-column") : null;
+      clearPointerDrag();
+      if (!targetColumn) return;
+      const moved = candidates.find((item) => item.id === activeDrag.card.dataset.candidateId);
+      moveCandidate(moved, targetColumn.dataset.pipelineStage);
+    }, options);
+    board.addEventListener("pointercancel", clearPointerDrag, options);
+    return () => controller.abort();
+  }, [canCreate, source, candidates, filtered, visibleStages]);
+  if (canCreate && source === "legacy") return <><div className="eh-source-tabs"><button type="button" onClick={() => setSource("current")}>Текущая воронка</button><button type="button" aria-current="page">Исторические результаты ({archive.items?.length || 0})</button></div><LegacyArchive archive={archive} branches={branches} onRefresh={onRefreshArchive} /></>;
   return <>
     {canCreate && <div className="eh-source-tabs"><button type="button" aria-current="page">Текущая воронка ({candidates.filter((item) => !item.archivedAt).length})</button><button type="button" onClick={() => setSource("legacy")}>Исторические результаты ({archive.items?.length || 0})</button></div>}
     <div className="eh-toolbar"><div><h2>{canCreate ? "Кандидаты" : "Назначенные оценки"}</h2><p>{canCreate ? `${filtered.length} в выборке · ${overdue} просроченных действий` : `${filtered.length} форм · CRM и исторические тесты скрыты до вашей submit`}</p></div>{canCreate && <button type="button" className="eh-btn eh-btn-primary" onClick={onNew}>Добавить кандидата</button>}</div>
@@ -688,11 +766,24 @@ export default function HiringPlatform() {
     }
   };
 
+  const moveCandidateStage = async (item, pipelineStage) => {
+    const next = { ...item, pipelineStage };
+    if (auth.demo) {
+      setCandidates((items) => items.map((candidateItem) => candidateItem.id === next.id ? next : candidateItem));
+      return next;
+    }
+    const saved = await saveAssessment(auth.membership.organization_id, auth.user.id, next, { manageAssessment: true });
+    const updated = { ...next, updatedAt: saved.updatedAt || next.updatedAt };
+    setCandidates((items) => items.map((candidateItem) => candidateItem.id === updated.id ? updated : candidateItem));
+    setCandidate((current) => current?.id === updated.id ? updated : current);
+    return updated;
+  };
+
   if (candidate && !profile) content = <div className="eh-panel"><h1>Профиль должности недоступен</h1><p>Карточка сохранена, но её версия профиля не найдена. Обратитесь к владельцу — система не будет подставлять другую должность автоматически.</p><button type="button" className="eh-btn eh-btn-ghost" onClick={() => navigate("candidates")}>К кандидатам</button></div>;
   else if (candidate && profile) content = <Assessment candidate={candidate} profile={profile} onChange={updateCandidate} onChangeOutcome={updateOutcome} onBack={() => navigate("candidates")} onSave={persistCandidate} saveState={saveState} saveError={saveError} ratingState={ratingState} demo={auth.demo} onCreateInvite={async () => { const link = await createCandidateInvite(candidate.id); const refreshed = await listAssessments(auth.membership.organization_id, auth.user.id); setCandidates(refreshed); setCandidate(refreshed.find((item) => item.id === candidate.id) || null); return link; }} onSetCandidateModules={async (modules) => { if (auth.demo) { replaceCandidate({ ...candidate, candidateModules: modules }); return; } await setAssessmentCandidateModules(candidate.id, modules); const refreshed = await listAssessments(auth.membership.organization_id, auth.user.id); setCandidates(refreshed); setCandidate(refreshed.find((item) => item.id === candidate.id) || null); }} canInvite={!auth.demo && ["owner","admin"].includes(auth.membership?.role)} canReviewSubmittedWithoutOwnRating={auth.demo || auth.membership?.role === "owner"} onSubmitRating={async () => { setRatingState("saving"); try { if (auth.demo) { const now = new Date().toISOString(); const ratings = {}, notes = {}; Object.entries(candidate.interviewRatings).forEach(([id, value]) => { ratings[`structured_interview:${id}`] = value; }); Object.entries(candidate.workSampleRatings).forEach(([id, value]) => { ratings[`work_sample:${id}`] = value; }); Object.entries(candidate.interviewNotes).forEach(([id, value]) => { notes[`structured_interview:${id}`] = value; }); notes["work_sample:reviewer_notes"] = candidate.workSampleNotes; notes["work_sample:observer_attestation"] = "confirmed"; const completed = { ...candidate, currentRaterSubmittedAt: now, raterEvidence: [{ raterId: "demo", submittedAt: now, ratings, notes }, { raterId: "demo-second", submittedAt: now, ratings, notes }] }; setCandidate(completed); setCandidates((items) => items.map((item) => item.id === completed.id ? completed : item)); setSaveState("saved"); } else { const saved = await persistCandidate(); if (!saved) throw new Error("save-failed"); await submitAssessmentEvidence(candidate.id); const refreshed = await listAssessments(auth.membership.organization_id, auth.user.id); setCandidates(refreshed); setCandidate(refreshed.find((item) => item.id === candidate.id) || null); setSaveState("saved"); } setRatingState("saved"); } catch { setRatingState("error"); setSaveState("error"); } }} onAddNote={async (body) => { const created = auth.demo ? { id: crypto.randomUUID(), body, created_at: new Date().toISOString() } : await addCandidateNote(auth.membership.organization_id, auth.user.id, candidate.id, body); replaceCandidate({ ...candidate, notes: [created, ...(candidate.notes || [])] }); }} canManageOutcomes={auth.demo || ["owner","admin"].includes(auth.membership?.role)} canManageCrm={auth.demo || ["owner","admin"].includes(auth.membership?.role)} canArchive={auth.demo || ["owner","admin"].includes(auth.membership?.role)} canDecide={auth.demo || ["owner","admin"].includes(auth.membership?.role)} onSaveOutcome={async (days) => persistCandidate([days])} onArchive={async () => { if (["dirty", "error", "saving"].includes(saveState) || ratingState === "saving") { window.alert("Сначала дождитесь сохранения всех изменений. Карточка не будет архивирована раньше подтверждения сервером."); return; } if (!window.confirm("Убрать карточку в архив? Все ответы, оценки и заметки сохранятся.")) return; try { if (!auth.demo) await archiveAssessment(candidate.id); setCandidates((items) => items.map((item) => item.id === candidate.id ? { ...item, archivedAt: new Date().toISOString(), archiveReason: "Закрыто из активной воронки" } : item)); setCandidate(null); setView("candidates"); } catch { setSaveState("error"); } }} onRestore={async () => { try { if (!auth.demo) await restoreAssessment(candidate.id); const restored = { ...candidate, archivedAt: "", archiveReason: "" }; setCandidates((items) => items.map((item) => item.id === candidate.id ? restored : item)); setCandidate(restored); } catch { setSaveState("error"); } }} />;
   else if (selectedProfile) content = <CandidateForm profile={selectedProfile} branches={accessibleBranches.filter((branch) => selectedProfile.school === "all" || branch.school === selectedProfile.school)} canApprove={auth.demo || auth.membership?.role === "owner"} onApprove={async (review) => { const promoted = auth.demo ? { ...selectedProfile, version: (selectedProfile.version || 1) + 1, status: "pilot", scoringPlan: null, jobAnalysis: { ...review, reviewedAt: new Date().toISOString(), status: "demo" } } : await promoteProfileToPilot(auth.membership.organization_id, auth.user.id, selectedProfile, review); setCustomProfiles((items) => [promoted, ...items.filter((item) => item.id !== promoted.id)]); setSelectedProfile(promoted); }} onCancel={() => setSelectedProfile(null)} onCreate={async (created) => { const stored = auth.demo ? { ...created, profileDefinition: selectedProfile } : await createAssessment(auth.membership.organization_id, auth.user.id, created, selectedProfile); setCandidates((items) => [stored, ...items]); setCandidate(stored); }} />;
   else if (view === "today") content = <Today candidates={candidates} onOpen={setCandidate} onNew={() => navigate("profiles")} onProfiles={() => navigate("profiles")} onCandidates={() => navigate("candidates")} canCreate={canCreateCandidates} canApproveProfiles={auth.demo || auth.membership?.role === "owner"} pilotProfileCount={selectableProfiles.filter((item) => ["pilot", "validated"].includes(item.status)).length} />;
-  else if (view === "candidates") content = <Candidates candidates={candidates} archive={legacyArchive} branches={accessibleBranches} onRefreshArchive={refreshLegacyArchive} onOpen={setCandidate} onNew={() => navigate("profiles")} resolveProfile={resolveProfile} canCreate={canCreateCandidates} />;
+  else if (view === "candidates") content = <Candidates candidates={candidates} archive={legacyArchive} branches={accessibleBranches} onRefreshArchive={refreshLegacyArchive} onOpen={setCandidate} onNew={() => navigate("profiles")} onMove={moveCandidateStage} resolveProfile={resolveProfile} canCreate={canCreateCandidates} />;
   else if (view === "quality") content = <Research candidates={candidates.filter((item) => !item.archivedAt)} resolveProfile={resolveProfile} />;
   else if (view === "settings") content = <Method account={auth.user} onSignOut={async () => { await signOut(); setCandidates([]); setAuth({ loading: false, user: null, membership: null, demo: false, error: "" }); }} />;
   else content = <Profiles profiles={selectableProfiles} canCreate={canCreateCandidates} onSelect={setSelectedProfile} />;

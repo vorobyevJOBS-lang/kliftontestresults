@@ -1,5 +1,5 @@
 import { candidateSupabase, supabase } from "../evidenceSupabase";
-import { parseCandidateResponse } from "./candidateResponse.js";
+import { latestWorkPreferenceProgress, parseCandidateResponse } from "./candidateResponse.js";
 import { toDateTimeLocal } from "./dateTime.js";
 import { deriveInviteProgress } from "./inviteStatus.js";
 
@@ -147,6 +147,7 @@ function mapRemoteAssessment(row, currentUserId) {
     .sort((first, second) => new Date(second.submitted_at) - new Date(first.submitted_at))[0];
   const inviteProgress = deriveInviteProgress(invites);
   const candidateResponse = parseCandidateResponse(submittedInvite?.candidate_response);
+  const preferenceProgress = latestWorkPreferenceProgress(invites);
   const raterEvidence = Object.values(allEvidence.filter((item) => item.submitted_at).reduce((groups, item) => {
     groups[item.rater_id] ||= {
       raterId: item.rater_id,
@@ -184,7 +185,9 @@ function mapRemoteAssessment(row, currentUserId) {
     notes: (row.candidate_notes || []).sort((a, b) => new Date(b.created_at) - new Date(a.created_at)),
     interviewRatings, interviewNotes, workSampleRatings, workSampleNotes, observedConfirmed,
     candidateWorkSample: candidateResponse.workSample,
-    workPreferenceAnswers: candidateResponse.workPreferenceAnswers,
+    workPreferenceAnswers: preferenceProgress.answers,
+    workPreferenceUpdatedAt: preferenceProgress.updatedAt,
+    workPreferenceSubmitted: preferenceProgress.submitted,
     referenceNotes,
     referenceOriginalNotes: referenceNotes,
     screeningResponses: candidateResponse.screening,

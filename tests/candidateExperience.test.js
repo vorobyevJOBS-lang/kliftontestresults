@@ -24,3 +24,17 @@ test("creating a real assessment also attempts an invite and exposes explicit se
   assert.match(hiring, /Открыть готовое письмо/);
   assert.match(hiring, /письмо не отправляется автоматически/i);
 });
+
+test("CRM exposes preference progress and mouse drag affordances on the pipeline", () => {
+  assert.match(hiring, /Карта готова/);
+  assert.match(hiring, /workPreferenceStatus/);
+  assert.match(hiring, /pointermove/);
+  assert.match(hiring, /Перетащите карточку мышкой/);
+});
+
+test("candidate sees role correspondence immediately after the preference map", () => {
+  assert.match(portal, /"preferences", "preferenceResult"/);
+  assert.match(portal, /Посмотреть результат/);
+  assert.match(portal, /Предварительное соответствие должностям/);
+  assert.match(hiring, /Соответствие должностям/);
+});
