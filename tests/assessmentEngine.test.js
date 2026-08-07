@@ -77,6 +77,19 @@ test("Klyachka booking pilot draft contains the owner-confirmed 90-day standard"
   assert.equal(profile.jobAnalysisDraft.reviewers.split("\n").length, 4);
 });
 
+test("Klyachka trial-sales draft mirrors the real trial lesson before activation", () => {
+  const profile = getJobProfile("klyachka_trial_sales_manager");
+  assert.equal(profile.status, "draft");
+  assert.match(profile.workSample.prompt, /цель семьи/i);
+  assert.match(profile.workSample.prompt, /прошлый опыт/i);
+  assert.match(profile.workSample.prompt, /видимым результатом/i);
+  assert.match(profile.workSample.observedFormat, /учебной CRM/i);
+  assert.equal(profile.workSample.rubric.length, 6);
+  assert.equal(profile.workSample.rubric.some((item) => item.id === "trial_sample_result"), true);
+  assert.match(profile.jobAnalysisDraft.criticalErrors, /презентация без диагностики/i);
+  assert.equal(profile.jobAnalysisDraft.outcomeDefinition, "", "the owner must confirm the payment KPI before activation");
+});
+
 test("school operations roles reflect real ownership boundaries", () => {
   const klyachkaAdmin = getJobProfile("school_administrator");
   const jobsRecords = getJobProfile("jobs_records_administrator");
