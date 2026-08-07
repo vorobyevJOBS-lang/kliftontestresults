@@ -217,6 +217,13 @@ export default function CandidatePortal() {
     });
   };
 
+  const choosePreference = (index, value) => {
+    updatePreference(index, value);
+    if (index < WORK_PREFERENCE_QUESTION_COUNT - 1) {
+      window.setTimeout(() => setPreferenceIndex((current) => current === index ? current + 1 : current), 160);
+    }
+  };
+
   const goToWorkSample = () => {
     if (!screeningIsComplete(state.profile, response)) {
       setValidationError("Заполните обязательные поля, чтобы перейти к рабочему заданию.");
@@ -387,19 +394,19 @@ export default function CandidatePortal() {
             </div>
             <fieldset className="eh-preference-card">
               <legend>Что вам ближе?</legend>
-              <label className={response.workPreferenceAnswers[preferenceIndex] === "A" ? "is-selected" : ""}><input type="radio" name={`preference-${preferenceIndex}`} checked={response.workPreferenceAnswers[preferenceIndex] === "A"} onChange={() => updatePreference(preferenceIndex, "A")} /><span><strong>Вариант А</strong>{preferenceQuestion.a}</span></label>
-              <label className={response.workPreferenceAnswers[preferenceIndex] === "B" ? "is-selected" : ""}><input type="radio" name={`preference-${preferenceIndex}`} checked={response.workPreferenceAnswers[preferenceIndex] === "B"} onChange={() => updatePreference(preferenceIndex, "B")} /><span><strong>Вариант Б</strong>{preferenceQuestion.b}</span></label>
+              <label className={response.workPreferenceAnswers[preferenceIndex] === "A" ? "is-selected" : ""}><input type="radio" name={`preference-${preferenceIndex}`} checked={response.workPreferenceAnswers[preferenceIndex] === "A"} onChange={() => choosePreference(preferenceIndex, "A")} /><span><strong>Вариант А</strong>{preferenceQuestion.a}</span></label>
+              <label className={response.workPreferenceAnswers[preferenceIndex] === "B" ? "is-selected" : ""}><input type="radio" name={`preference-${preferenceIndex}`} checked={response.workPreferenceAnswers[preferenceIndex] === "B"} onChange={() => choosePreference(preferenceIndex, "B")} /><span><strong>Вариант Б</strong>{preferenceQuestion.b}</span></label>
             </fieldset>
+            {preferenceIndex < WORK_PREFERENCE_QUESTION_COUNT - 1 && <p className="eh-helper" aria-live="polite">После выбора следующий вопрос откроется автоматически.</p>}
             {validationError && <div id="candidate-preference-validation" role="alert" className="eh-callout" style={{ marginTop: 16 }}>{validationError}</div>}
             <div className="eh-actions" style={{ marginTop: 18 }}>
               <button type="button" className="eh-btn eh-btn-secondary" disabled={preferenceIndex === 0} onClick={() => { setValidationError(""); setPreferenceIndex((current) => Math.max(0, current - 1)); }}>Назад</button>
-              {preferenceIndex < WORK_PREFERENCE_QUESTION_COUNT - 1
-                ? <button type="button" className="eh-btn eh-btn-primary" style={{ flex: 1 }} disabled={!response.workPreferenceAnswers[preferenceIndex]} onClick={() => setPreferenceIndex((current) => current + 1)}>Следующая пара</button>
-                : <button type="button" className="eh-btn eh-btn-primary" style={{ flex: 1 }} disabled={!response.workPreferenceAnswers[preferenceIndex]} onClick={goToWorkSampleFromPreferences}>Перейти к рабочему заданию</button>}
+              {preferenceIndex === WORK_PREFERENCE_QUESTION_COUNT - 1 && <button type="button" className="eh-btn eh-btn-primary" style={{ flex: 1 }} disabled={!response.workPreferenceAnswers[preferenceIndex]} onClick={goToWorkSampleFromPreferences}>Перейти к рабочему заданию</button>}
             </div>
           </section> : <section aria-labelledby="work-sample-heading" style={{ marginTop: 24 }}>
             <h2 id="work-sample-heading" style={{ marginBottom: 8 }}>Подготовка: {profile.workSample.title}</h2>
             <p style={{ color: "#647068", lineHeight: 1.55, marginTop: 0 }}>Нам важны ход мысли, конкретные действия и способ проверки результата. Письменный ответ не оценивается отдельно как тест способностей: на встрече команда проверит решение в одинаковом практическом упражнении.</p>
+            <div className="eh-callout"><strong>Что нужно знать до задания</strong><br />{profile.workSample.candidateBrief || "Это проверка способа работы, а не знания внутренних регламентов школы. Все необходимые внутренние факты должен сообщить интервьюер; их можно уточнять без снижения оценки."}</div>
             <div className="eh-work-prompt"><strong>Ситуация</strong><br />{profile.workSample.prompt}</div>
 
             <div className="eh-stack" style={{ marginTop: 20 }}>

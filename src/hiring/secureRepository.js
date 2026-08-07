@@ -242,6 +242,13 @@ export async function createAssessment(organizationId, userId, candidate, profil
   if (error) throw error;
   const created = typeof data === "string" ? JSON.parse(data) : data;
   if (!created?.assessment_id || !created?.candidate_id) throw new Error("База не вернула созданную оценку");
+  let freshInviteUrl = "";
+  let freshInviteError = false;
+  try {
+    freshInviteUrl = await createCandidateInvite(created.assessment_id);
+  } catch {
+    freshInviteError = true;
+  }
   return {
     ...candidate,
     profileDefinition,
@@ -249,6 +256,10 @@ export async function createAssessment(organizationId, userId, candidate, profil
     candidateId: created.candidate_id,
     createdAt: created.created_at || new Date().toISOString(),
     updatedAt: created.updated_at || created.created_at || new Date().toISOString(),
+    hasInvite: Boolean(freshInviteUrl),
+    inviteStatus: freshInviteUrl ? "created" : "none",
+    freshInviteUrl,
+    freshInviteError,
   };
 }
 

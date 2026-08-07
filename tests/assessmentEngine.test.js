@@ -62,9 +62,15 @@ test("booking and trial-sale roles stay separate in both schools", () => {
     assert.equal(booking.interview.some((item) => item.id === "learning_feedback"), true);
     assert.equal(booking.workSample.rubric.some((item) => item.id === "booking_sample_learning"), true);
     assert.match(booking.workSample.observedFormat, /обратн.*связ|повтор/i);
+    assert.match(booking.workSample.candidateBrief, /не требуется заранее знать/i);
+    assert.match(booking.workSample.interviewerBrief, /одинаков|одну легенду/i);
+    assert.equal(booking.workSample.notAssessed.length >= 3, true);
     assert.match(booking.screening.find((item) => item.id === "attendance_result").label, /если опыта нет/i);
     assert.equal(booking.kpis.some((item) => /конверсия после пробного в оплату/i.test(item)), false);
     assert.equal(trialSale.kpis.some((item) => /конверсия после пробного в оплату/i.test(item)), true);
+    assert.match(trialSale.workSample.candidateBrief, /не требуется заранее знать/i);
+    assert.match(trialSale.workSample.interviewerBrief, /одинаков|единая легенда/i);
+    assert.equal(trialSale.workSample.notAssessed.length >= 3, true);
   }
 });
 
