@@ -1,6 +1,7 @@
 import { candidateSupabase, supabase } from "../evidenceSupabase";
 import { parseCandidateResponse } from "./candidateResponse.js";
 import { toDateTimeLocal } from "./dateTime.js";
+import { deriveInviteProgress } from "./inviteStatus.js";
 
 export { parseCandidateResponse };
 
@@ -144,6 +145,7 @@ function mapRemoteAssessment(row, currentUserId) {
   const submittedInvite = [...invites]
     .filter((invite) => invite.submitted_at && invite.candidate_response)
     .sort((first, second) => new Date(second.submitted_at) - new Date(first.submitted_at))[0];
+  const inviteProgress = deriveInviteProgress(invites);
   const candidateResponse = parseCandidateResponse(submittedInvite?.candidate_response);
   const raterEvidence = Object.values(allEvidence.filter((item) => item.submitted_at).reduce((groups, item) => {
     groups[item.rater_id] ||= {
@@ -186,8 +188,13 @@ function mapRemoteAssessment(row, currentUserId) {
     referenceNotes,
     referenceOriginalNotes: referenceNotes,
     screeningResponses: candidateResponse.screening,
-    candidateSubmittedAt: submittedInvite?.submitted_at || "",
-    hasInvite: invites.length > 0,
+    candidateSubmittedAt: submittedInvite?.submitted_at || inviteProgress.submittedAt,
+    hasInvite: inviteProgress.hasInvite,
+    inviteStatus: inviteProgress.status,
+    inviteCreatedAt: inviteProgress.createdAt,
+    inviteOpenedAt: inviteProgress.openedAt,
+    inviteDraftUpdatedAt: inviteProgress.draftUpdatedAt,
+    inviteExpiresAt: inviteProgress.expiresAt,
     currentRaterSubmittedAt,
     raterEvidence,
     outcomes: Object.fromEntries((row.outcome_followups || []).map((item) => [item.checkpoint_days, {
@@ -202,7 +209,7 @@ function mapRemoteAssessment(row, currentUserId) {
 }
 
 export async function listAssessments(organizationId, currentUserId) {
-  const base = "id, candidate_id, profile_key, profile_version, profile_definition, candidate_modules, branch_id, status, pipeline_stage, next_action, next_action_at, rejection_reason, source, final_decision, decision_reason, created_at, updated_at, archived_at, archive_reason, candidates(full_name,email,branch_id,archived_at), outcome_followups(checkpoint_days,retained,manager_rating,kpi_value,kpi_definition,notes), assessment_reference_checks(payload,updated_at), assessment_invites(id,opened_at,candidate_response,submitted_at), candidate_notes(id,body,created_at,author_id), assessment_evidence(rater_id,method,item_id,rating,notes,updated_at,submitted_at)";
+  const base = "id, candidate_id, profile_key, profile_version, profile_definition, candidate_modules, branch_id, status, pipeline_stage, next_action, next_action_at, rejection_reason, source, final_decision, decision_reason, created_at, updated_at, archived_at, archive_reason, candidates(full_name,email,branch_id,archived_at), outcome_followups(checkpoint_days,retained,manager_rating,kpi_value,kpi_definition,notes), assessment_reference_checks(payload,updated_at), assessment_invites(id,created_at,opened_at,draft_updated_at,expires_at,revoked_at,candidate_response,submitted_at), candidate_notes(id,body,created_at,author_id), assessment_evidence(rater_id,method,item_id,rating,notes,updated_at,submitted_at)";
   const legacyBase = "id, candidate_id, profile_key, branch_id, status, pipeline_stage, next_action, next_action_at, rejection_reason, source, final_decision, decision_reason, created_at, updated_at, candidates(full_name,email,branch_id), outcome_followups(checkpoint_days,retained,manager_rating,kpi_value,kpi_definition,notes), assessment_invites(candidate_response,submitted_at), candidate_notes(id,body,created_at,author_id), assessment_evidence(rater_id,method,item_id,rating,notes,updated_at)";
   const query = (fields) => supabase.from("assessments")
     .select(fields)
