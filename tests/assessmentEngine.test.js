@@ -77,7 +77,7 @@ test("Klyachka booking pilot draft contains the owner-confirmed 90-day standard"
   assert.equal(profile.jobAnalysisDraft.reviewers.split("\n").length, 4);
 });
 
-test("Klyachka trial-sales draft mirrors the real trial lesson before activation", () => {
+test("Klyachka trial-sales draft mirrors the real trial lesson and confirmed KPI", () => {
   const profile = getJobProfile("klyachka_trial_sales_manager");
   assert.equal(profile.status, "draft");
   assert.match(profile.workSample.prompt, /цель семьи/i);
@@ -87,7 +87,10 @@ test("Klyachka trial-sales draft mirrors the real trial lesson before activation
   assert.equal(profile.workSample.rubric.length, 6);
   assert.equal(profile.workSample.rubric.some((item) => item.id === "trial_sample_result"), true);
   assert.match(profile.jobAnalysisDraft.criticalErrors, /презентация без диагностики/i);
-  assert.equal(profile.jobAnalysisDraft.outcomeDefinition, "", "the owner must confirm the payment KPI before activation");
+  assert.match(profile.jobAnalysisDraft.outcomeDefinition, /оплаты в день проведения пробного/i);
+  assert.match(profile.jobAnalysisDraft.outcomeDefinition, /хорошая конверсия — 20%/i);
+  assert.deepEqual(profile.kpiTargets[0].benchmarks, { low: 10, average: 15, good: 20 });
+  assert.equal(profile.kpiTargets[0].target, 20);
 });
 
 test("school operations roles reflect real ownership boundaries", () => {

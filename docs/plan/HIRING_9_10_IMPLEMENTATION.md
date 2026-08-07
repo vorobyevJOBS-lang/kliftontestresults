@@ -49,6 +49,12 @@ leads over the latest 30 calendar days (target at least 36%), while both stage
 conversions remain required guardrails. Source: CRM with test leads and confirmed
 duplicates excluded by one documented rule.
 
+Confirmed target for the Klyachka trial-lesson and sales manager: same-day paid
+enrollments divided by all actually conducted trial lessons over the latest 30
+calendar days. Benchmarks are 10% low, 15% average and 20% good. No-shows,
+cancellations, test leads and confirmed duplicates are excluded from the
+denominator. This is a post-hire outcome measure, not a candidate cut score.
+
 Promoter and supervisor profiles remain out of the default catalog until actively
 needed. Generic developer, analyst, marketing and support profiles are not part of
 this product.
