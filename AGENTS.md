@@ -14,6 +14,6 @@
 - Full local check: `npm run check`
 - Security check: `npm audit --omit=dev`; verify RLS for every new public table.
 - Deploy: GitHub `main` auto-deploys to `https://kliftontestresults.vercel.app/`.
-- Production baseline (2026-08-07): all 170 legacy results remain preserved; branch-scoped archive RPCs are live; owner and four staff accounts have passed sign-in checks; an encrypted off-site export exists outside the repository.
-- Operational gate: no pilot job profile has been owner-approved yet, so real candidate invitations must remain unavailable until a role is reviewed with managers and strong incumbents and saved as `pilot`.
+- Production baseline (2026-08-07): all 170 legacy results and all six content fingerprints remain preserved; branch-scoped archive RPCs are live; owner and four staff accounts have passed sign-in checks; an encrypted off-site export exists outside the repository.
+- Active pilot: `klyachka_enrollment_manager` version 2 is owner-confirmed. Klyachka managers and HR can create candidates and send protected invitations; every other role remains a draft until its own job analysis is confirmed.
 - Known risks: Supabase Free has no automatic backups; 38 historical rows have no trustworthy branch and remain owner-only; legacy JOBS rows use `jobs_main` while the canonical branch ID is `jobs_design`; leaked-password protection must be enabled in Supabase Auth; Russian candidate data localization must be resolved before scaling; predictive validity requires real 30/60/90-day outcome data.
