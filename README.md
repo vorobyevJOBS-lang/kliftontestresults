@@ -34,9 +34,9 @@ at desktop and 390×844 viewport sizes.
 - HR workspace: <https://kliftontestresults.vercel.app/hr>
 - Database: Supabase with Auth, RLS and capability-token candidate invitations.
 
-Do not apply superseded SQL files. The current additive hardening migration is
-`p0_hiring_security_and_archive.sql`; it guards legacy row counts and fingerprints
-inside its transaction.
+Do not apply superseded SQL files. Apply `p0_hiring_security_and_archive.sql`,
+then `p1_legacy_archive_rpc.sql`. P0 guards legacy row counts and fingerprints
+inside its transaction; P1 exposes only branch-scoped authenticated archive RPCs.
 
 ## Operating documents
 

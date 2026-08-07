@@ -44,26 +44,18 @@ export async function getMembership(userId) {
 }
 
 export async function listLegacyResults() {
-  const { data, error } = await supabase.auth.getSession();
+  const { data, error } = await supabase.rpc("list_legacy_result_index");
   if (error) throw error;
-  const token = data.session?.access_token;
-  if (!token) throw new Error("Нет активной сессии");
-  const response = await fetch("/api/evidence-legacy", { headers: { Authorization: `Bearer ${token}` } });
-  const payload = await response.json();
-  if (!response.ok) throw new Error(payload.error || "Не удалось загрузить архив прежних тестов");
-  return payload;
+  return data || { items: [], warnings: [] };
 }
 
 export async function getLegacyResultDetail(table, id) {
-  const { data, error } = await supabase.auth.getSession();
+  const { data, error } = await supabase.rpc("get_legacy_result_detail", {
+    target_table: table,
+    target_id: String(id),
+  });
   if (error) throw error;
-  const token = data.session?.access_token;
-  if (!token) throw new Error("Нет активной сессии");
-  const params = new URLSearchParams({ table, id: String(id) });
-  const response = await fetch(`/api/evidence-legacy?${params}`, { headers: { Authorization: `Bearer ${token}` } });
-  const payload = await response.json();
-  if (!response.ok) throw new Error(payload.error || "Не удалось загрузить прежний результат");
-  return payload.item;
+  return data;
 }
 
 export async function listCustomProfiles(organizationId) {

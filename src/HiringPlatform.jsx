@@ -428,7 +428,7 @@ function LegacyArchive({ archive, branches, onRefresh }) {
   const [search, setSearch] = useState("");
   const [type, setType] = useState("all");
   if (archive.loading) return <div className="eh-empty">Загружаем прежние результаты…</div>;
-  if (archive.error) return <div className="eh-panel"><h2>Не удалось открыть архив</h2><p>{archive.error}</p><p className="eh-helper">Проверьте SUPABASE_SERVICE_ROLE_KEY в Vercel. Старые данные остаются в базе и доступны в прежнем кабинете.</p></div>;
+  if (archive.error) return <div className="eh-panel"><h2>Не удалось открыть архив</h2><p>{archive.error}</p><p className="eh-helper">Обновите страницу или войдите заново. Старые данные остаются в базе без изменений.</p></div>;
   const query = search.trim().toLowerCase();
   const items = archive.items.filter((item) => (type === "all" || item.type === type) && (!query || `${item.candidateName} ${item.email} ${item.phone} ${item.label}`.toLowerCase().includes(query)));
   const peopleMap = new Map();
