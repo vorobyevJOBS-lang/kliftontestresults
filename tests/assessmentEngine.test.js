@@ -46,14 +46,34 @@ test("all school profiles use unique stable IDs and cover every competency", () 
   }
 });
 
-test("Klyachka booking and trial-sale roles stay separate", () => {
-  const booking = getJobProfile("klyachka_enrollment_manager");
-  const trialSale = getJobProfile("klyachka_trial_sales_manager");
-  assert.equal(booking.name, "Менеджер записи — Клячка");
-  assert.equal(trialSale.name, "Менеджер пробного урока и продаж — Клячка");
-  assert.equal(booking.kpis.includes("фактический приход"), true);
-  assert.equal(booking.kpis.some((item) => /конверсия после пробного в оплату/i.test(item)), false);
-  assert.equal(trialSale.kpis.some((item) => /конверсия после пробного в оплату/i.test(item)), true);
+test("booking and trial-sale roles stay separate in both schools", () => {
+  for (const [bookingId, trialId, schoolName] of [
+    ["klyachka_enrollment_manager", "klyachka_trial_sales_manager", "Клячка"],
+    ["jobs_enrollment_manager", "jobs_trial_sales_manager", "JOBS"],
+  ]) {
+    const booking = getJobProfile(bookingId);
+    const trialSale = getJobProfile(trialId);
+    assert.equal(booking.name, `Менеджер записи — ${schoolName}`);
+    assert.equal(trialSale.name, `Менеджер пробного урока и продаж — ${schoolName}`);
+    assert.equal(booking.kpis.includes("фактический приход"), true);
+    assert.equal(booking.kpis.some((item) => /конверсия после пробного в оплату/i.test(item)), false);
+    assert.equal(trialSale.kpis.some((item) => /конверсия после пробного в оплату/i.test(item)), true);
+  }
+});
+
+test("school operations roles reflect real ownership boundaries", () => {
+  const klyachkaAdmin = getJobProfile("school_administrator");
+  const jobsRecords = getJobProfile("jobs_records_administrator");
+  const tutor = getJobProfile("jobs_tutor");
+  const teacher = getJobProfile("jobs_design_mentor");
+  assert.equal(klyachkaAdmin.school, "klyachka");
+  assert.match(klyachkaAdmin.name, /Клячка/);
+  assert.equal(jobsRecords.school, "jobs");
+  assert.match(jobsRecords.name, /делопроизводитель/i);
+  assert.equal(tutor.school, "jobs");
+  assert.equal(tutor.kpis.includes("продление обучения"), true);
+  assert.equal(tutor.kpis.includes("корректное разрешение возвратов"), true);
+  assert.equal(teacher.name, "Преподаватель дизайна — JOBS");
 });
 
 test("decision readiness requires two fully documented submitted raters", () => {

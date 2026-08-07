@@ -32,10 +32,13 @@ automatic hire/reject decision or present an unvalidated score as a diagnosis.
 
 - Klyachka enrollment manager: calls, booking and actual trial attendance.
 - Klyachka trial-lesson and sales manager: conducts the trial and sells training.
-- JOBS enrollment and sales manager.
-- School administrator.
+- JOBS enrollment manager: calls, booking and actual trial attendance.
+- JOBS trial-lesson and sales manager: conducts the trial and sells training.
+- Klyachka administrator: student administration, schedule and school supplies.
+- JOBS records administrator: documents, payments and purchasing.
+- JOBS tutor: student support, schedule, renewals and refund handling.
 - Klyachka drawing teacher.
-- JOBS design teacher or mentor.
+- JOBS design teacher.
 - Sales/call-center lead.
 - Branch manager.
 
