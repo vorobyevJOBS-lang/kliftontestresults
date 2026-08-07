@@ -11,6 +11,13 @@ const TABLES = [
   ["sails_results", "sails", "Продажник", "completed_at"],
   ["prim_results", "prim", "Первичный анализ", "created_at"],
 ];
+const SUMMARY_FIELDS = [
+  "position_name", "recommended_position", "total_score", "score", "level",
+];
+
+function pickSummary(raw) {
+  return Object.fromEntries(SUMMARY_FIELDS.filter((key) => raw[key] !== undefined).map((key) => [key, raw[key]]));
+}
 
 function bearer(req) {
   const header = req.headers.authorization || "";
@@ -24,13 +31,22 @@ export function getAllowedBranches(membership, extraBranches = []) {
   ])];
 }
 
+export function expandLegacyBranchIds(branches = []) {
+  const result = new Set(branches);
+  if (result.has("jobs_design")) result.add("jobs_main");
+  if (result.has("jobs_main")) result.add("jobs_design");
+  return [...result];
+}
+
 export default async function handler(req, res) {
+  res.setHeader("Cache-Control", "private, no-store");
   if (req.method !== "GET") return res.status(405).json({ error: "Method not allowed" });
+  if (!SUPABASE_SERVER_KEY) return res.status(503).json({ error: "Архив временно не настроен" });
   const token = bearer(req);
   const authenticated = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     auth: { persistSession: false }, global: { headers: { Authorization: `Bearer ${token}` } },
   });
-  const reader = createClient(SUPABASE_URL, SUPABASE_SERVER_KEY || SUPABASE_ANON_KEY, { auth: { persistSession: false } });
+  const reader = createClient(SUPABASE_URL, SUPABASE_SERVER_KEY, { auth: { persistSession: false } });
   const { data: authData, error: authError } = await authenticated.auth.getUser(token);
   if (authError || !authData.user) return res.status(401).json({ error: "Нужен вход в EvidenceHire" });
 
@@ -46,22 +62,41 @@ export default async function handler(req, res) {
     .eq("user_id", authData.user.id);
   if (branchesError) return res.status(500).json({ error: "Не удалось проверить доступы к филиалам" });
   const allowedBranches = getAllowedBranches(membership, extraBranches || []);
+  const isOwner = membership.role === "owner";
+  if (!isOwner && !allowedBranches.length) return res.status(403).json({ error: "Нет доступа ни к одному филиалу" });
+  const legacyBranchIds = expandLegacyBranchIds(allowedBranches);
+
+  const requestedTable = typeof req.query?.table === "string" ? req.query.table : "";
+  const requestedId = typeof req.query?.id === "string" ? req.query.id : "";
+  if (requestedTable || requestedId) {
+    if (!requestedTable || !requestedId || requestedId.length > 80 || !TABLES.some(([table]) => table === requestedTable)) {
+      return res.status(400).json({ error: "Некорректный запрос результата" });
+    }
+    let detailQuery = reader.from(requestedTable).select("*").eq("id", requestedId);
+    if (!isOwner) detailQuery = detailQuery.in("branch_id", legacyBranchIds);
+    const { data: item, error: detailError } = await detailQuery.maybeSingle();
+    if (detailError) return res.status(500).json({ error: "Не удалось загрузить результат" });
+    if (!item) return res.status(404).json({ error: "Результат не найден или недоступен" });
+    return res.status(200).json({ item });
+  }
 
   const batches = await Promise.all(TABLES.map(async ([table, type, label, dateColumn]) => {
     let query = reader.from(table).select("*").order(dateColumn, { ascending: false }).limit(1000);
-    if (membership.branch_id && allowedBranches.length) query = query.in("branch_id", allowedBranches);
+    if (!isOwner) query = query.in("branch_id", legacyBranchIds);
     const { data, error } = await query;
-    if (error) return { table, error: error.message, items: [] };
+    if (error) return { table, error: true, items: [] };
     return { table, items: (data || []).map((raw) => ({
       id: `${table}:${raw.id}`, sourceId: raw.id, table, type, label,
       candidateName: raw.candidate_name || raw.name || "Без имени",
       email: raw.candidate_email || raw.email || "", phone: raw.candidate_phone || raw.phone || "",
-      branchId: raw.branch_id || "", createdAt: raw[dateColumn] || raw.created_at || raw.completed_at || null, raw,
+      branchId: raw.branch_id || "", candidateKey: raw.candidate_key || "",
+      createdAt: raw[dateColumn] || raw.created_at || raw.completed_at || null,
+      summary: pickSummary(raw),
     })) };
   }));
   return res.status(200).json({
     organizationId: membership.organization_id,
     items: batches.flatMap((batch) => batch.items),
-    warnings: batches.filter((batch) => batch.error).map(({ table, error }) => ({ table, error })),
+    warnings: batches.filter((batch) => batch.error).map(({ table }) => ({ table })),
   });
 }

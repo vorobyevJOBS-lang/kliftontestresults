@@ -1,5 +1,5 @@
 export const TEST_ROUTE_META = {
-  clifton: { label: "Клифтон", icon: "🏆", minutes: 50 },
+  clifton: { label: "Карта роли", icon: "🏆", minutes: 50 },
   rezultat: { label: "Опыт", icon: "📊", minutes: 12 },
   tools: { label: "Профиль", icon: "🎯", minutes: 35 },
   logis: { label: "Логика", icon: "🧠", minutes: 30 },

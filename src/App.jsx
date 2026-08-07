@@ -45,7 +45,7 @@ const MAX_BY_TALENT = (() => {
 const ALL_POSITIONS = Object.entries(ROLE_PROFILES).map(([id, r]) => ({ id, name: r.name }));
 
 const TEST_CARDS = [
-  { id: "clifton", icon: "🏆", title: "Клифтон", desc: "Сильные стороны", meta: `${QUESTIONS.length} пар · 45-50 мин`, accent: "#D98E2B", muted: "#FBF1E2" },
+  { id: "clifton", icon: "🏆", title: "Карта роли", desc: "Сильные стороны и гипотезы для интервью", meta: `${QUESTIONS.length} пар · 45-50 мин`, accent: "#D98E2B", muted: "#FBF1E2" },
   { id: "rezultat", icon: "📊", title: "Опыт", desc: "Продуктивность и трудовой путь", meta: "19 вопросов · 8-12 мин", accent: "#2563EB", muted: "#EEF3FF" },
   { id: "tools", icon: "🎯", title: "Профиль", desc: "Характер и рабочий стиль", meta: "200 вопросов · 35 мин", accent: "#0F766E", muted: "#E4F4F0" },
   { id: "logis", icon: "🧠", title: "Логика", desc: "Логическое мышление", meta: "80 вопросов · 30 мин", accent: "#6C63FF", muted: "#EEF2FF" },
@@ -61,7 +61,7 @@ function getInitialRouteContext() {
     name: params.get("name") || "",
     email: params.get("email") || "",
     role: params.get("role") || "",
-    branch: params.get("branch") || "",
+    branch: params.get("branch") ? branchById(params.get("branch")).id : "",
     tests: (params.get("tests") || "").split(",").filter((id) => TEST_CARDS.some((test) => test.id === id)),
     applicantType: type === "employee" ? "employee" : "candidate",
   };
@@ -299,17 +299,17 @@ function computeResult(answers, positionId, schoolPositionIds) {
 
   let fit, fitNote;
   if (isRecommended) {
-    fit = "Рекомендуемая должность определена автоматически";
-    fitNote = `По результатам теста наиболее подходящая роль для кандидата — «${role.name}» (${thisRoleFit.fit}%). Ниже приведён полный рейтинг соответствия всем должностям — он показывает, где у кандидата больше шансов быть результативным.`;
+    fit = "Роль для первичной проверки";
+    fitNote = `Внутри ответов кандидата больше признаков связано с ролью «${role.name}» (ориентировочный индекс ${thisRoleFit.fit} из 100). Это гипотеза для одинаковой рабочей пробы и интервью, а не прогноз результативности или основание для отказа.`;
   } else if (avgKeyRank <= 7 && weakKeys.length === 0) {
-    fit = "Высокое соответствие должности";
-    fitNote = `Ключевые для роли «${role.name}» качества в среднем занимают ${avgKeyRank.toFixed(1)}-е место в профиле (из 20) — входят в число наиболее выраженных сторон.`;
+    fit = "Больше признаков в пользу роли";
+    fitNote = `Ключевые признаки роли «${role.name}» в среднем занимают ${avgKeyRank.toFixed(1)}-е место внутри профиля ответов (из 20). Проверьте их одинаковой рабочей пробой и поведенческими вопросами.`;
   } else if (avgKeyRank <= 12 && weakKeys.length <= 1) {
-    fit = "Среднее соответствие должности";
-    fitNote = `Ключевые для роли «${role.name}» качества в среднем занимают ${avgKeyRank.toFixed(1)}-е место в профиле (из 20). Часть выражена сильно, часть — нет. Решение лучше принимать по итогам собеседования.`;
+    fit = "Смешанная карта признаков роли";
+    fitNote = `Ключевые признаки роли «${role.name}» в среднем занимают ${avgKeyRank.toFixed(1)}-е место внутри профиля ответов (из 20). Сильные и слабые гипотезы нужно отдельно проверить по наблюдаемым фактам.`;
   } else {
-    fit = "Низкое соответствие должности";
-    fitNote = `Ключевые для роли «${role.name}» качества в среднем занимают ${avgKeyRank.toFixed(1)}-е место в профиле (из 20) — относятся к менее выраженным сторонам. Рекомендуем посмотреть рейтинг соответствия другим должностям ниже.`;
+    fit = "Есть важные зоны проверки по роли";
+    fitNote = `Ключевые признаки роли «${role.name}» в среднем занимают ${avgKeyRank.toFixed(1)}-е место внутри профиля ответов (из 20). Это не отрицательный вердикт: используйте указанные вопросы и рабочую пробу, чтобы подтвердить или опровергнуть гипотезу.`;
   }
 
   // сводка для руководителя
@@ -370,18 +370,19 @@ function buildPlainText(rec) {
   const lines = [];
   const branchName = branchById(rec.branchId).name;
   const typeName = rec.applicantType === "employee" ? "Действующий сотрудник" : "Кандидат на собеседование";
-  lines.push(`РЕЗУЛЬТАТ ТЕСТА СИЛЬНЫХ СТОРОН (${QUESTIONS.length} пар утверждений)`);
+  lines.push(`КАРТА СИЛЬНЫХ СТОРОН И ГИПОТЕЗ РОЛИ (${QUESTIONS.length} пар утверждений)`);
   lines.push(`Имя: ${rec.name}`);
   lines.push(`Филиал: ${branchName} · Тип: ${typeName}`);
   lines.push(`Должность: ${r.role.name} · Дата: ${new Date(rec.date).toLocaleDateString("ru-RU")}`);
   if (rec.candidateEmail) lines.push(`Email: ${rec.candidateEmail}`);
   lines.push(``);
-  lines.push(`ВЕРДИКТ: ${r.fit} (${r.thisRoleFit.fit}%)`);
+  lines.push(`ГИПОТЕЗА ПО ЦЕЛЕВОЙ РОЛИ: ${r.fit} (внутрипрофильный индекс ${r.thisRoleFit.fit} из 100)`);
   lines.push(r.fitNote);
+  lines.push(`Индекс сравнивает признаки только внутри ответов этого человека. Он не является вероятностью успеха, проходным баллом и не предназначен для сравнения кандидатов между собой.`);
   lines.push(``);
   const reliabilityLine = r.consistencyScore != null
-    ? `НАДЁЖНОСТЬ ОТВЕТОВ: ${r.consistencyLabel} (${r.consistencyScore}%)`
-    : `НАДЁЖНОСТЬ ОТВЕТОВ: нет данных`;
+    ? `СОГЛАСОВАННОСТЬ ПОВТОРНЫХ ПАР: ${r.consistencyLabel} (${r.consistencyScore}%)`
+    : `СОГЛАСОВАННОСТЬ ПОВТОРНЫХ ПАР: нет данных`;
   const skipWarning = (r.nullAnswers ?? 0) > 0
     ? ` · ⚠ ${r.nullAnswers} вопр. пропущено по таймеру`
     : "";
@@ -409,11 +410,11 @@ function buildPlainText(rec) {
   });
   lines.push(``);
   if (r.isRecommended) {
-    lines.push(`РЕЙТИНГ СООТВЕТСТВИЯ ДОЛЖНОСТЯМ (все, по убыванию):`);
-    r.roleMatches.forEach((m, i) => lines.push(`${i + 1}. ${m.roleName}: ${m.fit}%`));
+    lines.push(`КАРТА ГИПОТЕЗ ПО ДОЛЖНОСТЯМ (все, по убыванию внутрипрофильного индекса):`);
+    r.roleMatches.forEach((m, i) => lines.push(`${i + 1}. ${m.roleName}: ${m.fit} из 100`));
   } else {
-    lines.push(`СООТВЕТСТВИЕ ДОЛЖНОСТЯМ (топ-5):`);
-    r.roleMatches.slice(0, 5).forEach((m) => lines.push(`— ${m.roleName}: ${m.fit}%`));
+    lines.push(`КАРТА ГИПОТЕЗ ПО ДОЛЖНОСТЯМ (топ-5):`);
+    r.roleMatches.slice(0, 5).forEach((m) => lines.push(`— ${m.roleName}: ${m.fit} из 100`));
   }
   lines.push(``);
   lines.push(`НАИМЕНЕЕ ВЫРАЖЕНЫ (в целом): ` + r.bottom3.map((t) => `${TALENTS[t.id].name} (#${t.rank})`).join(", "));
@@ -445,6 +446,7 @@ export default function App() {
   const [candidateEmail, setCandidateEmail] = useState(initialRouteContext.email || "");
   const [timeLeft, setTimeLeft] = useState(20);
   const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState("");
 
   const availablePositions = positionsForSchool(branchById(branchId).school);
   const visibleTests = initialRouteContext.tests?.length
@@ -508,13 +510,9 @@ export default function App() {
   async function submitWithEmail() {
     if (submitting) return;
     setSubmitting(true);
+    setSubmitError("");
     const rec = { ...current, candidateEmail: candidateEmail.trim() };
     setCurrent(rec);
-
-    const withTimeout = (p, ms) => Promise.race([p, new Promise((resolve) => setTimeout(resolve, ms))]);
-
-    const branchName = branchById(rec.branchId).name;
-    const typeName = rec.applicantType === "employee" ? "Действующий сотрудник" : "Кандидат на собеседование";
     const resultRecord = {
       candidate_name: rec.name,
       candidate_email: rec.candidateEmail,
@@ -532,48 +530,15 @@ export default function App() {
       report: buildPlainText(rec),
       report_json: JSON.stringify(rec.result),
     };
-    const insertResult = async () => {
-      const optionalFields = ["target_position_id", "target_position_name"];
-      const currentRecord = { ...resultRecord };
-      for (let attempt = 0; attempt <= optionalFields.length; attempt++) {
-        const { error } = await supabase.from("results").insert(currentRecord);
-        if (!error) return;
-        const message = `${error.message || ""} ${error.details || ""}`.toLowerCase();
-        const missingField = optionalFields.find((field) => Object.prototype.hasOwnProperty.call(currentRecord, field) && message.includes(field));
-        if (!missingField) {
-          console.error(error);
-          return;
-        }
-        delete currentRecord[missingField];
-      }
-    };
-
-    await Promise.allSettled([
-      withTimeout(
-        insertResult().catch((e) => console.error(e)),
-        8000
-      ),
-      withTimeout(
-        fetch("https://formspree.io/f/mlgkpwey", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", Accept: "application/json" },
-          body: JSON.stringify({
-            _subject: `Результат теста: ${rec.name} — ${rec.result.role.name}`,
-            candidate: rec.name,
-            position: rec.result.role.name,
-            branch: branchName,
-            applicant_type: typeName,
-            fit: `${rec.result.fit} (${rec.result.thisRoleFit.fit}%)`,
-            candidate_email: rec.candidateEmail,
-            report: buildPlainText(rec),
-          }),
-        }).catch((e) => console.error(e)),
-        8000
-      ),
-    ]);
-
-    setSubmitting(false);
-    setScreen("thanks");
+    try {
+      const { error } = await supabase.from("results").insert(resultRecord);
+      if (error) throw new Error(error.message || "Не удалось сохранить результат.");
+      setScreen("thanks");
+    } catch (error) {
+      setSubmitError(error.message || "Не удалось сохранить результат. Проверьте интернет и повторите отправку.");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   // ── ГЛАВНАЯ ──
@@ -607,9 +572,9 @@ export default function App() {
   if (activeTest === "clifton" && screen === "home") return (
     <TestStartLayout
       icon="🏆"
-      eyebrow="Тест Клифтон"
-      title="Сильные стороны и подходящие роли"
-      description="В каждой паре выбирайте утверждение, которое ближе именно вам. Результат покажет соответствие выбранной должности и подскажет зоны проверки."
+      eyebrow="Дополнительная карта роли"
+      title="Сильные стороны и гипотезы для интервью"
+      description="В каждой паре выбирайте утверждение, которое ближе именно вам. Результат подскажет, какие признаки целевой роли нужно подтвердить рабочей пробой и одинаковыми вопросами. Это не проходной тест и не автоматический вердикт."
       accent="#D98E2B"
       meta={[
         { value: QUESTIONS.length, label: "пар" },
@@ -722,6 +687,7 @@ export default function App() {
             style={{ ...S.btn, ...S.primary, width: "100%", marginTop: 18, opacity: (candidateEmail.trim() && !submitting) ? 1 : 0.4 }}>
             {submitting ? "Отправка..." : "Завершить тест"}
           </button>
+          {submitError && <p role="alert" style={{ color: "#B42318", fontSize: 14, lineHeight: 1.45, margin: "14px 0 0" }}>{submitError}</p>}
         </div>
       </div></div>
     );
