@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { COMPETENCIES, getJobProfile, JOB_PROFILES, PROFILE_STATUS } from "./hiring/jobProfiles";
 import { assessmentAccessState, buildDecisionMatrix, calculateAssessment, canCompareCandidates, createCandidateRecord, decisionReadiness, documentedEvidenceStatus } from "./hiring/assessmentEngine";
 import { buildVerificationGuidance } from "./hiring/hrGuidance";
-import { INVITE_STATUS } from "./hiring/inviteStatus";
+import { INVITE_STATUS, summarizeInviteFunnel } from "./hiring/inviteStatus";
 import { parseReferenceCheck, referenceDispositionComplete, serializeReferenceCheck } from "./hiring/referenceCheck";
 import { refreshCanApply, saveCardThenOutcomes } from "./hiring/saveCoordination";
 import { configureValidationCalculator, summarizeValidation } from "./hiring/validationMetrics";
@@ -516,6 +516,8 @@ function Method({ account, onSignOut }) {
 
 function Research({ candidates, resolveProfile }) {
   const summary = summarizeValidation(candidates, resolveProfile, 90);
+  const inviteFunnel = summarizeInviteFunnel(candidates);
+  const rate = (value) => value == null ? "—" : `${value}%`;
   return <article className="eh-method">
     <p className="eh-kicker" style={{ color: "#1f6f4e", opacity: 1 }}>Качество найма</p><h1>Проверяем прогноз реальной работой</h1>
     <div className="eh-callout">Пока профиль не имеет заранее замороженного плана оценки и минимум 30 сопоставимых наблюдений, система не показывает корреляцию. Каждая должность, версия, школа и определение KPI анализируются отдельно.</div>
@@ -524,6 +526,13 @@ function Research({ candidates, resolveProfile }) {
       <div className="eh-panel"><span className="eh-family">Полный процесс</span><h2 style={{ fontSize: 38, marginBottom: 4 }}>{summary.completed}</h2><p className="eh-helper">Заполнены проба и интервью</p></div>
       <div className="eh-panel"><span className="eh-family">90 дней</span><h2 style={{ fontSize: 38, marginBottom: 4 }}>{summary.followedUp}</h2><p className="eh-helper">Зафиксирован результат работы</p></div>
     </div>
+    <section><h2>Воронка заданий кандидата</h2><p>Показывает удобство и потери процесса, а не качество кандидатов. Проценты считаются только по активным карточкам, доступным вашему филиалу.</p><div className="eh-metric-grid eh-metric-grid-quality">
+      <div className="eh-panel"><span className="eh-family">Ссылка создана</span><h3>{inviteFunnel.assigned}</h3><small>{rate(inviteFunnel.openRate)} открыли из получивших ссылку</small></div>
+      <div className="eh-panel"><span className="eh-family">Открыли</span><h3>{inviteFunnel.opened}</h3><small>{rate(inviteFunnel.startRate)} начали заполнять после открытия</small></div>
+      <div className="eh-panel"><span className="eh-family">Начали</span><h3>{inviteFunnel.started}</h3><small>сохранили черновик или отправили ответ</small></div>
+      <div className="eh-panel"><span className="eh-family">Завершили</span><h3>{inviteFunnel.submitted}</h3><small>{rate(inviteFunnel.completionRate)} завершили из получивших ссылку</small></div>
+      <div className="eh-panel"><span className="eh-family">Срок истёк</span><h3>{inviteFunnel.expired}</h3><small>нужно проверить причину и следующий контакт</small></div>
+    </div></section>
     <section><h2>Срезы без смешивания должностей</h2>{!summary.groups.length ? <p>Данных пока нет.</p> : <div className="eh-quality-groups">{summary.groups.map((group) => <div className="eh-panel" key={group.key}><strong>{group.profileName}</strong><p>Версия {group.profileVersion} · {group.branchId === "unassigned" ? "Филиал не указан" : branchById(group.branchId).name}</p><small>{group.candidates} кандидатов · {group.completed} полных оценок · {group.followedUp} наблюдений через 90 дней</small><p className="eh-helper">{group.profileStatus === "validated" ? (group.correlation == null ? "Для расчёта связи нужно минимум 30 сопоставимых пар с одним заранее определённым результатом." : `Наблюдаемая корреляция: ${group.correlation.toFixed(2)}; 95% интервал ${group.confidenceInterval?.[0].toFixed(2)}…${group.confidenceInterval?.[1].toFixed(2)}. Требуется независимая проверка специалистом.`) : "Профиль ещё не валидирован — итоговый коэффициент намеренно не рассчитывается."}</p></div>)}</div>}</section>
     <section><h2>Перед подтверждением профиля</h2><ul><li>Зафиксируйте KPI и период до просмотра результатов.</li><li>Проверьте согласие оценщиков и качество заполнения рубрик.</li><li>Оцените добавочную пользу каждого этапа.</li><li>Проверьте различия в прохождении этапов и альтернативы с меньшим неблагоприятным воздействием.</li><li>Документируйте область применения и новую версию профиля.</li></ul></section>
   </article>;

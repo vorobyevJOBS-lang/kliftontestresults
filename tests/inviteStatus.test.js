@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { deriveInviteProgress } from "../src/hiring/inviteStatus.js";
+import { deriveInviteProgress, summarizeInviteFunnel } from "../src/hiring/inviteStatus.js";
 
 const future = "2026-08-10T00:00:00.000Z";
 const now = new Date("2026-08-07T00:00:00.000Z").getTime();
@@ -24,4 +24,27 @@ test("submitted evidence wins over a newer revoked invitation", () => {
 test("expired and revoked invitations require a fresh link", () => {
   assert.equal(deriveInviteProgress([{ created_at: "2026-08-01T00:00:00Z", expires_at: "2026-08-06T00:00:00Z" }], now).status, "expired");
   assert.equal(deriveInviteProgress([{ created_at: "2026-08-06T00:00:00Z", expires_at: future, revoked_at: "2026-08-06T01:00:00Z" }], now).status, "expired");
+});
+
+test("invite funnel keeps assignment, start and completion denominators explicit", () => {
+  const funnel = summarizeInviteFunnel([
+    { inviteStatus: "none" },
+    { inviteStatus: "created" },
+    { inviteStatus: "opened" },
+    { inviteStatus: "in_progress" },
+    { inviteStatus: "submitted" },
+    { inviteStatus: "expired", inviteOpenedAt: "2026-08-01T00:00:00Z" },
+  ]);
+  assert.deepEqual(funnel, {
+    candidates: 6,
+    assigned: 5,
+    opened: 4,
+    started: 2,
+    submitted: 1,
+    expired: 1,
+    openRate: 80,
+    startRate: 50,
+    completionRate: 20,
+  });
+  assert.equal(summarizeInviteFunnel([]).completionRate, null);
 });

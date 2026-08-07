@@ -42,3 +42,23 @@ export function deriveInviteProgress(invites = [], now = Date.now()) {
   };
 }
 
+export function summarizeInviteFunnel(candidates = []) {
+  const statusOf = (candidate) => candidate.inviteStatus || "none";
+  const assigned = candidates.filter((candidate) => statusOf(candidate) !== "none").length;
+  const opened = candidates.filter((candidate) => candidate.inviteOpenedAt || ["opened", "in_progress", "submitted"].includes(statusOf(candidate))).length;
+  const started = candidates.filter((candidate) => candidate.inviteDraftUpdatedAt || ["in_progress", "submitted"].includes(statusOf(candidate))).length;
+  const submitted = candidates.filter((candidate) => candidate.candidateSubmittedAt || statusOf(candidate) === "submitted").length;
+  const expired = candidates.filter((candidate) => statusOf(candidate) === "expired").length;
+  const rate = (part, total) => total ? Math.round((part / total) * 100) : null;
+  return {
+    candidates: candidates.length,
+    assigned,
+    opened,
+    started,
+    submitted,
+    expired,
+    openRate: rate(opened, assigned),
+    startRate: rate(started, opened),
+    completionRate: rate(submitted, assigned),
+  };
+}

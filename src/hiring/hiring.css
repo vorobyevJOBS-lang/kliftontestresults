@@ -157,6 +157,9 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .eh-metric-grid button:hover { border-color: #8eaa96; }
 .eh-metric-grid span, .eh-metric-grid small { color: #68756c; }
 .eh-metric-grid strong { color: #1f6f4e; font-size: 32px; }
+.eh-metric-grid-quality .eh-panel { display: grid; gap: 7px; padding: 18px; }
+.eh-metric-grid-quality h3 { margin: 0; color: #1f6f4e; font-size: 32px; }
+.eh-metric-grid-quality small { color: #68756c; line-height: 1.45; }
 .eh-source-tabs { display: flex; gap: 8px; margin-bottom: 18px; padding: 5px; border: 1px solid #dfe6dd; border-radius: 14px; background: #e9eee8; overflow-x: auto; }
 .eh-source-tabs button { flex: 1 0 auto; border: 0; border-radius: 10px; padding: 10px 14px; background: transparent; color: #5d6a61; cursor: pointer; font-weight: 750; }
 .eh-source-tabs button[aria-current="page"] { background: #fff; color: #155b3e; box-shadow: 0 2px 8px rgba(24,55,36,.06); }
