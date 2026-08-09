@@ -90,43 +90,69 @@ export function buildRoleRelevance(answers, currentProfileId) {
   if (!preferenceMap) return null;
 
   const themeById = Object.fromEntries(preferenceMap.rankedThemes.map((theme) => [theme.id, theme]));
+  const meanPreference = preferenceMap.rankedThemes.reduce((total, theme) => total + theme.preferenceIndex, 0) / preferenceMap.rankedThemes.length;
+  const variance = preferenceMap.rankedThemes.reduce((total, theme) => total + ((theme.preferenceIndex - meanPreference) ** 2), 0) / preferenceMap.rankedThemes.length;
+  const standardDeviation = Math.sqrt(variance) || 1;
+  const zByTheme = Object.fromEntries(preferenceMap.rankedThemes.map((theme) => [theme.id, (theme.preferenceIndex - meanPreference) / standardDeviation]));
+  const allThemeZ = Object.values(zByTheme);
+  const minimumZ = Math.min(...allThemeZ);
+  const maximumZ = Math.max(...allThemeZ);
+  const zSpan = maximumZ - minimumZ || 1;
+  const topHalfRank = Math.ceil(preferenceMap.rankedThemes.length / 2);
   const currentSchool = schoolForProfile(currentProfileId);
   const eligibleRoles = ROLE_HYPOTHESES.filter((role) => currentSchool === "all" || role.school === "all" || role.school === currentSchool);
   const rankedRoles = eligibleRoles
     .map((role) => {
       const entries = Object.entries(role.weights);
-      const comparisonIndex = entries.reduce((total, [themeId, weight]) => total + (themeById[themeId]?.relativeSelection || 0) * weight, 0)
-        / entries.reduce((total, [, weight]) => total + weight, 0);
+      const totalWeight = entries.reduce((total, [, weight]) => total + weight, 0);
+      const averageZ = entries.reduce((total, [themeId, weight]) => total + (zByTheme[themeId] || 0) * weight, 0) / totalWeight;
+      const relativeIndex = Math.max(0, Math.min(100, Math.round(((averageZ - minimumZ) / zSpan) * 100)));
+      const roleThemes = entries.map(([themeId, weight]) => ({ ...themeById[themeId], weight })).filter((theme) => theme.id);
+      const topHalfShare = roleThemes.length
+        ? Math.round((roleThemes.filter((theme) => theme.rank <= topHalfRank).length / roleThemes.length) * 100)
+        : 50;
+      const matchIndex = Math.max(0, Math.min(100, Math.round((0.4 * relativeIndex) + (0.6 * topHalfShare))));
       const matchedThemes = entries
         .map(([themeId, weight]) => ({ ...themeById[themeId], weight }))
         .sort((first, second) => (second.relativeSelection * second.weight) - (first.relativeSelection * first.weight))
         .slice(0, 3)
-        .map(({ id, name }) => ({ id, name }));
+        .map(({ id, name, rank }) => ({ id, name, rank }));
+      const themesToVerify = roleThemes
+        .sort((first, second) => second.rank - first.rank || second.weight - first.weight)
+        .slice(0, 2)
+        .map(({ id, name, rank, interviewQuestion }) => ({ id, name, rank, interviewQuestion }));
       const strongestTheme = matchedThemes[0];
       return {
         profileId: role.profileId,
         name: role.name,
         current: role.profileId === currentProfileId,
-        comparisonIndex,
+        matchIndex,
         matchedThemes,
+        themesToVerify,
         interviewQuestion: TALENT_META[strongestTheme?.id]?.iq || "Приведите недавний рабочий пример, который подтверждает эту гипотезу.",
         verification: role.verification,
       };
     })
-    .sort((first, second) => second.comparisonIndex - first.comparisonIndex || first.name.localeCompare(second.name, "ru"))
-    .map((role, index) => ({
-      ...role,
-      rank: index + 1,
-      signal: index === 0 ? "Наиболее близкая карта" : index < 3 ? "Близкая гипотеза" : "Нужна отдельная проверка",
-    }));
+    .sort((first, second) => second.matchIndex - first.matchIndex || first.name.localeCompare(second.name, "ru"))
+    .map((role, index, roles) => {
+      const rank = index > 0 && roles[index - 1].matchIndex === role.matchIndex
+        ? roles.findIndex((candidate) => candidate.matchIndex === role.matchIndex) + 1
+        : index + 1;
+      return {
+        ...role,
+        rank,
+        signal: rank === 1 ? "Наиболее близкая карта" : rank <= 3 ? "Близкая гипотеза" : "Нужна отдельная проверка",
+      };
+    });
 
   const visibleRoles = rankedRoles.slice(0, 3);
   const currentRole = rankedRoles.find((role) => role.current);
   if (currentRole && !visibleRoles.some((role) => role.profileId === currentRole.profileId)) visibleRoles.push(currentRole);
 
   return {
-    roles: visibleRoles.map(({ comparisonIndex: _comparisonIndex, ...role }) => role),
+    roles: visibleRoles,
+    allRoles: rankedRoles,
     comparedRoleCount: rankedRoles.length,
-    note: "Это ранжирование ролей по выбранным рабочим предпочтениям, а не прогноз успеха. Любую гипотезу нужно проверить одинаковой рабочей пробой и структурированным интервью.",
+    note: "Индекс 0–100 сравнивает роли только внутри этой карты предпочтений. Это не процент вероятности успеха, не проходной балл и не решение о найме. Гипотезу нужно проверить одинаковой рабочей пробой и структурированным интервью.",
   };
 }

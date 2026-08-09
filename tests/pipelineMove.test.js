@@ -21,7 +21,7 @@ function completeRater(raterId) {
 
 test("dragging stays free across operational stages but protects decisions", () => {
   const candidate = { finalDecision: "pending", raterEvidence: [] };
-  for (const stage of ["new", "assignment", "interview"]) assert.equal(pipelineMoveBlock(candidate, profile, stage), "");
+  for (const stage of ["new", "assignment", "interview", "work_sample"]) assert.equal(pipelineMoveBlock(candidate, profile, stage), "");
   assert.match(pipelineMoveBlock(candidate, profile, "decision"), /две полноценные/i);
   assert.match(pipelineMoveBlock(candidate, profile, "unknown"), /неизвестный/i);
 });

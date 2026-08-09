@@ -1,11 +1,11 @@
 import { decisionReadiness } from "./assessmentEngine.js";
 import { referenceDispositionComplete } from "./referenceCheck.js";
 
-const STAGES = new Set(["new", "assignment", "interview", "decision", "offer", "hired", "reserve", "declined"]);
+const STAGES = new Set(["new", "assignment", "interview", "work_sample", "decision", "offer", "hired", "reserve", "declined"]);
 
 export function pipelineMoveBlock(candidate, profile, targetStage) {
   if (!STAGES.has(targetStage)) return "Неизвестный этап воронки.";
-  if (["new", "assignment", "interview"].includes(targetStage)) return "";
+  if (["new", "assignment", "interview", "work_sample"].includes(targetStage)) return "";
 
   const readiness = decisionReadiness(profile, candidate, 2);
   if (!readiness.ready) return "Сначала нужны две полноценные независимые оценки.";

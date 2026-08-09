@@ -26,7 +26,9 @@ test("creating a real assessment also attempts an invite and exposes explicit se
 });
 
 test("CRM exposes preference progress and mouse drag affordances on the pipeline", () => {
-  assert.match(hiring, /Карта готова/);
+  assert.match(hiring, /Полная HR-сводка/);
+  assert.match(hiring, /Подводные камни/);
+  assert.match(hiring, /blindRating \? <><h2>Сводка откроется после вашей оценки/);
   assert.match(hiring, /workPreferenceStatus/);
   assert.match(hiring, /pointermove/);
   assert.match(hiring, /Перетащите карточку мышкой/);
@@ -35,6 +37,6 @@ test("CRM exposes preference progress and mouse drag affordances on the pipeline
 test("candidate sees role correspondence immediately after the preference map", () => {
   assert.match(portal, /"preferences", "preferenceResult"/);
   assert.match(portal, /Посмотреть результат/);
-  assert.match(portal, /Предварительное соответствие должностям/);
+  assert.match(portal, /Ближайшие рабочие направления/);
   assert.match(hiring, /Соответствие должностям/);
 });

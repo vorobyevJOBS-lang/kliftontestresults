@@ -28,18 +28,76 @@ export function buildWorkPreferenceMap(answers) {
     .map(([id, selections]) => ({
       id,
       name: TALENTS[id]?.name || id,
+      domain: TALENTS[id]?.domain || "Без домена",
+      description: TALENTS[id]?.description || "",
       selections,
       opportunities: opportunities[id],
       relativeSelection: opportunities[id] ? selections / opportunities[id] : 0,
+      preferenceIndex: opportunities[id] ? Math.round((selections / opportunities[id]) * 100) : 0,
+      strength: TALENT_META[id]?.plus || "",
+      risk: TALENT_META[id]?.risk || "",
+      pitfall: TALENT_META[id]?.pitfall || "",
+      watch: TALENT_META[id]?.watch || "",
       interviewQuestion: TALENT_META[id]?.iq || "Приведите недавний рабочий пример, который подтверждает эту гипотезу.",
     }))
-    .sort((first, second) => second.relativeSelection - first.relativeSelection || second.selections - first.selections || first.name.localeCompare(second.name, "ru"));
+    .sort((first, second) => second.relativeSelection - first.relativeSelection || second.selections - first.selections || first.name.localeCompare(second.name, "ru"))
+    .map((theme, index) => ({ ...theme, rank: index + 1 }));
+
+  const mainCounts = Object.fromEntries(Object.keys(TALENTS).map((id) => [id, 0]));
+  const mainOpportunities = Object.fromEntries(Object.keys(TALENTS).map((id) => [id, 0]));
+  QUESTIONS.forEach((question, index) => {
+    if (question.validation) return;
+    mainOpportunities[question.talentA] += 1;
+    mainOpportunities[question.talentB] += 1;
+    mainCounts[answers[index] === "A" ? question.talentA : question.talentB] += 1;
+  });
+  const mainPreference = Object.fromEntries(Object.keys(TALENTS).map((id) => [
+    id,
+    mainOpportunities[id] ? mainCounts[id] / mainOpportunities[id] : 0,
+  ]));
+  const validationQuestions = QUESTIONS.filter((question) => question.validation);
+  const repeatedPairMatches = validationQuestions.reduce((matches, question) => {
+    const answer = answers[QUESTIONS.indexOf(question)];
+    const difference = mainPreference[question.talentA] - mainPreference[question.talentB];
+    if (Math.abs(difference) <= 0.05) return matches + 1;
+    return matches + (answer === (difference > 0 ? "A" : "B") ? 1 : 0);
+  }, 0);
+  const responseConsistency = validationQuestions.length
+    ? Math.round((repeatedPairMatches / validationQuestions.length) * 100)
+    : null;
+
+  const domainScores = [...new Set(ranked.map((theme) => theme.domain))]
+    .map((domain) => {
+      const themes = ranked.filter((theme) => theme.domain === domain);
+      return {
+        domain,
+        preferenceIndex: Math.round(themes.reduce((total, theme) => total + theme.preferenceIndex, 0) / themes.length),
+      };
+    })
+    .sort((first, second) => second.preferenceIndex - first.preferenceIndex || first.domain.localeCompare(second.domain, "ru"));
+
+  const topThemes = ranked.slice(0, 5);
+  const topThree = topThemes.slice(0, 3);
+  const portrait = `В ответах чаще проявляются ${topThree.map((theme) => theme.name.toLowerCase()).join(", ")}. ${topThree.map((theme) => theme.description).filter(Boolean).join(" ")} Это рабочая гипотеза: подтвердите её примерами и поведением в одинаковой практической ситуации.`;
 
   return {
     schema: WORK_PREFERENCE_SCHEMA,
     itemBankSha256: WORK_PREFERENCE_BANK_SHA256,
     rankedThemes: ranked,
-    topThemes: ranked.slice(0, 5),
-    note: "Это относительная карта выбранных рабочих предпочтений внутри одного ответа. Она не измеряет способности, не даёт процент соответствия должности и не используется для автоматического отказа.",
+    topThemes,
+    bottomThemes: ranked.slice(-3).reverse(),
+    domainScores,
+    portrait,
+    strengths: topThemes.map((theme) => ({ id: theme.id, name: theme.name, rank: theme.rank, text: theme.strength })),
+    pitfalls: topThemes.map((theme) => ({ id: theme.id, name: theme.name, rank: theme.rank, text: theme.pitfall, question: theme.interviewQuestion })),
+    watchpoints: topThemes.map((theme) => ({ id: theme.id, name: theme.name, rank: theme.rank, text: theme.watch })),
+    responseCheck: {
+      checkedPairs: validationQuestions.length,
+      matchedPairs: repeatedPairMatches,
+      consistencyIndex: responseConsistency,
+      label: "справочный технический показатель",
+      note: "Совпадение повторных пар не имеет валидированных порогов, не измеряет надёжность или честность и не используется в решении о найме.",
+    },
+    note: "Это относительная карта предпочтений внутри ответов одного человека. Она не измеряет способности и не используется для автоматического отказа.",
   };
 }

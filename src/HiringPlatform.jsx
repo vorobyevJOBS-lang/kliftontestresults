@@ -4,6 +4,7 @@ import { assessmentAccessState, buildDecisionMatrix, calculateAssessment, canCom
 import { buildVerificationGuidance } from "./hiring/hrGuidance";
 import { INVITE_STATUS, summarizeInviteFunnel } from "./hiring/inviteStatus";
 import { pipelineMoveBlock } from "./hiring/pipelineMove";
+import { activePipelineStage, LEGACY_PIPELINE_OPTIONS, PIPELINE_BOARD_STAGES, PIPELINE_STAGE_OPTIONS, pipelineStageLabel, PRIMARY_PIPELINE_STAGES, stageMatchesColumn } from "./hiring/pipelineStages";
 import { parseReferenceCheck, referenceDispositionComplete, serializeReferenceCheck } from "./hiring/referenceCheck";
 import { refreshCanApply, saveCardThenOutcomes } from "./hiring/saveCoordination";
 import { configureValidationCalculator, summarizeValidation } from "./hiring/validationMetrics";
@@ -97,11 +98,6 @@ function Profiles({ profiles, onSelect, canCreate }) {
   </>;
 }
 
-const PIPELINE_STAGES = [
-  ["new", "Новый"], ["assignment", "Задание"], ["interview", "Интервью"], ["decision", "Решение"],
-  ["offer", "Оффер"], ["hired", "Нанят"], ["reserve", "Резерв"], ["declined", "Отказ"],
-];
-const PIPELINE_LABELS = Object.fromEntries(PIPELINE_STAGES);
 const ACTIVE_INVITE_STATUSES = new Set(["created", "opened", "in_progress"]);
 
 function InviteBadge({ candidate }) {
@@ -121,6 +117,66 @@ function InviteProgressNotice({ candidate }) {
     expired: "Срок ссылки истёк или предыдущая ссылка была заменена. Создайте новую ссылку, если кандидат продолжает отбор.",
   };
   return <div className={`eh-invite-notice is-${INVITE_STATUS[status]?.tone || "neutral"}`}><InviteBadge candidate={candidate} /><span>{messages[status]}</span></div>;
+}
+
+function RoleRelevanceCards({ relevance, includeChecks = false }) {
+  return <div className="eh-role-relevance-grid">
+    {relevance.roles.map((role) => <article key={role.profileId} className={role.current ? "is-current" : ""}>
+      <div className="eh-card-select"><span>{role.current ? "Текущая вакансия" : role.signal}</span><strong>{role.rank} место из {relevance.comparedRoleCount}</strong></div>
+      <div className="eh-role-index"><strong>{role.matchIndex}</strong><span>из 100<br />индекс близости</span></div>
+      <h4>{role.name}</h4>
+      <p><strong>Совпавшие темы:</strong> {role.matchedThemes.map((theme) => theme.name).join(", ")}.</p>
+      {includeChecks && <><p><strong>Уточнить:</strong> {role.interviewQuestion}</p><p><strong>Проверить:</strong> {role.verification}</p></>}
+    </article>)}
+  </div>;
+}
+
+function WorkPreferenceReport({ preferenceMap, roleRelevance }) {
+  const currentRole = roleRelevance.allRoles.find((role) => role.current) || roleRelevance.allRoles[0];
+  const riskItems = preferenceMap.pitfalls.slice(0, 3);
+  const watchItems = preferenceMap.watchpoints.slice(0, 3);
+  const interviewChecks = [
+    { label: "Подтвердить ведущую тему", text: preferenceMap.topThemes[0]?.interviewQuestion },
+    { label: "Проверить основной риск", text: riskItems[0]?.question },
+    { label: "Уточнить важную для роли тему", text: currentRole?.themesToVerify?.[0]?.interviewQuestion },
+    { label: "Ролевая проба", text: currentRole?.verification },
+  ].filter((item, index, items) => item.text && items.findIndex((candidate) => candidate.text === item.text) === index);
+
+  return <>
+    <div className="eh-report-heading">
+      <div><span className="eh-family">Полная HR-сводка</span><h2>Рабочий портрет и план проверки</h2></div>
+      <div className="eh-response-check"><strong>{WORK_PREFERENCE_QUESTION_COUNT}/{WORK_PREFERENCE_QUESTION_COUNT}</strong><span>все пары заполнены<small>карта готова к разбору как гипотеза</small></span></div>
+    </div>
+    <p className="eh-method-caption">{preferenceMap.note}</p>
+    <div className="eh-report-hero-grid">
+      <article className="eh-report-portrait"><span>Кто это человек — рабочая гипотеза</span><p>{preferenceMap.portrait}</p></article>
+      <article className="eh-report-target"><span>Целевая должность</span><div className="eh-role-index"><strong>{currentRole?.matchIndex ?? "—"}</strong><span>из 100<br />внутрипрофильный индекс</span></div><h3>{currentRole?.name || "Должность не выбрана"}</h3><p>{currentRole ? `${currentRole.rank} место среди ${roleRelevance.comparedRoleCount} сравниваемых ролей` : "Нет данных для сравнения"}</p></article>
+    </div>
+
+    <div className="eh-report-columns">
+      <section><h3>На что можно опереться</h3><p className="eh-method-caption">Вероятные сильные проявления — подтвердить рабочими примерами.</p><ul>{preferenceMap.strengths.slice(0, 4).map((item) => <li key={item.id}><strong>{item.name} · #{item.rank}</strong><span>{item.text}</span></li>)}</ul></section>
+      <section className="is-risk"><h3>Подводные камни</h3><p className="eh-method-caption">Не вердикты, а сценарии, которые нужно проверить.</p><ul>{riskItems.map((item) => <li key={item.id}><strong>{item.name} · #{item.rank}</strong><span>{item.text}</span><small>Вопрос: {item.question}</small></li>)}</ul></section>
+      <section><h3>Что наблюдать</h3><p className="eh-method-caption">На предобучении и стажировке.</p><ul>{watchItems.map((item) => <li key={item.id}><strong>{item.name} · #{item.rank}</strong><span>{item.text}</span></li>)}</ul></section>
+    </div>
+
+    <section className="eh-interview-plan">
+      <div><span className="eh-family">Готовый сценарий</span><h3>Что задать и какую ролевую пробу дать</h3><p>Запишите конкретный пример, действия и результат. Не засчитывайте общие обещания без фактов.</p></div>
+      <ol>{interviewChecks.map((item) => <li key={item.label}><strong>{item.label}</strong><span>{item.text}</span></li>)}</ol>
+    </section>
+
+    <h3>Соответствие должностям</h3>
+    <p>{roleRelevance.note}</p>
+    <RoleRelevanceCards relevance={roleRelevance} includeChecks />
+
+    <details className="eh-report-details">
+      <summary>Все должности, 20 тем и методика расчёта</summary>
+      <div className="eh-all-role-list">{roleRelevance.allRoles.map((role) => <div key={role.profileId} className={role.current ? "is-current" : ""}><strong>{role.matchIndex} из 100</strong><span>#{role.rank} · {role.name}{role.current ? " · текущая вакансия" : ""}</span></div>)}</div>
+      <div className="eh-all-theme-list">{preferenceMap.rankedThemes.map((theme) => <div key={theme.id}><strong>#{theme.rank} · {theme.name}</strong><span>{theme.preferenceIndex} из 100 выборов внутри доступных пар · {theme.domain}</span></div>)}</div>
+      <p className="eh-method-caption">Индекс должности показывает близость ключевых тем роли к относительному профилю ответов: 40% — расположение тем внутри карты, 60% — доля ключевых тем в верхней половине. Это не валидированная вероятность успешной работы и не основание для автоматического отказа.</p>
+      <p className="eh-method-caption">Техническое совпадение повторных пар: {preferenceMap.responseCheck.matchedPairs} из {preferenceMap.responseCheck.checkedPairs}. {preferenceMap.responseCheck.note}</p>
+      <p className="eh-method-caption">ПИН и другие ярлыки старого 200-вопросного теста «Профиль» из этой 166-парной карты не вычисляются. Исторические результаты не удаляются и остаются в архиве.</p>
+    </details>
+  </>;
 }
 
 function CandidateForm({ profile, branches, onCancel, onCreate, onApprove, canApprove }) {
@@ -318,7 +374,7 @@ function Assessment({ candidate, profile, onChange, onChangeOutcome, onBack, onA
     {demo && <p className="eh-helper" style={{ marginTop: -12, marginBottom: 16 }}>Защищённые ссылки доступны после входа и применения целевой схемы базы данных.</p>}
     {saveState === "error" && <div role="alert" className="eh-callout" style={{ marginBottom: 16 }}>{saveError || "Не удалось сохранить изменения. Проверьте соединение и права доступа."}</div>}
     {blindRating ? <div className="eh-blind-notice" role="status"><strong>Независимая оценка</strong><span>До фиксации вашей формы скрыты этап CRM, источник, комментарии команды, предварительное решение и исторические тесты.</span></div> : <section className="eh-panel eh-crm-strip" aria-label="Управление кандидатом">
-      <div><label className="eh-label" htmlFor="pipeline-stage">Этап воронки</label><select id="pipeline-stage" className="eh-select" disabled={!canManageCrm} value={candidate.pipelineStage || "new"} onChange={(event) => onChange({ ...candidate, pipelineStage: event.target.value })}>{PIPELINE_STAGES.map(([id, label]) => <option key={id} value={id} disabled={(terminalStages.has(id) && !decisionReady) || (["offer", "hired"].includes(id) && !referenceReady) || (requiredDecisionByStage[id] && candidate.finalDecision !== requiredDecisionByStage[id])}>{label}</option>)}</select></div>
+      <div><label className="eh-label" htmlFor="pipeline-stage">Этап воронки</label><select id="pipeline-stage" className="eh-select" disabled={!canManageCrm} value={candidate.pipelineStage || "new"} onChange={(event) => onChange({ ...candidate, pipelineStage: event.target.value })}>{LEGACY_PIPELINE_OPTIONS.filter(([id]) => id === candidate.pipelineStage).map(([id, label]) => <option key={id} value={id}>{label}</option>)}{PIPELINE_STAGE_OPTIONS.map(([id, label]) => <option key={id} value={id} disabled={(terminalStages.has(id) && !decisionReady) || (["offer", "hired"].includes(id) && !referenceReady) || (requiredDecisionByStage[id] && candidate.finalDecision !== requiredDecisionByStage[id])}>{label}</option>)}</select></div>
       <div><label className="eh-label" htmlFor="next-action">Следующее действие</label><input id="next-action" className="eh-input" disabled={!canManageCrm} value={candidate.nextAction || ""} onChange={(event) => onChange({ ...candidate, nextAction: event.target.value })} placeholder="Позвонить, назначить интервью…" /></div>
       <div><label className="eh-label" htmlFor="next-action-at">Срок</label><input id="next-action-at" className="eh-input" disabled={!canManageCrm} type="datetime-local" value={candidate.nextActionAt || ""} onChange={(event) => onChange({ ...candidate, nextActionAt: event.target.value })} /></div>
       <div><label className="eh-label" htmlFor="candidate-source">Источник</label><input id="candidate-source" className="eh-input" disabled={!canManageCrm} value={candidate.source || ""} onChange={(event) => onChange({ ...candidate, source: event.target.value })} placeholder="HH, рекомендация, соцсети…" /></div>
@@ -328,7 +384,7 @@ function Assessment({ candidate, profile, onChange, onChangeOutcome, onBack, onA
     </section>}
     {(candidate.candidateModules || []).includes(WORK_PREFERENCE_MODULE) && <section className="eh-panel eh-work-preference-summary" aria-label="Результат карты рабочих предпочтений">
       <span className="eh-family">Карта рабочих предпочтений</span>
-      {workPreferenceMap && roleRelevance ? <><h2>Карта готова</h2><p>{workPreferenceMap.note}</p><h3>Соответствие должностям</h3><p>{roleRelevance.note}</p><div className="eh-role-relevance-grid">{roleRelevance.roles.map((role) => <article key={role.profileId} className={role.current ? "is-current" : ""}><div className="eh-card-select"><span>{role.current ? "Текущая вакансия" : role.signal}</span><strong>{role.rank} место из {roleRelevance.comparedRoleCount}</strong></div><h4>{role.name}</h4><p><strong>Совпавшие темы:</strong> {role.matchedThemes.map((theme) => theme.name).join(", ")}.</p><p><strong>Уточнить:</strong> {role.interviewQuestion}</p><p><strong>Проверить:</strong> {role.verification}</p></article>)}</div><h3>Ведущие рабочие предпочтения</h3><div className="eh-preference-themes">{workPreferenceMap.topThemes.map((theme) => <article key={theme.id}><strong>{theme.name}</strong><span>{theme.selections} выборов из {theme.opportunities} возможных</span><p>Уточнить на интервью: {theme.interviewQuestion}</p></article>)}</div></> : <><h2>Заполнено {candidate.workPreferenceAnswers?.length || 0} из {WORK_PREFERENCE_QUESTION_COUNT}</h2><p>Итоговые гипотезы появятся после ответа на все пары. Остальные части задания могут быть завершены позже.</p></>}
+      {blindRating ? <><h2>Сводка откроется после вашей оценки</h2><p>Портрет, риски, индексы должностей и готовые уточнения скрыты, чтобы не влиять на независимые баллы.</p></> : workPreferenceMap && roleRelevance ? <WorkPreferenceReport preferenceMap={workPreferenceMap} roleRelevance={roleRelevance} /> : <><h2>Заполнено {candidate.workPreferenceAnswers?.length || 0} из {WORK_PREFERENCE_QUESTION_COUNT}</h2><p>Итоговые гипотезы появятся после ответа на все пары. Остальные части задания могут быть завершены позже.</p></>}
     </section>}
     <div className="eh-score-layout">
       <div className="eh-stack">
@@ -400,13 +456,13 @@ function Today({ candidates, onOpen, onNew, onCandidates, onProfiles, canCreate,
       {!pending.length ? <div className="eh-empty"><h3>Незавершённых оценок нет</h3><p>Новые назначения появятся здесь.</p></div> : <div className="eh-candidates">{pending.slice(0, 8).map((item) => <button type="button" className="eh-candidate eh-candidate-button" key={item.id} onClick={() => onOpen(item)}><div><strong>{item.name}</strong><p>{item.profileDefinition?.name || "Структурированная оценка"} · CRM-данные скрыты</p></div><span>Оценить →</span></button>)}</div>}
     </>;
   }
-  const activeStages = new Set(["new", "assignment", "interview", "decision", "offer"]);
-  const active = candidates.filter((item) => !item.archivedAt && activeStages.has(item.pipelineStage || "new"));
+  const active = candidates.filter((item) => !item.archivedAt && activePipelineStage(item.pipelineStage));
   const overdue = active.filter((item) => item.nextActionAt && new Date(item.nextActionAt) < new Date());
   const submitted = active.filter((item) => item.candidateSubmittedAt && !Object.keys(item.workSampleRatings || {}).length);
   const filling = active.filter((item) => ["opened", "in_progress"].includes(item.inviteStatus));
   const expiredInvites = active.filter((item) => item.inviteStatus === "expired");
-  const waitingDecision = active.filter((item) => item.pipelineStage === "decision" && (!item.finalDecision || item.finalDecision === "pending"));
+  const internshipStage = PRIMARY_PIPELINE_STAGES.find((stage) => stage.id === "work_sample");
+  const waitingDecision = active.filter((item) => stageMatchesColumn(item.pipelineStage, internshipStage) && (!item.finalDecision || item.finalDecision === "pending"));
   const priority = [...expiredInvites, ...overdue, ...submitted, ...waitingDecision].filter((item, index, rows) => rows.findIndex((row) => row.id === item.id) === index).slice(0, 8);
   const profilesReady = pilotProfileCount > 0;
   return <>
@@ -421,7 +477,7 @@ function Today({ candidates, onOpen, onNew, onCandidates, onProfiles, canCreate,
       <button type="button" onClick={onCandidates}><span>Решение</span><strong>{waitingDecision.length}</strong><small>ожидают комиссии</small></button>
     </div>
     <div className="eh-toolbar"><div><h2>Приоритетные кандидаты</h2><p>Сначала просроченные действия, затем новые ответы и решения</p></div><button type="button" className="eh-btn eh-btn-ghost" onClick={onCandidates}>Вся воронка</button></div>
-    {!priority.length ? <div className="eh-empty"><h3>Срочных действий нет</h3><p>{profilesReady ? "Добавьте кандидата или откройте общую воронку." : canApproveProfiles ? "Начните с подтверждения первой должности." : "Пока можно работать с историческим архивом; новые оценки появятся после подтверждения должности владельцем."}</p></div> : <div className="eh-candidates">{priority.map((item) => <button type="button" className="eh-candidate eh-candidate-button" key={item.id} onClick={() => onOpen(item)}><div><strong>{item.name}</strong><p>{PIPELINE_LABELS[item.pipelineStage || "new"] || "Активный этап"} · {item.inviteStatus === "expired" ? "срок ссылки истёк" : item.nextAction || "проверить карточку"}</p></div><span>Открыть →</span></button>)}</div>}
+    {!priority.length ? <div className="eh-empty"><h3>Срочных действий нет</h3><p>{profilesReady ? "Добавьте кандидата или откройте общую воронку." : canApproveProfiles ? "Начните с подтверждения первой должности." : "Пока можно работать с историческим архивом; новые оценки появятся после подтверждения должности владельцем."}</p></div> : <div className="eh-candidates">{priority.map((item) => <button type="button" className="eh-candidate eh-candidate-button" key={item.id} onClick={() => onOpen(item)}><div><strong>{item.name}</strong><p>{pipelineStageLabel(item.pipelineStage)} · {item.inviteStatus === "expired" ? "срок ссылки истёк" : item.nextAction || "проверить карточку"}</p></div><span>Открыть →</span></button>)}</div>}
   </>;
 }
 
@@ -429,17 +485,17 @@ function Candidates({ candidates, archive, branches, onRefreshArchive, onOpen, o
   const [source, setSource] = useState("current");
   const [search, setSearch] = useState(""); const [stage, setStage] = useState("active"); const [profileId, setProfileId] = useState("all"); const [branchId, setBranchId] = useState("all");
   const [compareIds, setCompareIds] = useState([]);
-  const active = new Set(["new", "assignment", "interview", "decision", "offer"]);
   const profileFor = (item) => item.profileDefinition || resolveProfile(item.profileId);
   const filtered = candidates.filter((candidate) => {
     const profile = profileFor(candidate); const current = candidate.pipelineStage || "new";
+    const selectedColumn = PIPELINE_BOARD_STAGES.find((column) => column.id === stage);
     const matchesStage = canCreate
-      ? (stage === "archived" ? Boolean(candidate.archivedAt) : !candidate.archivedAt && (stage === "all" || (stage === "active" ? active.has(current) : current === stage)))
+      ? (stage === "archived" ? Boolean(candidate.archivedAt) : !candidate.archivedAt && (stage === "all" || (stage === "active" ? activePipelineStage(current) : selectedColumn ? stageMatchesColumn(current, selectedColumn) : current === stage)))
       : !candidate.archivedAt;
     return profile && (!search || `${candidate.name} ${candidate.email} ${profile.name}`.toLowerCase().includes(search.toLowerCase())) && (profileId === "all" || candidate.profileId === profileId) && (branchId === "all" || candidate.branchId === branchId) && matchesStage;
   });
   const profiles = [...new Map(candidates.map((item) => [item.profileId, profileFor(item)?.name]).filter(([, name]) => name)).entries()];
-  const overdue = canCreate ? candidates.filter((item) => (branchId === "all" || item.branchId === branchId) && !item.archivedAt && item.nextActionAt && new Date(item.nextActionAt) < new Date() && active.has(item.pipelineStage || "new")).length : 0;
+  const overdue = canCreate ? candidates.filter((item) => (branchId === "all" || item.branchId === branchId) && !item.archivedAt && item.nextActionAt && new Date(item.nextActionAt) < new Date() && activePipelineStage(item.pipelineStage)).length : 0;
   const compared = compareIds.map((id) => candidates.find((item) => item.id === id)).filter(Boolean);
   const comparisonCandidate = (item) => {
     const p = profileFor(item);
@@ -462,7 +518,7 @@ function Candidates({ candidates, archive, branches, onRefreshArchive, onOpen, o
       window.alert(reason?.message || "Не удалось изменить этап.");
     }
   };
-  const visibleStages = stage === "all" ? PIPELINE_STAGES : stage === "active" ? PIPELINE_STAGES.filter(([id]) => active.has(id)) : PIPELINE_STAGES.filter(([id]) => id === stage);
+  const visibleStages = stage === "all" ? PIPELINE_BOARD_STAGES : stage === "active" ? PRIMARY_PIPELINE_STAGES : PIPELINE_BOARD_STAGES.filter((column) => column.id === stage);
   useEffect(() => {
     if (!canCreate || source !== "current") return undefined;
     const board = document.querySelector(".eh-pipeline-board");
@@ -470,9 +526,9 @@ function Candidates({ candidates, archive, branches, onRefreshArchive, onOpen, o
     const controller = new AbortController();
     const options = { signal: controller.signal };
     [...board.querySelectorAll(".eh-pipeline-column")].forEach((column, columnIndex) => {
-      const targetStage = visibleStages[columnIndex]?.[0];
+      const targetStage = visibleStages[columnIndex]?.id;
       column.dataset.pipelineStage = targetStage;
-      const rows = filtered.filter((item) => (item.pipelineStage || "new") === targetStage);
+      const rows = filtered.filter((item) => stageMatchesColumn(item.pipelineStage, visibleStages[columnIndex]));
       [...column.querySelectorAll(".eh-pipeline-card")].forEach((card, cardIndex) => {
         const moved = rows[cardIndex];
         if (!moved) return;
@@ -526,9 +582,9 @@ function Candidates({ candidates, archive, branches, onRefreshArchive, onOpen, o
   return <>
     {canCreate && <div className="eh-source-tabs"><button type="button" aria-current="page">Текущая воронка ({candidates.filter((item) => !item.archivedAt).length})</button><button type="button" onClick={() => setSource("legacy")}>Исторические результаты ({archive.items?.length || 0})</button></div>}
     <div className="eh-toolbar"><div><h2>{canCreate ? "Кандидаты" : "Назначенные оценки"}</h2><p>{canCreate ? `${filtered.length} в выборке · ${overdue} просроченных действий` : `${filtered.length} форм · CRM и исторические тесты скрыты до вашей submit`}</p></div>{canCreate && <button type="button" className="eh-btn eh-btn-primary" onClick={onNew}>Добавить кандидата</button>}</div>
-    <div className={`eh-panel eh-crm-filters ${canCreate ? "" : "eh-crm-filters-blind"}`}><div><label className="eh-label" htmlFor="candidate-search">Поиск</label><input id="candidate-search" className="eh-input" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Имя, email или должность" /></div>{canCreate && <div><label className="eh-label" htmlFor="candidate-stage">Этап</label><select id="candidate-stage" className="eh-select" value={stage} onChange={(event) => setStage(event.target.value)}><option value="active">Активные</option><option value="all">Все текущие</option><option value="archived">Архив карточек</option>{PIPELINE_STAGES.map(([id,label]) => <option key={id} value={id}>{label}</option>)}</select></div>}<div><label className="eh-label" htmlFor="candidate-role">Должность</label><select id="candidate-role" className="eh-select" value={profileId} onChange={(event) => setProfileId(event.target.value)}><option value="all">Все должности</option>{profiles.map(([id,name]) => <option key={id} value={id}>{name}</option>)}</select></div>{canCreate && branches.length > 1 && <div><label className="eh-label" htmlFor="candidate-branch-filter">Филиал</label><select id="candidate-branch-filter" className="eh-select" value={branchId} onChange={(event) => setBranchId(event.target.value)}><option value="all">Все доступные</option>{branches.map((branch) => <option key={branch.id} value={branch.id}>{branch.name}</option>)}</select></div>}</div>
+    <div className={`eh-panel eh-crm-filters ${canCreate ? "" : "eh-crm-filters-blind"}`}><div><label className="eh-label" htmlFor="candidate-search">Поиск</label><input id="candidate-search" className="eh-input" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Имя, email или должность" /></div>{canCreate && <div><label className="eh-label" htmlFor="candidate-stage">Этап</label><select id="candidate-stage" className="eh-select" value={stage} onChange={(event) => setStage(event.target.value)}><option value="active">Активные — 5 этапов</option><option value="all">Все текущие</option><option value="archived">Архив карточек</option>{PIPELINE_BOARD_STAGES.map(({ id, label }) => <option key={id} value={id}>{label}</option>)}</select></div>}<div><label className="eh-label" htmlFor="candidate-role">Должность</label><select id="candidate-role" className="eh-select" value={profileId} onChange={(event) => setProfileId(event.target.value)}><option value="all">Все должности</option>{profiles.map(([id,name]) => <option key={id} value={id}>{name}</option>)}</select></div>{canCreate && branches.length > 1 && <div><label className="eh-label" htmlFor="candidate-branch-filter">Филиал</label><select id="candidate-branch-filter" className="eh-select" value={branchId} onChange={(event) => setBranchId(event.target.value)}><option value="all">Все доступные</option>{branches.map((branch) => <option key={branch.id} value={branch.id}>{branch.name}</option>)}</select></div>}</div>
     {canCreate && compared.length >= 2 && <section className="eh-panel eh-compare"><div className="eh-role-head"><div><span className="eh-family">Одинаковые должность, версия и филиал</span><h2>Сравнение доказательств</h2></div><button type="button" className="eh-btn eh-btn-ghost" onClick={() => setCompareIds([])}>Очистить</button></div><div className="eh-compare-grid">{compared.map((item) => { const p = profileFor(item); const matrix = buildDecisionMatrix(p, item); const sample = methodEvidenceSummary(matrix, "work_sample"); const interview = methodEvidenceSummary(matrix, "structured_interview"); const range = (summary) => summary.minimum == null ? "нет данных" : `${summary.minimum}–${summary.maximum} / 5 · расхождений: ${summary.disagreements}`; return <article key={item.id}><strong>{item.name}</strong><span>{p.name}</span><b>{matrix.raters.length} оценщика</b><small>Рабочая проба: {range(sample)}</small><small>Интервью: {range(interview)}</small><button type="button" className="eh-btn eh-btn-secondary" onClick={() => onOpen(item)}>Открыть матрицу</button></article>; })}</div><p className="eh-helper">В сравнение попадают только две полные submitted-оценки. Диапазоны не подменяют факты общим баллом.</p></section>}
-    {!filtered.length ? <div className="eh-empty"><h3>Кандидаты не найдены</h3><p>{canCreate ? "Измените фильтры или создайте новую оценку." : "Измените фильтры или дождитесь назначения карточки."}</p>{canCreate && <button type="button" className="eh-btn eh-btn-primary" onClick={onNew}>Выбрать должность</button>}</div> : !canCreate ? <div className="eh-candidates">{filtered.map((candidate) => { const profile = profileFor(candidate); const result = calculateAssessment(profile, candidate.interviewRatings, candidate.workSampleRatings); return <button type="button" className="eh-candidate eh-candidate-button" key={candidate.id} onClick={() => onOpen(candidate)}><div><strong>{candidate.name}</strong><p>{profile.name} · {candidate.currentRaterSubmittedAt ? "ваша оценка зафиксирована" : `ваша форма заполнена на ${result.completion}%`}</p></div><span>{candidate.currentRaterSubmittedAt ? "Открыть →" : "Оценить →"}</span></button>; })}</div> : stage === "archived" ? <div className="eh-candidates">{filtered.map((candidate) => <button type="button" className="eh-candidate eh-candidate-button" key={candidate.id} onClick={() => onOpen(candidate)}><div><strong>{candidate.name}</strong><p>{profileFor(candidate)?.name} · данные сохранены</p></div><span>Открыть →</span></button>)}</div> : <div className="eh-pipeline-board">{visibleStages.map(([id,label]) => { const rows = filtered.filter((item) => (item.pipelineStage || "new") === id); return <section className="eh-pipeline-column" key={id}><header><strong>{label}</strong><span>{rows.length}</span></header>{rows.length ? rows.map((candidate) => { const profile = profileFor(candidate); const result = calculateAssessment(profile, candidate.interviewRatings, candidate.workSampleRatings); const readiness = decisionReadiness(profile, candidate, 2); const isOverdue = candidate.nextActionAt && new Date(candidate.nextActionAt) < new Date(); const selected = compareIds.includes(candidate.id); const comparisonAllowed = canAddToComparison(candidate); return <article className={`eh-pipeline-card ${selected ? "is-selected" : ""}`} key={candidate.id}><div className="eh-card-select"><label title={comparisonAllowed ? "" : "Сравнение доступно после двух полных submitted-оценок одной должности, версии и филиала"}><input type="checkbox" checked={selected} disabled={!selected && (compareIds.length >= 4 || !comparisonAllowed)} onChange={() => toggleCompare(candidate)} /> Сравнить</label><small>{branchById(candidate.branchId).name}</small></div><strong>{candidate.name}</strong><span>{profile.name}</span><InviteBadge candidate={candidate} /><small>Комиссия: {readiness.completeRaters} из {readiness.minimumRaters} оценок</small><small>Ваша форма: {result.completion}%</small>{candidate.nextAction && <small className={isOverdue ? "is-overdue" : ""}>{candidate.nextAction}{candidate.nextActionAt ? ` · ${new Date(candidate.nextActionAt).toLocaleDateString("ru-RU")}` : ""}</small>}<button type="button" className="eh-btn eh-btn-secondary" onClick={() => onOpen(candidate)}>Открыть</button></article>; }) : <p>Нет кандидатов</p>}</section>; })}</div>}
+    {!filtered.length ? <div className="eh-empty"><h3>Кандидаты не найдены</h3><p>{canCreate ? "Измените фильтры или создайте новую оценку." : "Измените фильтры или дождитесь назначения карточки."}</p>{canCreate && <button type="button" className="eh-btn eh-btn-primary" onClick={onNew}>Выбрать должность</button>}</div> : !canCreate ? <div className="eh-candidates">{filtered.map((candidate) => { const profile = profileFor(candidate); const result = calculateAssessment(profile, candidate.interviewRatings, candidate.workSampleRatings); return <button type="button" className="eh-candidate eh-candidate-button" key={candidate.id} onClick={() => onOpen(candidate)}><div><strong>{candidate.name}</strong><p>{profile.name} · {candidate.currentRaterSubmittedAt ? "ваша оценка зафиксирована" : `ваша форма заполнена на ${result.completion}%`}</p></div><span>{candidate.currentRaterSubmittedAt ? "Открыть →" : "Оценить →"}</span></button>; })}</div> : stage === "archived" ? <div className="eh-candidates">{filtered.map((candidate) => <button type="button" className="eh-candidate eh-candidate-button" key={candidate.id} onClick={() => onOpen(candidate)}><div><strong>{candidate.name}</strong><p>{profileFor(candidate)?.name} · данные сохранены</p></div><span>Открыть →</span></button>)}</div> : <div className="eh-pipeline-board">{visibleStages.map((column) => { const rows = filtered.filter((item) => stageMatchesColumn(item.pipelineStage, column)); return <section className="eh-pipeline-column" key={column.id}><header><strong>{column.label}</strong><span>{rows.length}</span></header>{rows.length ? rows.map((candidate) => { const profile = profileFor(candidate); const result = calculateAssessment(profile, candidate.interviewRatings, candidate.workSampleRatings); const readiness = decisionReadiness(profile, candidate, 2); const isOverdue = candidate.nextActionAt && new Date(candidate.nextActionAt) < new Date(); const selected = compareIds.includes(candidate.id); const comparisonAllowed = canAddToComparison(candidate); return <article className={`eh-pipeline-card ${selected ? "is-selected" : ""}`} key={candidate.id}><div className="eh-card-select"><label title={comparisonAllowed ? "" : "Сравнение доступно после двух полных submitted-оценок одной должности, версии и филиала"}><input type="checkbox" checked={selected} disabled={!selected && (compareIds.length >= 4 || !comparisonAllowed)} onChange={() => toggleCompare(candidate)} /> Сравнить</label><small>{branchById(candidate.branchId).name}</small></div><strong>{candidate.name}</strong><span>{profile.name}</span><InviteBadge candidate={candidate} /><small>Комиссия: {readiness.completeRaters} из {readiness.minimumRaters} оценок</small><small>Ваша форма: {result.completion}%</small>{candidate.nextAction && <small className={isOverdue ? "is-overdue" : ""}>{candidate.nextAction}{candidate.nextActionAt ? ` · ${new Date(candidate.nextActionAt).toLocaleDateString("ru-RU")}` : ""}</small>}<button type="button" className="eh-btn eh-btn-secondary" onClick={() => onOpen(candidate)}>Открыть</button></article>; }) : <p>Нет кандидатов</p>}</section>; })}</div>}
   </>;
 }
 
