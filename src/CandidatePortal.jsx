@@ -301,7 +301,7 @@ export default function CandidatePortal() {
       lastSavedRef.current = payload;
       setDone(true);
     } catch {
-      setState((current) => ({ ...current, error: "Не удалось отправить ответ. Проверьте соединение или запросите новую ссылку." }));
+      setState((current) => ({ ...current, error: "Не удалось завершить отправку. Ответы остаются в форме: нажмите «Отправить окончательно» ещё раз. Если ошибка повторится, сообщите команде найма." }));
     } finally {
       setSubmitting(false);
     }

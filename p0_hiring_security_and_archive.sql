@@ -2224,6 +2224,8 @@ declare
   answers jsonb;
   answer_count integer;
   work_sample text;
+  approach text;
+  verification text;
 begin
   if response_text is null or char_length(response_text) > 20000 then
     return false;
@@ -2240,11 +2242,24 @@ begin
     return false;
   end if;
   work_sample := payload ->> 'workSample';
-  if require_complete and (
-    char_length(btrim(split_part(split_part(work_sample, '[КЛЮЧЕВЫЕ ДЕТАЛИ]', 1), E'\n', 2))) < 20
-    or char_length(btrim(split_part(work_sample, '[ПРОВЕРКА РЕЗУЛЬТАТА]' || E'\n', 2))) < 1
-  ) then
-    return false;
+  if require_complete then
+    if position('[ПЛАН ИЛИ РЕШЕНИЕ]' || E'\n' in work_sample) <> 1
+       or position(E'\n\n[КЛЮЧЕВЫЕ ДЕТАЛИ]\n' in work_sample) = 0
+       or position(E'\n\n[ПРОВЕРКА РЕЗУЛЬТАТА]\n' in work_sample) = 0
+       or position(E'\n\n[КЛЮЧЕВЫЕ ДЕТАЛИ]\n' in work_sample)
+          >= position(E'\n\n[ПРОВЕРКА РЕЗУЛЬТАТА]\n' in work_sample) then
+      return false;
+    end if;
+    approach := split_part(
+      split_part(work_sample, E'\n\n[КЛЮЧЕВЫЕ ДЕТАЛИ]\n', 1),
+      '[ПЛАН ИЛИ РЕШЕНИЕ]' || E'\n',
+      2
+    );
+    verification := split_part(work_sample, E'\n\n[ПРОВЕРКА РЕЗУЛЬТАТА]\n', 2);
+    if char_length(btrim(approach)) < 20
+       or char_length(btrim(verification)) < 1 then
+      return false;
+    end if;
   end if;
   if 'work_preferences_fc' = any(coalesce(candidate_modules, '{}')) then
     if jsonb_typeof(payload -> 'rolePreferences') is distinct from 'object'

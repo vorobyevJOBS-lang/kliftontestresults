@@ -25,6 +25,12 @@ test("creating a real assessment also attempts an invite and exposes explicit se
   assert.match(hiring, /письмо не отправляется автоматически/i);
 });
 
+test("a failed final submit keeps a retry action instead of telling the candidate to restart", () => {
+  assert.match(portal, /Ответы остаются в форме/);
+  assert.match(portal, /нажмите «Отправить окончательно» ещё раз/);
+  assert.doesNotMatch(portal, /запросите новую ссылку/);
+});
+
 test("CRM exposes preference progress and mouse drag affordances on the pipeline", () => {
   assert.match(hiring, /Полная HR-сводка/);
   assert.match(hiring, /Подводные камни/);

@@ -7,7 +7,7 @@
 - External integrations: hh.ru integration is explicitly out of scope by owner decision (2026-08-07); do not implement or plan it unless the owner reverses this decision.
 - Stack: React 18, Vite 8, Supabase Auth/Postgres/RLS, Vercel.
 - Key code: `src/HiringPlatform.jsx`, `src/CandidatePortal.jsx`, `src/hiring/`, `api/`.
-- Database changes: idempotent root-level SQL migration files; preserve legacy result tables. Production has `p0_hiring_security_and_archive.sql` and `p1_legacy_archive_rpc.sql` applied. Do not rerun older `*_schema.sql`, `branch_access_migration.sql`, or `fix_prim_results_visibility.sql`; they contain superseded broad grants/policies.
+- Database changes: idempotent root-level SQL migration files; preserve legacy result tables. Production has `p0_hiring_security_and_archive.sql`, `p1_legacy_archive_rpc.sql`, and `p2_candidate_submission_multiline_fix.sql` applied. Do not rerun older `*_schema.sql`, `branch_access_migration.sql`, or `fix_prim_results_visibility.sql`; they contain superseded broad grants/policies.
 - Branch IDs: `klyachka_nvkz`, `klyachka_krsk_center`, `klyachka_krsk_vzlet`, `jobs_design`.
 - Build: `npm run build`
 - Tests: `npm test`

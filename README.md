@@ -35,8 +35,10 @@ at desktop and 390×844 viewport sizes.
 - Database: Supabase with Auth, RLS and capability-token candidate invitations.
 
 Do not apply superseded SQL files. Apply `p0_hiring_security_and_archive.sql`,
-then `p1_legacy_archive_rpc.sql`. P0 guards legacy row counts and fingerprints
-inside its transaction; P1 exposes only branch-scoped authenticated archive RPCs.
+then `p1_legacy_archive_rpc.sql`, then `p2_candidate_submission_multiline_fix.sql`.
+P0 guards legacy row counts and fingerprints inside its transaction; P1 exposes
+only branch-scoped authenticated archive RPCs; P2 fixes final validation of
+multi-line candidate work samples without rewriting any saved response.
 
 ## Operating documents
 
