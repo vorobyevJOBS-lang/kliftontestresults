@@ -45,3 +45,30 @@ test("unfinished draft reuses consent only for the current notice version", () =
   assert.equal(hasCurrentConsent({ consent_at: "2026-01-01", consent_notice: { version: "current" } }, "current"), true);
   assert.equal(hasCurrentConsent({ submitted_at: "2026-01-02", consent_notice: { version: "old" } }, "current"), true);
 });
+
+test("local draft copy restores only unsynced answers written on the current server version", async () => {
+  const { chooseLocalDraft, clearLocalDraft, localDraftKey, readLocalDraft, writeLocalDraft, LOCAL_DRAFT_MAX_AGE_MS } = await import("../src/hiring/candidateDraftQueue.js");
+  const store = new Map();
+  const storage = { getItem: (k) => store.get(k) ?? null, setItem: (k, v) => store.set(k, v), removeItem: (k) => store.delete(k) };
+  const key = await localDraftKey("a".repeat(64));
+  assert.match(key, /^evidencehire-draft:[0-9a-f]{32}$/);
+  assert.notEqual(key, await localDraftKey("b".repeat(64)));
+  assert.doesNotMatch(key, /aaaa/);
+
+  writeLocalDraft(storage, key, "local answers", "server v1", 1000);
+  const entry = readLocalDraft(storage, key);
+  assert.equal(chooseLocalDraft(entry, "server v1", false, 2000), "local answers");
+  assert.equal(chooseLocalDraft(entry, "server v2 from another device", false, 2000), null);
+  assert.equal(chooseLocalDraft(entry, "server v1", true, 2000), null);
+  assert.equal(chooseLocalDraft(entry, "server v1", false, 1000 + LOCAL_DRAFT_MAX_AGE_MS + 1), null);
+  assert.equal(chooseLocalDraft({ ...entry, payload: "server v1" }, "server v1", false, 2000), null);
+
+  clearLocalDraft(storage, key);
+  assert.equal(readLocalDraft(storage, key), null);
+  storage.setItem(key, "{broken");
+  assert.equal(readLocalDraft(storage, key), null);
+  const throwing = { getItem() { throw new Error("blocked"); }, setItem() { throw new Error("full"); }, removeItem() { throw new Error("blocked"); } };
+  assert.equal(readLocalDraft(throwing, key), null);
+  assert.doesNotThrow(() => writeLocalDraft(throwing, key, "x", ""));
+  assert.doesNotThrow(() => clearLocalDraft(throwing, key));
+});

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { getJobProfile } from "./hiring/jobProfiles";
 import { getCandidateAssignment, saveCandidateAssignmentDraft, submitCandidateAssignment } from "./hiring/secureRepository";
-import { createSerialDraftQueue, hasCurrentConsent } from "./hiring/candidateDraftQueue";
+import { chooseLocalDraft, clearLocalDraft, createSerialDraftQueue, hasCurrentConsent, localDraftKey, readLocalDraft, writeLocalDraft } from "./hiring/candidateDraftQueue";
 import { QUESTIONS } from "./questions";
 import { buildWorkPreferenceMap, WORK_PREFERENCE_BANK_SHA256, WORK_PREFERENCE_MODULE, WORK_PREFERENCE_QUESTION_COUNT, WORK_PREFERENCE_SCHEMA, validWorkPreferenceAnswers } from "./hiring/workPreferenceMap";
 import { buildRoleRelevance } from "./hiring/roleRelevance";
@@ -25,6 +25,14 @@ const emptyResponse = (profile) => ({
   workSample: { approach: "", details: "", verification: "" },
   workPreferenceAnswers: [],
 });
+
+function browserStorage() {
+  try {
+    return window.localStorage;
+  } catch {
+    return null;
+  }
+}
 
 function parseSavedResponse(rawResponse, profile) {
   const fallback = emptyResponse(profile);
@@ -142,6 +150,7 @@ export default function CandidatePortal() {
   const latestPayloadRef = useRef("");
   const draftQueueRef = useRef(null);
   const mountedRef = useRef(true);
+  const localKeyRef = useRef("");
 
   if (!draftQueueRef.current) {
     draftQueueRef.current = createSerialDraftQueue((payload) => (
@@ -159,6 +168,7 @@ export default function CandidatePortal() {
     setDraftState("saving");
     return draftQueueRef.current.enqueue(payload).then(() => {
       lastSavedRef.current = draftQueueRef.current.lastSaved();
+      if (localKeyRef.current && lastSavedRef.current === latestPayloadRef.current) clearLocalDraft(browserStorage(), localKeyRef.current);
       if (mountedRef.current && latestPayloadRef.current === payload) setDraftState("saved");
       return true;
     }).catch((reason) => {
@@ -170,11 +180,21 @@ export default function CandidatePortal() {
   useEffect(() => {
     if (!token) return undefined;
     let cancelled = false;
-    getCandidateAssignment(token).then((assignment) => {
+    getCandidateAssignment(token).then(async (assignment) => {
       if (!assignment) throw new Error("not-found");
       const profile = resolveProfile(assignment);
-      const restored = parseSavedResponse(assignment.candidate_response || "", profile);
+      const serverPayload = assignment.candidate_response || "";
+      const localKey = await localDraftKey(token).catch(() => "");
+      const storage = browserStorage();
+      const localPayload = localKey
+        ? chooseLocalDraft(readLocalDraft(storage, localKey), serverPayload, Boolean(assignment.submitted_at))
+        : null;
+      if (localKey && assignment.submitted_at) clearLocalDraft(storage, localKey);
+      const restored = parseSavedResponse(localPayload ?? serverPayload, profile);
       if (cancelled) return;
+      localKeyRef.current = localKey;
+      // Unsaved answers from this browser are pushed to the server by autosave.
+      if (localPayload !== null) editedRef.current = true;
       lastSavedRef.current = assignment.candidate_response || "";
       latestPayloadRef.current = assignment.candidate_response || "";
       draftQueueRef.current.initialize(assignment.candidate_response || "");
@@ -200,6 +220,7 @@ export default function CandidatePortal() {
     if (!state.assignment || done || !consent || !editedRef.current) return undefined;
     const payload = serializeResponse(response);
     latestPayloadRef.current = payload;
+    if (localKeyRef.current) writeLocalDraft(browserStorage(), localKeyRef.current, payload, lastSavedRef.current);
     setDraftState("pending");
     const timer = window.setTimeout(() => {
       persistDraft(payload).catch(() => {});
@@ -299,6 +320,7 @@ export default function CandidatePortal() {
       await draftQueueRef.current.waitForIdle().catch(() => {});
       await submitCandidateAssignment(token, payload, consent, PRIVACY_NOTICE_VERSION);
       lastSavedRef.current = payload;
+      if (localKeyRef.current) clearLocalDraft(browserStorage(), localKeyRef.current);
       setDone(true);
     } catch {
       setState((current) => ({ ...current, error: "Не удалось завершить отправку. Ответы остаются в форме: нажмите «Отправить окончательно» ещё раз. Если ошибка повторится, сообщите команде найма." }));

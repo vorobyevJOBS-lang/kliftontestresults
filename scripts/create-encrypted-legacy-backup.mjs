@@ -1,3 +1,6 @@
+// SUPERSEDED: this one-off script created the 2026-08-06 legacy copy before P0.
+// P0 revoked browser-key access to legacy tables, so it can no longer read them.
+// Use scripts/create-encrypted-full-backup.mjs (requires P3) for new backups.
 import { createCipheriv, createHash, randomBytes } from "node:crypto";
 import { mkdir, open, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";

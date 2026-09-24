@@ -42,3 +42,49 @@ export function hasCurrentConsent(assignment, noticeVersion) {
     : assignment.consent_notice;
   return notice?.version === noticeVersion;
 }
+
+// Browser-side safety copy of answers the server has not confirmed yet. It is
+// keyed by a hash of the invitation token and removed after a confirmed save.
+export const LOCAL_DRAFT_MAX_AGE_MS = 14 * 24 * 60 * 60 * 1000;
+
+export async function localDraftKey(token) {
+  const bytes = new TextEncoder().encode(`evidencehire-draft:${token}`);
+  const digest = await globalThis.crypto.subtle.digest("SHA-256", bytes);
+  const hex = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
+  return `evidencehire-draft:${hex.slice(0, 32)}`;
+}
+
+export function readLocalDraft(storage, key) {
+  try {
+    const entry = JSON.parse(storage?.getItem(key) || "null");
+    return entry && typeof entry.payload === "string" ? entry : null;
+  } catch {
+    return null;
+  }
+}
+
+export function writeLocalDraft(storage, key, payload, baseline, now = Date.now()) {
+  try {
+    storage?.setItem(key, JSON.stringify({ payload, baseline, savedAt: now }));
+  } catch {
+    // Storage may be full or disabled; the server draft remains the source.
+  }
+}
+
+export function clearLocalDraft(storage, key) {
+  try {
+    storage?.removeItem(key);
+  } catch {
+    // Ignore unavailable storage.
+  }
+}
+
+// Restore a local copy only when it was written on top of the exact server
+// version we see now; otherwise a newer server draft (another device) wins.
+export function chooseLocalDraft(localEntry, serverPayload, submitted, now = Date.now()) {
+  if (!localEntry || submitted) return null;
+  if (typeof localEntry.savedAt !== "number" || now - localEntry.savedAt > LOCAL_DRAFT_MAX_AGE_MS) return null;
+  if (localEntry.payload === (serverPayload || "")) return null;
+  if ((localEntry.baseline || "") !== (serverPayload || "")) return null;
+  return localEntry.payload;
+}
