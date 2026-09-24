@@ -41,3 +41,11 @@ Created and decrypted successfully on 2026-08-06:
 The payload and key must be copied to separate secure locations. This local copy
 protects the migration, but it is not a complete disaster-recovery strategy while
 both artifacts remain on the same Mac.
+
+## Current backups (after P3)
+
+The 2026-08-06 script used the browser key and stopped working after P0. New
+copies are made with `scripts/create-encrypted-full-backup.mjs` signed in as the
+owner. It exports the legacy tables and the current CRM, compares the legacy
+tables with the fingerprints above and writes the encrypted copy even when a
+comparison fails. Recommended cadence: weekly and before every migration.
